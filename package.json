@@ -1,0 +1,24 @@
+{
+  "name": "tossa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build:web": "npm --prefix web run build",
+    "build": "npm run build:web && tsc --noEmit",
+    "db:init:local": "wrangler d1 execute tossa-db --local --file=./schema.sql",
+    "db:seed:local": "wrangler d1 execute tossa-db --local --file=./seed.sql",
+    "db:reset:local": "npm run db:init:local && npm run db:seed:local",
+    "typecheck": "tsc --noEmit && npm --prefix web run check"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "^13.1.1",
+    "hono": "^4.7.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250204.0",
+    "typescript": "^5.7.3",
+    "wrangler": "^3.107.3"
+  }
+}
