@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS posts (
     status_label TEXT NOT NULL,   -- 日本語表示ラベル (給水中, 配布終了, 混雑, 営業中 等)
     note TEXT,                    -- 補足・備考
     url TEXT,                     -- 関連リンク・SNS URL
+    source_url TEXT,              -- 情報源URL（自治体HP、公式X、ニュース等）
+    image_url TEXT,               -- 投稿写真（最適化WebP/JPEG Data URLまたは画像URL）
+    image_meta TEXT NOT NULL DEFAULT '{}', -- JSON: EXIF（撮影日時・GPS・機種）およびC2PA真正性メタデータ
+    verification_count INTEGER NOT NULL DEFAULT 0, -- コミュニティ確認済件数
+    last_verified_at TEXT,        -- 最終確認時刻
     attributes TEXT NOT NULL DEFAULT '{}', -- JSON: カテゴリ別任意属性 ({"supplies": ["水", "タオル"], "hours": "9:00-17:00"})
     tags TEXT NOT NULL DEFAULT '[]',       -- JSON配列: 自発的成長タグ (["給水", "ポリタンク持参", "Wi-Fi"])
     is_verified INTEGER NOT NULL DEFAULT 0, -- 1: 自治体・公式確認済
@@ -48,6 +53,16 @@ CREATE TABLE IF NOT EXISTS status_updates (
 );
 
 CREATE INDEX IF NOT EXISTS idx_status_updates_post ON status_updates(post_id, created_at DESC);
+
+-- 情報の正確性・現地確認（コミュニティによる信頼性検証ログ）
+CREATE TABLE IF NOT EXISTS post_verifications (
+    id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    reporter_ip_hash TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_post_verifications_post ON post_verifications(post_id, created_at DESC);
 
 -- 管理者・モデレーターユーザー
 CREATE TABLE IF NOT EXISTS users (

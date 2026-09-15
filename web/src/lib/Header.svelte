@@ -27,18 +27,13 @@
   <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
     <!-- タイトル -->
     <div class="flex items-center gap-3">
-      <div class="flex flex-col">
-        <div class="flex items-center gap-2">
-          <span class="text-xl font-black tracking-tight text-slate-900 flex items-center gap-1">
-            tossa <span class="text-xs font-bold text-slate-400 font-sans">咄嗟</span>
-          </span>
-          <span class="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-            生活情報板
-          </span>
-        </div>
+      <div class="flex items-center gap-2.5">
+        <span class="text-xl font-black tracking-tight text-slate-900">
+          tossa
+        </span>
         {#if settings.default_area}
-          <div class="flex items-center gap-1 text-xs font-medium text-slate-500 mt-0.5">
-            <MapPin class="w-3 h-3 text-blue-500" />
+          <div class="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50/80 px-2.5 py-0.5 rounded-full border border-blue-200">
+            <MapPin class="w-3 h-3 text-blue-600" />
             <span>{settings.default_area}</span>
           </div>
         {/if}

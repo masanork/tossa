@@ -18,7 +18,7 @@
   import { List, Map as MapIcon, Search, Plus, RotateCw } from '@lucide/svelte';
 
   let settings = $state<SystemSettings>({
-    site_title: 'tossa｜生活情報板',
+    site_title: 'tossa',
     emergency_banner: '',
     default_area: '',
   });

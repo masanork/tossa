@@ -37,6 +37,11 @@ export interface Post {
   status_label: string;
   note: string | null;
   url: string | null;
+  source_url?: string | null;
+  image_url?: string | null;
+  image_meta?: string; // JSON string
+  verification_count?: number;
+  last_verified_at?: string | null;
   attributes: string; // JSON string
   tags: string; // JSON array string e.g. '["給水", "Wi-Fi"]'
   is_verified: number; // 0 or 1

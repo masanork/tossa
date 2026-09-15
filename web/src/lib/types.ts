@@ -24,12 +24,35 @@ export interface Post {
   status_label: string;
   note: string | null;
   url: string | null;
+  source_url?: string | null;
+  image_url?: string | null;
+  image_meta?: string; // JSON string
+  verification_count?: number;
+  last_verified_at?: string | null;
   attributes: string; // JSON string
   tags?: string; // JSON array string
   is_verified: number;
   reporter_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ImageMeta {
+  exif?: {
+    dateTimeOriginal?: string;
+    make?: string;
+    model?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  c2pa?: {
+    hasC2pa: boolean;
+    isSigned?: boolean;
+    claimGenerator?: string;
+    format?: string;
+    issuer?: string;
+    time?: string;
+  };
 }
 
 export interface TagCount {

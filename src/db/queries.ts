@@ -134,6 +134,9 @@ export async function createPost(
     statusLabel: string;
     note?: string;
     url?: string;
+    sourceUrl?: string;
+    imageUrl?: string;
+    imageMeta?: Record<string, unknown>;
     attributes?: Record<string, unknown>;
     tags?: string[];
     isVerified?: boolean;
@@ -142,14 +145,16 @@ export async function createPost(
 ): Promise<void> {
   const attrJson = post.attributes ? JSON.stringify(post.attributes) : '{}';
   const tagsJson = post.tags && post.tags.length > 0 ? JSON.stringify(post.tags) : '[]';
+  const imageMetaJson = post.imageMeta ? JSON.stringify(post.imageMeta) : '{}';
 
   await db
     .prepare(
       `INSERT INTO posts (
         id, category_id, title, area, address, lat, lng,
-        current_status, status_label, note, url, attributes, tags, is_verified, reporter_name,
+        current_status, status_label, note, url, source_url, image_url, image_meta,
+        attributes, tags, is_verified, reporter_name,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
     .bind(
       post.id,
@@ -163,6 +168,9 @@ export async function createPost(
       post.statusLabel,
       post.note || null,
       post.url || null,
+      post.sourceUrl || null,
+      post.imageUrl || null,
+      imageMetaJson,
       attrJson,
       tagsJson,
       post.isVerified ? 1 : 0,
@@ -232,6 +240,43 @@ export async function updatePostStatus(
     )
     .bind(`update_${crypto.randomUUID()}`, postId, status, statusLabel, note, ipHash)
     .run();
+}
+
+// 情報の正確性・現地確認（コミュニティによる信頼性検証）
+export async function verifyPost(
+  db: D1Database,
+  postId: string,
+  reporterIpHash?: string
+): Promise<{ verificationCount: number; lastVerifiedAt: string }> {
+  // 1. verification ログ追加
+  await db
+    .prepare(
+      `INSERT INTO post_verifications (id, post_id, reporter_ip_hash, created_at)
+       VALUES (?, ?, ?, datetime('now'))`
+    )
+    .bind(`verif_${crypto.randomUUID()}`, postId, reporterIpHash || null)
+    .run();
+
+  // 2. posts のカウントと最終確認時刻を更新
+  await db
+    .prepare(
+      `UPDATE posts
+       SET verification_count = verification_count + 1,
+           last_verified_at = datetime('now')
+       WHERE id = ?`
+    )
+    .bind(postId)
+    .run();
+
+  const row = await db
+    .prepare('SELECT verification_count, last_verified_at FROM posts WHERE id = ?')
+    .bind(postId)
+    .first<{ verification_count: number; last_verified_at: string }>();
+
+  return {
+    verificationCount: row?.verification_count || 1,
+    lastVerifiedAt: row?.last_verified_at || new Date().toISOString(),
+  };
 }
 
 export async function getUserByUsername(db: D1Database, username: string): Promise<User | null> {

@@ -7,6 +7,7 @@ import {
   getStatusUpdatesByPostId,
   createPost,
   updatePostStatus,
+  verifyPost,
   getVocabularyTags,
 } from '../db/queries';
 import { verifySessionToken } from '../auth/session';
@@ -108,6 +109,9 @@ postsRoute.post('/', async (c) => {
     statusLabel: body.statusLabel || body.currentStatus,
     note: body.note,
     url: body.url,
+    sourceUrl: body.sourceUrl,
+    imageUrl: body.imageUrl,
+    imageMeta: body.imageMeta,
     attributes: body.attributes,
     tags: Array.isArray(body.tags) ? body.tags : undefined,
     isVerified,
@@ -154,5 +158,30 @@ postsRoute.post('/:id/status', async (c) => {
   return c.json({
     success: true,
     message: 'Status updated successfully',
+  });
+});
+
+// POST /api/posts/:id/verify - 情報の正確性・現地確認（コミュニティ支持）
+postsRoute.post('/:id/verify', async (c) => {
+  const postId = c.req.param('id');
+  const post = await getPostById(c.env.DB, postId);
+
+  if (!post) {
+    return c.json({ success: false, error: 'Post not found' }, 404);
+  }
+
+  const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
+  const enc = new TextEncoder();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(clientIp));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const ipHash = hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const result = await verifyPost(c.env.DB, postId, ipHash);
+
+  return c.json({
+    success: true,
+    message: 'Post verified successfully',
+    verificationCount: result.verificationCount,
+    lastVerifiedAt: result.lastVerifiedAt,
   });
 });

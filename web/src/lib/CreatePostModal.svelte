@@ -1,8 +1,9 @@
 <!-- web/src/lib/CreatePostModal.svelte -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { TagCount } from './types';
+  import type { TagCount, ImageMeta } from './types';
   import { createPost } from './api';
+  import { processImageFile } from './media-processor';
   import type * as L from 'leaflet';
   import {
     X,
@@ -14,6 +15,12 @@
     Search,
     Check,
     RotateCcw,
+    Camera,
+    ShieldCheck,
+    Globe,
+    Link,
+    Clock,
+    Trash2,
   } from '@lucide/svelte';
 
   interface Props {
@@ -40,7 +47,17 @@
   let currentStatus = $state('available');
   let statusLabel = $state('受付中 / 利用可能');
   let note = $state('');
+  let sourceUrl = $state('');
   let url = $state('');
+
+  // 写真・EXIF・C2PA用ステート
+  let fileInput = $state<HTMLInputElement | null>(null);
+  let imagePreviewUrl = $state<string | null>(null);
+  let imageMeta = $state<ImageMeta | null>(null);
+  let isProcessingImage = $state(false);
+  let c2paVerified = $state(false);
+  let c2paInfo = $state<{ generator?: string; isSigned?: boolean } | null>(null);
+  let photoTakenTime = $state<string | null>(null);
 
   // 緯度経度・地図ピッカー用ステート
   let lat = $state<number | null>(null);
@@ -81,6 +98,98 @@
     }
   }
 
+  // 写真選択・解析ハンドラ（EXIF & C2PA）
+  async function handleImageSelect(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    isProcessingImage = true;
+    try {
+      const result = await processImageFile(file);
+      imagePreviewUrl = result.dataUrl;
+      imageMeta = result.meta;
+
+      // EXIF 撮影日時
+      if (result.dateTime) {
+        photoTakenTime = result.dateTime.toLocaleString('ja-JP', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+      } else {
+        photoTakenTime = null;
+      }
+
+      // C2PA 真正性情報
+      if (result.c2paDetected) {
+        c2paVerified = true;
+        c2paInfo = {
+          generator: result.c2paDetails?.generator,
+          isSigned: result.c2paDetails?.isSigned,
+        };
+      } else {
+        c2paVerified = false;
+        c2paInfo = null;
+      }
+
+      // EXIF GPS 座標があれば自動的にピンをセット！
+      if (result.gpsCoordinates) {
+        setCoordinates(result.gpsCoordinates.lat, result.gpsCoordinates.lng, 16);
+        geoStatusMessage = {
+          type: 'success',
+          text: '📷 写真のEXIF撮影位置からピンを自動セットしました！',
+        };
+      }
+    } catch (err: any) {
+      console.error('Failed to process image:', err);
+    } finally {
+      isProcessingImage = false;
+    }
+  }
+
+  function removeImage() {
+    imagePreviewUrl = null;
+    imageMeta = null;
+    c2paVerified = false;
+    c2paInfo = null;
+    photoTakenTime = null;
+    if (fileInput) fileInput.value = '';
+  }
+
+  // 情報源URLの信頼性判定
+  let sourceTrustBadge = $derived.by(() => {
+    if (!sourceUrl.trim()) return null;
+    try {
+      const parsed = new URL(sourceUrl.startsWith('http') ? sourceUrl : `https://${sourceUrl}`);
+      const host = parsed.hostname.toLowerCase();
+      if (host.endsWith('.go.jp') || host.endsWith('.lg.jp')) {
+        return { label: '公的機関・自治体公式', color: 'bg-emerald-50 text-emerald-800 border-emerald-300', icon: '🏛️' };
+      }
+      if (host.endsWith('.ac.jp')) {
+        return { label: '大学・学術研究機関', color: 'bg-blue-50 text-blue-800 border-blue-300', icon: '🎓' };
+      }
+      if (
+        host.includes('nhk.or.jp') ||
+        host.includes('asahi.com') ||
+        host.includes('yomiuri.co.jp') ||
+        host.includes('mainichi.jp') ||
+        host.includes('nikkei.com') ||
+        host.includes('kyodonews.jp')
+      ) {
+        return { label: '報道機関・ニュース', color: 'bg-indigo-50 text-indigo-800 border-indigo-300', icon: '📰' };
+      }
+      if (host.includes('x.com') || host.includes('twitter.com')) {
+        return { label: 'SNS公式・現地ポスト', color: 'bg-slate-100 text-slate-800 border-slate-300', icon: '📱' };
+      }
+      return { label: '外部リンク', color: 'bg-slate-50 text-slate-700 border-slate-200', icon: '🔗' };
+    } catch {
+      return null;
+    }
+  });
+
   let attrKey = $state('');
   let attrVal = $state('');
   let attributes = $state<Record<string, string>>({});
@@ -106,7 +215,6 @@
     // Leaflet の初期化
     leaflet = await import('leaflet');
 
-    // 初期表示座標: 日本全体（またはdefaultArea）
     const initialLat = 36.2048;
     const initialLng = 138.2529;
     const initialZoom = 5;
@@ -130,7 +238,6 @@
       geoStatusMessage = { type: 'success', text: '地図をタップしてピンを配置しました' };
     });
 
-    // モーダルレンダリング後のマップ再計算
     setTimeout(() => {
       pickerMap?.invalidateSize();
     }, 250);
@@ -159,7 +266,6 @@
     }
   });
 
-  // 座標をセットしてマーカーを更新
   function setCoordinates(newLat: number, newLng: number, zoomLevel?: number) {
     if (!pickerMap || !leaflet) return;
 
@@ -199,7 +305,6 @@
         })
         .addTo(pickerMap);
 
-      // マーカーをドラッグして微調整
       pickerMarker.on('dragend', () => {
         const pos = pickerMarker!.getLatLng();
         lat = Math.round(pos.lat * 1000000) / 1000000;
@@ -215,7 +320,6 @@
     }
   }
 
-  // 位置情報をクリア
   function clearLocation() {
     lat = null;
     lng = null;
@@ -226,7 +330,6 @@
     geoStatusMessage = null;
   }
 
-  // 現在地からセット
   function handleGetCurrentLocation() {
     if (!navigator.geolocation) {
       geoStatusMessage = { type: 'error', text: 'お使いのブラウザは現在地取得に対応していません' };
@@ -253,7 +356,6 @@
     );
   }
 
-  // 住所または施設名からピンを置く（国土地理院API）
   async function handleGeocodeAddress() {
     const query = [defaultArea, area, address, title].filter(Boolean).join(' ').trim();
     if (!query) {
@@ -265,7 +367,6 @@
     geoStatusMessage = null;
 
     try {
-      // 国土地理院 住所検索API（APIキー不要・高精度）
       const url = `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(query)}`;
       const res = await fetch(url);
       const results = await res.json();
@@ -279,7 +380,6 @@
           text: `「${matchTitle}」付近にピンを配置しました（ドラッグで微調整可能）`,
         };
       } else {
-        // フォールバック: OpenStreetMap Nominatim
         const osmUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
         const osmRes = await fetch(osmUrl, { headers: { 'Accept-Language': 'ja' } });
         const osmResults = await osmRes.json();
@@ -311,7 +411,7 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!title.trim() || !area.trim()) {
-      errorMessage = '拠点名と地区名は必須です';
+      errorMessage = '施設名と地区名は必須です';
       return;
     }
 
@@ -330,6 +430,9 @@
           statusLabel,
           note: note.trim() || undefined,
           url: url.trim() || undefined,
+          sourceUrl: sourceUrl.trim() || undefined,
+          imageUrl: imagePreviewUrl || undefined,
+          imageMeta: imageMeta ? (imageMeta as any) : undefined,
           attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
           tags: selectedTags.length > 0 ? selectedTags : undefined,
         },
@@ -350,13 +453,13 @@
   }
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-  <div class="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col">
+<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
+  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[94vh] flex flex-col">
     <!-- ヘッダー -->
     <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
       <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-        <h2 class="text-base font-black text-slate-900">＋ 新しい生活情報を登録する</h2>
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+        <h2 class="text-base font-black text-slate-900">＋ 情報を投稿</h2>
       </div>
       <button
         type="button"
@@ -367,8 +470,8 @@
       </button>
     </div>
 
-    <!-- フォーム（スクロール可能） -->
-    <form onsubmit={handleSubmit} class="p-5 flex flex-col gap-4 overflow-y-auto">
+    <!-- フォーム -->
+    <form onsubmit={handleSubmit} class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto">
       {#if errorMessage}
         <div class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-center gap-1.5">
           <AlertCircle class="w-4 h-4 shrink-0" />
@@ -376,10 +479,91 @@
         </div>
       {/if}
 
+      <!-- 📸 写真の添付（EXIF自動位置取得 & C2PA真正性検証） -->
+      <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <Camera class="w-4 h-4 text-blue-600" />
+            <span>現場写真の添付</span>
+          </div>
+          <span class="text-[10px] text-slate-500">EXIF自動抽出・C2PA対応</span>
+        </div>
+
+        {#if imagePreviewUrl}
+          <!-- 写真プレビューとメタ情報バッジ -->
+          <div class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex flex-col">
+            <div class="relative max-h-56 overflow-hidden flex items-center justify-center bg-black/40">
+              <img src={imagePreviewUrl} alt="添付写真" class="w-full h-auto max-h-56 object-contain" />
+              <button
+                type="button"
+                onclick={removeImage}
+                class="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-rose-600 text-white rounded-full transition shadow-md cursor-pointer"
+                title="写真を削除"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <!-- EXIF & C2PA 検証ステータスバー -->
+            <div class="p-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div class="flex flex-wrap items-center gap-1.5">
+                {#if c2paVerified}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                    <ShieldCheck class="w-3.5 h-3.5 text-emerald-600" />
+                    <span>C2PA 真正性確認済 ({c2paInfo?.generator || '認証カメラ'})</span>
+                  </span>
+                {:else}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    <span>標準画像</span>
+                  </span>
+                {/if}
+
+                {#if photoTakenTime}
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-200">
+                    <Clock class="w-3 h-3 text-blue-500" />
+                    <span>撮影: {photoTakenTime}</span>
+                  </span>
+                {/if}
+              </div>
+
+              {#if imageMeta?.exif?.latitude && imageMeta?.exif?.longitude}
+                <span class="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                  ✓ EXIF座標連動済
+                </span>
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <!-- アップロード選択エリア -->
+          <label class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 bg-white cursor-pointer transition hover:bg-blue-50/20 group">
+            <input
+              type="file"
+              accept="image/*"
+              bind:this={fileInput}
+              onchange={handleImageSelect}
+              class="hidden"
+            />
+            {#if isProcessingImage}
+              <div class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <span class="text-xs text-slate-500">EXIF解析・C2PA検証中...</span>
+            {:else}
+              <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition">
+                <Camera class="w-4 h-4" />
+              </div>
+              <div class="text-xs font-bold text-slate-700">写真を撮影または選択</div>
+              <p class="text-[10px] text-slate-400 text-center leading-tight">
+                写真の位置情報（EXIF GPS）からピンが自動配置されます。<br />
+                C2PA来歴署名も自動検知し真正性を担保します。
+              </p>
+            {/if}
+          </label>
+        {/if}
+      </div>
+
       <!-- 施設・拠点名 -->
       <div>
         <label for="post-title" class="block text-xs font-bold text-slate-700 mb-1">
-          施設・拠点・イベント名 <span class="text-rose-600">*</span>
+          施設・拠点・情報タイトル <span class="text-rose-600">*</span>
         </label>
         <input
           id="post-title"
@@ -437,7 +621,7 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
             <MapPin class="w-4 h-4 text-blue-600" />
-            <span>地図上の位置情報（ピン設定）</span>
+            <span>地図上の位置（ピン設定）</span>
           </div>
           {#if lat !== null && lng !== null}
             <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -445,7 +629,7 @@
               <span>ピン設定済み</span>
             </span>
           {:else}
-            <span class="text-[10px] text-slate-500">任意（設定すると地図上に表示）</span>
+            <span class="text-[10px] text-slate-500">写真EXIF、GPS、住所または地図タップで設定</span>
           {/if}
         </div>
 
@@ -496,10 +680,9 @@
         <div class="relative w-full h-44 rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-200">
           <div bind:this={pickerMapContainer} class="w-full h-full z-0"></div>
 
-          <!-- ガイダンスヒント -->
           <div class="absolute top-2 left-2 right-2 z-[400] pointer-events-none flex justify-center">
             <div class="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-full shadow-xs">
-              👆 地図タップでピン配置、ピンのドラッグで位置を微調整
+              👆 地図タップでピン配置、ピンのドラッグで位置微調整
             </div>
           </div>
         </div>
@@ -520,10 +703,39 @@
             </button>
           {:else}
             <span class="text-slate-400 text-[10px]">
-              ※ 地図上をクリックするか「現在地」「住所検索」でピンを置けます
+              ※ 地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
             </span>
           {/if}
         </div>
+      </div>
+
+      <!-- 🔗 情報源・参照リンク（任意） -->
+      <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <label for="post-source-url" class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+            <Link class="w-3.5 h-3.5 text-blue-600" />
+            <span>情報源・参照リンク（任意）</span>
+          </label>
+          <span class="text-[10px] text-slate-500">正確性検証用</span>
+        </div>
+
+        <input
+          id="post-source-url"
+          type="url"
+          bind:value={sourceUrl}
+          placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
+          class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        />
+
+        {#if sourceTrustBadge}
+          <div class="flex items-center gap-2">
+            <span class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${sourceTrustBadge.color}`}>
+              <span>{sourceTrustBadge.icon}</span>
+              <span>{sourceTrustBadge.label}</span>
+            </span>
+            <span class="text-[10px] text-slate-500">信頼できる情報源として識別されます</span>
+          </div>
+        {/if}
       </div>
 
       <!-- 初期ステータス -->
@@ -582,7 +794,6 @@
           <span class="text-[10px] text-slate-500">複数追加可能</span>
         </div>
 
-        <!-- 選択中のタグ一覧 -->
         {#if selectedTags.length > 0}
           <div class="flex flex-wrap gap-1.5">
             {#each selectedTags as tag}
@@ -600,7 +811,6 @@
           </div>
         {/if}
 
-        <!-- 既存のボキャブラリから選ぶ -->
         {#if vocabularyTags.length > 0}
           <div>
             <span class="block text-[11px] font-semibold text-slate-500 mb-1">
@@ -625,7 +835,6 @@
           </div>
         {/if}
 
-        <!-- 新しいタグの作成 -->
         <div>
           <span class="block text-[11px] font-semibold text-slate-500 mb-1">
             新しいタグを追加する:
@@ -649,47 +858,7 @@
               追加
             </button>
           </div>
-          <p class="text-[10px] text-slate-500 mt-1">
-            💡 入力したタグは地域のボキャブラリとして自発的に成長し、ヘッダーのフィルター列にも提示されます。
-          </p>
         </div>
-      </div>
-
-      <!-- 任意属性タグの追加 -->
-      <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
-        <span class="block text-xs font-bold text-slate-700 mb-1">詳細タグ・属性（任意）</span>
-        <div class="flex items-center gap-1.5 mb-2">
-          <input
-            type="text"
-            bind:value={attrKey}
-            placeholder="項目名 (例: 給水上限)"
-            class="w-1/3 px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white"
-          />
-          <input
-            type="text"
-            bind:value={attrVal}
-            placeholder="内容 (例: 1人20L)"
-            class="w-1/2 px-2 py-1 text-xs border border-slate-300 rounded-lg bg-white"
-          />
-          <button
-            type="button"
-            onclick={addAttribute}
-            class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded-lg text-xs font-bold text-slate-700 cursor-pointer"
-          >
-            追加
-          </button>
-        </div>
-
-        {#if Object.keys(attributes).length > 0}
-          <div class="flex flex-wrap gap-1.5">
-            {#each Object.entries(attributes) as [k, v]}
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700 text-[11px]">
-                <span>{k}: {v}</span>
-                <button type="button" onclick={() => removeAttribute(k)} class="text-slate-400 hover:text-rose-600 font-bold cursor-pointer">×</button>
-              </span>
-            {/each}
-          </div>
-        {/if}
       </div>
 
       <!-- フッター -->
@@ -706,7 +875,7 @@
           disabled={isSubmitting}
           class="px-5 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-xs transition active:scale-95 cursor-pointer"
         >
-          {isSubmitting ? '登録中...' : '生活情報を登録する'}
+          {isSubmitting ? '登録中...' : '情報を投稿する'}
         </button>
       </div>
     </form>

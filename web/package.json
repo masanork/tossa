@@ -22,8 +22,10 @@
     "vite": "^8.3.0"
   },
   "dependencies": {
+    "@contentauth/detector": "^0.3.7",
     "@lucide/svelte": "^1.46.0",
     "@simplewebauthn/browser": "^14.0.0",
+    "exifr": "^7.1.3",
     "leaflet": "^1.9.4"
   }
 }

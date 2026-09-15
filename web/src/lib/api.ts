@@ -83,6 +83,9 @@ export async function createPost(postData: {
   statusLabel: string;
   note?: string;
   url?: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  imageMeta?: Record<string, unknown>;
   attributes?: Record<string, unknown>;
   tags?: string[];
   reporterName?: string;
@@ -112,6 +115,16 @@ export async function updatePostStatus(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, statusLabel, note }),
+  });
+  return await res.json();
+}
+
+export async function verifyPost(
+  postId: string
+): Promise<{ success: boolean; verificationCount?: number; lastVerifiedAt?: string; error?: string }> {
+  const res = await fetch(`${API_BASE}/posts/${postId}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
   });
   return await res.json();
 }
