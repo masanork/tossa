@@ -1,67 +1,65 @@
-# tossa（咄嗟）- 生活情報板 CMS
+# tossa
 
-> **「咄嗟（とっさ）の機転で、即座に立ち上がる生活情報板」**  
-> 平時は地域の生活・店舗・助け合いを共有し、有事（災害時）はワンクリックで避難・給水・ライフライン情報板へと切り替わる、Cloudflareネイティブの超軽量デュアルユースCMS。
+> 地域の状況を迅速に共有・確認できる超軽量情報プラットフォーム。  
+> 平時の地域・店舗情報から有事の避難・給水情報まで、投稿から自発的に成長するボキャブラリでシームレスに対応。  
+> EXIF GPS自動ピン配置、C2PA真正性認証、情報源ドメイン検証、コミュニティ現地確認を完備した Cloudflare ネイティブ構成。
+
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/masanork/tossa)
 
 ---
 
-## 🌟 特徴
+## 🌟 主な特徴
 
-1. **イマココナビの思想を継承したモバイルファーストUI**
-   - 熊本地震の実績を基に設計された、片手・親指だけで操作できるピル/カテゴリフィルター
-   - **「1タップ状況更新」マイクロアップデート機能**（「給水中」「混雑」「本日終了」など現場から即座に更新）
-   - リスト一覧表示 & Leaflet 地図表示（ピン連動）
-2. **圧倒的なスケーラビリティ & ゼロ・エグレスコスト**
-   - **Cloudflare Workers + D1 (SQLite) + Workers Static Assets** による単一デプロイ構成
-   - Cache API（10〜15秒）により、100万人規模のアクセス急増時でも D1 へのクエリを 98% 遮断
-   - 転送量（Egress）無料の Cloudflare を活用し、急激なアクセスでも月額数ドル〜1万円台で安全稼働
-3. **Passkey (WebAuthn) によるパスワードレス認証**
-   - `@simplewebauthn` ベースの堅牢・安全な生体認証（Touch ID, Face ID, Windows Hello）
-   - 自治体職員や現場モデレーターがパスワードやメールリンクなしで即座に管理権限を行使
-4. **自発的ボキャブラリによる平時〜有事の自律変容（モード分けの撤廃）**
-   - 人為的な「モード切り替え」を廃止し、日常と災害をシームレスな地続きとして設計
-   - 発災時は住民の投稿により `#給水`, `#避難所`, `#充電` などのタグがボキャブラリバーの先頭に自動浮上
-   - 行政やモデレーターが必要な時だけ全画面最上部にメッセージを固定できる「緊急告知バー」を完備
+1. **投稿から自発的に成長するボキャブラリ（タグ統合フィルター）**
+   - 固定カテゴリの押し付けを廃止。住民や関係者が投稿した `#給水` `#避難所` `#カフェ` などのタグが直近更新順・件数順に自動集約。
+   - 平時と有事を人工的に分けず、状況の変化に応じて自律的に最適な情報板へ変容。
+2. **写真による簡単投稿 & EXIF GPS 自動ピン配置**
+   - 現場写真をアップロードするだけで、EXIF メタデータから撮影地点の緯度経度を自動抽出し、地図上にピンを自動配置。
+   - ブラウザ側 Canvas による自動軽量化（長辺 1200px / WebP）により、不安定な通信環境でも爆速アップロード。
+3. **C2PA (Content Authenticity) 真正性検証 & EXIF 鮮度表示**
+   - 画像バイナリ内の JUMBF / C2PA 暗号署名を高速スキャンし、認証カメラ・機材で撮影された真正な写真であることを証明（改ざんやAIフェイクの防止）。
+   - 撮影日時（EXIF）を明示し、古い写真の使い回しを検知・防止。
+4. **情報源URLの信頼性ドメイン検証 & コミュニティ現地確認**
+   - 情報源URLから自治体公式（`.go.jp`, `.lg.jp`）、大学（`.ac.jp`）、報道機関、SNS公式を自動判別し信頼度バッジを表示。
+   - 「👍 現地で確認」ボタンにより、住民同士で情報のリアルタイムな正確性・有効性を支持・可視化。
+5. **Passkey (WebAuthn) によるパスワードレス管理者認証**
+   - `@simplewebauthn` による Touch ID / Face ID / Windows Hello 生体認証。
+   - 管理者は必要に応じて対象地域名（例: 高知市、輪島市、〇〇町など）や緊急告知バーをいつでも設定可能。
+6. **圧倒的なスケーラビリティ & ゼロ・エグレスコスト**
+   - Cloudflare Workers + D1 (SQLite) + Workers Static Assets の統合アーキテクチャ。
+   - エッジキャッシュにより大規模災害時の急激なアクセス急増でも月額数ドル〜1万円台で安全稼働。
 
 ---
 
 ## 🛠 技術スタック
 
-- **ランタイム**: Cloudflare Workers (TypeScript)
+- **ランタイム / ホスティング**: Cloudflare Workers
+- **設定ファイル**: `wrangler.toml` (Deploy to Cloudflare 完全対応)
 - **API フレームワーク**: Hono
 - **データベース**: Cloudflare D1 (SQLite)
 - **フロントエンド**: Svelte 5 (Runes) + Vite + Tailwind CSS v4
+- **メディア解析**: `exifr` (EXIF GPS・撮影日時抽出) + JUMBF/C2PA マニフェストスキャナー
 - **認証**: WebAuthn / Passkey (`@simplewebauthn/server` & `@simplewebauthn/browser`)
-- **マップ**: Leaflet + OpenStreetMap
+- **マップ**: Leaflet + 国土地理院 住所検索 API + OpenStreetMap
 
 ---
 
 ## 🚀 ローカル開発環境の起動
 
-### 1. 依存関係のインストール
-
 ```bash
+# 1. 依存関係のインストール
 npm install
-cd web && npm install && cd ..
-```
+npm --prefix web install
 
-### 2. ローカル D1 データベースの初期化 & シード投入
-
-```bash
+# 2. ローカル D1 データベースの初期化
 npm run db:reset:local
-```
 
-### 3. ビルド & 開発サーバー起動
-
-```bash
-# フロントエンドのビルド
+# 3. ビルド & 開発サーバー起動 (ポート 8787)
 npm run build
-
-# Cloudflare Workers ローカル開発サーバー起動 (ポート 8787)
 npm run dev
 ```
 
-ブラウザで `http://localhost:8787` を開くと、tossa の画面が表示されます。
+ブラウザで `http://localhost:8787` を開くと動作します。
 
 ---
 
@@ -73,28 +71,28 @@ npm run dev
 npx wrangler d1 create tossa-db
 ```
 
-出力された `database_id` を `wrangler.jsonc` の `database_id` に設定します。また、本番環境のドメインに合わせて `RP_ID` と `EXPECTED_ORIGIN` を設定します。
+出力された `database_id` を [`wrangler.toml`](./wrangler.toml) の `database_id` に設定します。  
+また、本番環境のドメインに合わせて `RP_ID` と `EXPECTED_ORIGIN` を設定します。
 
-### 2. 本番 D1 へのスキーマ・シード適用
+### 2. 本番 D1 へのスキーマ・シード投入
 
 ```bash
-npx wrangler d1 execute tossa-db --remote --file=./schema.sql
-npx wrangler d1 execute tossa-db --remote --file=./seed.sql
+npm run db:init:remote
+npm run db:seed:remote
 ```
 
 ### 3. デプロイ
 
 ```bash
-npm run build
-npx wrangler deploy
+npm run deploy
 ```
 
 ---
 
-## 🔒 Passkey (WebAuthn) ログイン手順
+## 🔒 Passkey (WebAuthn) 管理者登録手順
 
-1. 画面右上の **「管理 / 認証」** ボタンをクリック
-2. ユーザー名 `admin` を入力
-3. 初回は **「この端末を登録」** をクリックし、端末の Touch ID / Face ID / セキュリティキーで生体認証を登録
-4. 次回以降は **「Passkey でログイン」** をクリックするだけで即座にログイン完了
-5. ログイン後は、稼働モードの切り替え（平時 ⇄ 災害時）や緊急告知文の編集が可能です
+1. 画面右上の **「管理」** ボタンをクリック
+2. ユーザー名 `admin` のまま **「この端末を登録」** をクリック
+3. 端末の生体認証（Touch ID / Face ID 等）で登録完了
+4. 次回以降は **「Passkey でログイン」** をクリックするだけで即座にログインできます
+5. ログイン後は、対象地域名（自治体名）や緊急アナウンス告知バーの設定・編集が可能です

@@ -7,9 +7,12 @@
     "dev": "wrangler dev",
     "build:web": "npm --prefix web run build",
     "build": "npm run build:web && tsc --noEmit",
+    "deploy": "npm run build:web && wrangler deploy",
     "db:init:local": "wrangler d1 execute tossa-db --local --file=./schema.sql",
     "db:seed:local": "wrangler d1 execute tossa-db --local --file=./seed.sql",
     "db:reset:local": "npm run db:init:local && npm run db:seed:local",
+    "db:init:remote": "wrangler d1 execute tossa-db --remote --file=./schema.sql",
+    "db:seed:remote": "wrangler d1 execute tossa-db --remote --file=./seed.sql",
     "typecheck": "tsc --noEmit && npm --prefix web run check"
   },
   "dependencies": {

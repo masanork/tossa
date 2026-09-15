@@ -1,0 +1,29 @@
+# wrangler.toml: Cloudflare Workers configuration for tossa
+name = "tossa"
+main = "src/index.ts"
+compatibility_date = "2025-02-04"
+compatibility_flags = ["nodejs_compat"]
+
+# Static Assets (Svelte 5 Single Page Application)
+[assets]
+directory = "./web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Cloudflare D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "tossa-db"
+database_id = "local-db" # 本番環境では `wrangler d1 create tossa-db` で生成されたIDを設定してください
+
+# Environment Variables (WebAuthn Passkey 設定等)
+[vars]
+RP_NAME = "tossa"
+RP_ID = "localhost"
+EXPECTED_ORIGIN = "http://localhost:8787"
+
+# 本番環境オーバーライド例
+# [env.production.vars]
+# RP_NAME = "tossa"
+# RP_ID = "your-domain.workers.dev"
+# EXPECTED_ORIGIN = "https://your-domain.workers.dev"
