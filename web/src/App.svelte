@@ -20,7 +20,7 @@
   let settings = $state<SystemSettings>({
     site_title: 'tossa｜生活情報板',
     emergency_banner: '',
-    default_area: '熊本市',
+    default_area: '',
   });
 
   let posts = $state<Post[]>([]);
@@ -250,6 +250,7 @@
       {:else}
         <MapView
           {posts}
+          defaultArea={settings.default_area || ''}
           onOpenUpdateStatus={(p) => { updatingPost = p; }}
         />
       {/if}
@@ -346,6 +347,8 @@
   {#if showCreateModal}
     <CreatePostModal
       vocabularyTags={vocabularyTags}
+      defaultArea={settings.default_area || ''}
+      availableAreas={availableAreas}
       token={authToken}
       onClose={() => { showCreateModal = false; }}
       onCreated={() => { reloadPosts(); }}

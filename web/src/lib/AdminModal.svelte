@@ -30,12 +30,12 @@
 
   // 設定編集用
   let emergencyBanner = $state('');
-  let defaultArea = $state('熊本市');
+  let defaultArea = $state('');
   let isSavingSettings = $state(false);
 
   $effect(() => {
     emergencyBanner = settings.emergency_banner || '';
-    defaultArea = settings.default_area || '熊本市';
+    defaultArea = settings.default_area || '';
   });
 
   // パスキーログイン実行
@@ -229,18 +229,21 @@
             </p>
           </div>
 
-          <!-- 標準エリア -->
+          <!-- 対象地域・自治体名 -->
           <div>
             <label for="admin-default-area" class="block text-xs font-bold text-slate-700 mb-1">
-              標準表示エリア名
+              対象地域・自治体名
             </label>
             <input
               id="admin-default-area"
               type="text"
               bind:value={defaultArea}
-              placeholder="熊本市"
+              placeholder="例: 高知県高知市、能登地方、〇〇町（空欄時は全域）"
               class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             />
+            <p class="text-[10px] text-slate-500 mt-1">
+              ※ 管理者が必要に応じて設定できます。設定するとヘッダーに地域名が表示され、地図の初期表示や住所補完の中心となります。
+            </p>
           </div>
 
           <!-- 保存ボタン -->

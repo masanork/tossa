@@ -4,7 +4,7 @@
 INSERT OR REPLACE INTO system_settings (key, value, description) VALUES
 ('site_title', 'tossa｜生活情報板', 'サイトタイトル'),
 ('emergency_banner', '', '緊急アナウンス告知バー（必要な場合のみ設定）'),
-('default_area', '熊本市', '標準表示エリア');
+('default_area', '', '対象エリア・自治体名（管理者が任意設定、未設定時は全域）');
 
 -- 初期管理者
 INSERT OR REPLACE INTO users (id, username, display_name, role) VALUES

@@ -36,10 +36,12 @@
             生活情報板
           </span>
         </div>
-        <div class="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-          <MapPin class="w-3 h-3 text-slate-400" />
-          <span>{settings.default_area || '熊本市'}</span>
-        </div>
+        {#if settings.default_area}
+          <div class="flex items-center gap-1 text-xs font-medium text-slate-500 mt-0.5">
+            <MapPin class="w-3 h-3 text-blue-500" />
+            <span>{settings.default_area}</span>
+          </div>
+        {/if}
       </div>
     </div>
 

@@ -6,10 +6,11 @@
 
   interface Props {
     posts: Post[];
+    defaultArea?: string;
     onOpenUpdateStatus: (post: Post) => void;
   }
 
-  let { posts, onOpenUpdateStatus }: Props = $props();
+  let { posts, defaultArea, onOpenUpdateStatus }: Props = $props();
 
   let mapContainer: HTMLDivElement;
   let map: L.Map | null = null;
@@ -20,10 +21,10 @@
     // Dynamic import for Leaflet (SSR-safe)
     leaflet = await import('leaflet');
 
-    // 地図初期化（熊本市中心をデフォルト）
+    // 地図初期化（全国表示をデフォルトとし、投稿や設定エリアに応じて自動移動）
     map = leaflet.map(mapContainer, {
-      center: [32.798, 130.725],
-      zoom: 13,
+      center: [36.2048, 138.2529],
+      zoom: 5,
       zoomControl: false,
     });
 
@@ -37,6 +38,21 @@
 
     markersLayer = leaflet.layerGroup().addTo(map);
     updateMarkers();
+
+    // 投稿に座標がない場合で、defaultArea が設定されている場合はそのエリアに移動
+    const hasAnyCoords = posts.some((p) => p.lat && p.lng);
+    if (!hasAnyCoords && defaultArea) {
+      try {
+        const res = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(defaultArea)}`);
+        const data = await res.json();
+        if (data && data.length > 0 && data[0].geometry?.coordinates) {
+          const [lng, lat] = data[0].geometry.coordinates;
+          map.setView([lat, lng], 12);
+        }
+      } catch (err) {
+        console.warn('Failed to geocode default area:', err);
+      }
+    }
   });
 
   onDestroy(() => {
