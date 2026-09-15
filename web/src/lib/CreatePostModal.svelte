@@ -1,17 +1,18 @@
 <!-- web/src/lib/CreatePostModal.svelte -->
 <script lang="ts">
-  import type { Category } from './types';
+  import type { Category, TagCount } from './types';
   import { createPost } from './api';
-  import { X, Plus, AlertCircle } from '@lucide/svelte';
+  import { X, Plus, AlertCircle, Sparkles, Tag } from '@lucide/svelte';
 
   interface Props {
     categories: Category[];
+    vocabularyTags: TagCount[];
     token: string | null;
     onClose: () => void;
     onCreated: () => void;
   }
 
-  let { categories, token, onClose, onCreated }: Props = $props();
+  let { categories, vocabularyTags, token, onClose, onCreated }: Props = $props();
 
   let categoryId = $state('water');
   let title = $state('');
@@ -27,6 +28,34 @@
   let statusLabel = $state('受付中 / 利用可能');
   let note = $state('');
   let url = $state('');
+  
+  // 自発的ボキャブラリ（タグ）
+  let selectedTags = $state<string[]>([]);
+  let newTagInput = $state('');
+
+  function toggleTag(tagName: string) {
+    if (selectedTags.includes(tagName)) {
+      selectedTags = selectedTags.filter((t) => t !== tagName);
+    } else {
+      selectedTags = [...selectedTags, tagName];
+    }
+  }
+
+  function addNewTag() {
+    const cleaned = newTagInput.trim().replace(/^#/, '');
+    if (cleaned && !selectedTags.includes(cleaned)) {
+      selectedTags = [...selectedTags, cleaned];
+      newTagInput = '';
+    }
+  }
+
+  function handleTagKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addNewTag();
+    }
+  }
+
   let attrKey = $state('');
   let attrVal = $state('');
   let attributes = $state<Record<string, string>>({});
@@ -70,6 +99,7 @@
           note: note.trim() || undefined,
           url: url.trim() || undefined,
           attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
         },
         token
       );
@@ -218,6 +248,89 @@
           placeholder="持参が必要な物、入場制限、時間帯、連絡先など"
           class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
         ></textarea>
+      </div>
+
+      <!-- 自発的ボキャブラリ（タグ） -->
+      <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <Sparkles class="w-3.5 h-3.5 text-blue-600" />
+            <span>タグ（ボキャブラリ）</span>
+          </div>
+          <span class="text-[10px] text-slate-500">複数選択・新規作成可</span>
+        </div>
+
+        <!-- 選択中のタグ一覧 -->
+        {#if selectedTags.length > 0}
+          <div class="flex flex-wrap gap-1.5">
+            {#each selectedTags as tag}
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-2xs">
+                <span>#{tag}</span>
+                <button
+                  type="button"
+                  onclick={() => toggleTag(tag)}
+                  class="text-blue-200 hover:text-white transition ml-0.5"
+                >
+                  ×
+                </button>
+              </span>
+            {/each}
+          </div>
+        {/if}
+
+        <!-- 既存のボキャブラリから選ぶ -->
+        {#if vocabularyTags.length > 0}
+          <div>
+            <span class="block text-[11px] font-semibold text-slate-500 mb-1">
+              地域のボキャブラリから選ぶ（タップで追加）:
+            </span>
+            <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1.5 bg-white rounded-lg border border-slate-200">
+              {#each vocabularyTags as vt}
+                <button
+                  type="button"
+                  onclick={() => toggleTag(vt.name)}
+                  class={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer flex items-center gap-1 ${
+                    selectedTags.includes(vt.name)
+                      ? 'bg-blue-100 text-blue-800 font-bold border border-blue-300'
+                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span>#{vt.name}</span>
+                  <span class="text-[9px] text-slate-400">({vt.count})</span>
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- 新しいタグの作成 -->
+        <div>
+          <span class="block text-[11px] font-semibold text-slate-500 mb-1">
+            新しいタグを追加する:
+          </span>
+          <div class="flex items-center gap-1.5">
+            <div class="relative flex-1">
+              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">#</span>
+              <input
+                type="text"
+                bind:value={newTagInput}
+                onkeydown={handleTagKeydown}
+                placeholder="例: Wi-Fi, ペット同伴可, 給水, 充電可能, テイクアウト"
+                class="w-full pl-6 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onclick={addNewTag}
+              class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer"
+            >
+              追加
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">
+            💡 入力したタグは地域のボキャブラリとして自発的に成長し、他の投稿者にも提示されます。
+          </p>
+        </div>
       </div>
 
       <!-- 任意属性タグの追加 -->

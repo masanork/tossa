@@ -54,30 +54,31 @@
     </div>
 
     <!-- アクションボタン群 -->
-    <div class="flex items-center gap-2">
-      <!-- 投稿ボタン -->
-      <button
-        type="button"
-        onclick={onOpenCreate}
-        class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition active:scale-95 cursor-pointer"
-      >
-        <span>＋ 情報を投稿</span>
-      </button>
-
-      <!-- 管理者 / Passkey ボタン -->
+    <div class="flex items-center gap-2.5">
+      <!-- 管理者 / Passkey ボタン（控えめ） -->
       <button
         type="button"
         onclick={onOpenAdmin}
-        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition cursor-pointer"
+        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer border border-transparent hover:border-slate-200"
         title="管理者メニュー（Passkey認証）"
       >
         {#if user}
           <Shield class="w-3.5 h-3.5 text-blue-600" />
-          <span class="hidden sm:inline font-semibold">{user.displayName}</span>
+          <span class="hidden sm:inline font-semibold text-slate-700">{user.displayName}</span>
         {:else}
-          <KeyRound class="w-3.5 h-3.5 text-slate-500" />
-          <span class="hidden sm:inline">管理 / 認証</span>
+          <KeyRound class="w-3.5 h-3.5 text-slate-400" />
+          <span class="hidden sm:inline">管理</span>
         {/if}
+      </button>
+
+      <!-- 投稿ボタン（右端・最優先で目立つCTA） -->
+      <button
+        type="button"
+        onclick={onOpenCreate}
+        class="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-black rounded-xl text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 active:scale-95 cursor-pointer ring-2 ring-blue-500/20"
+      >
+        <span class="text-sm font-black leading-none">＋</span>
+        <span class="tracking-wide">情報を投稿</span>
       </button>
     </div>
   </div>

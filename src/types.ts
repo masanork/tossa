@@ -38,10 +38,16 @@ export interface Post {
   note: string | null;
   url: string | null;
   attributes: string; // JSON string
+  tags: string; // JSON array string e.g. '["給水", "Wi-Fi"]'
   is_verified: number; // 0 or 1
   reporter_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TagCount {
+  name: string;
+  count: number;
 }
 
 export interface StatusUpdate {

@@ -1,24 +1,26 @@
 <!-- web/src/App.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Category, Post, SystemSettings, User } from './lib/types';
+  import type { Category, Post, SystemSettings, User, TagCount } from './lib/types';
   import {
     fetchSettings,
     fetchCategories,
     fetchPosts,
+    fetchVocabularyTags,
     checkAuth,
   } from './lib/api';
   import Header from './lib/Header.svelte';
   import CategoryFilter from './lib/CategoryFilter.svelte';
+  import VocabularyBar from './lib/VocabularyBar.svelte';
   import PostCard from './lib/PostCard.svelte';
   import MapView from './lib/MapView.svelte';
   import UpdateStatusModal from './lib/UpdateStatusModal.svelte';
   import CreatePostModal from './lib/CreatePostModal.svelte';
   import AdminModal from './lib/AdminModal.svelte';
-  import { List, Map as MapIcon, Search, Plus, RotateCw } from '@lucide/svelte';
+  import { List, Map as MapIcon, Search, Plus, RotateCw, Sparkles, MessageSquarePlus } from '@lucide/svelte';
 
   let settings = $state<SystemSettings>({
-    app_mode: 'disaster',
+    app_mode: 'normal',
     site_title: 'tossa｜生活情報板',
     emergency_banner: '',
     default_area: '熊本市',
@@ -26,11 +28,13 @@
 
   let categories = $state<Category[]>([]);
   let posts = $state<Post[]>([]);
+  let vocabularyTags = $state<TagCount[]>([]);
   let totalPosts = $state(0);
   let isLoading = $state(true);
 
   // フィルタ状態
   let selectedCategory = $state<string | null>(null);
+  let selectedTag = $state<string | null>(null);
   let searchQuery = $state('');
   let selectedArea = $state<string>('');
   let viewMode = $state<'list' | 'map'>('list');
@@ -73,10 +77,12 @@
     isLoading = true;
     try {
       const fetchedSettings = await fetchSettings();
-      settings = fetchedSettings;
+      settings = fetchedSettings || {};
 
       const cats = await fetchCategories(settings.app_mode);
-      categories = cats;
+      categories = cats || [];
+
+      vocabularyTags = await fetchVocabularyTags();
 
       await reloadPosts();
     } catch (err) {
@@ -88,13 +94,18 @@
 
   async function reloadPosts() {
     try {
-      const res = await fetchPosts({
-        category: selectedCategory || undefined,
-        area: selectedArea || undefined,
-        q: searchQuery || undefined,
-      });
-      posts = res.posts;
-      totalPosts = res.total;
+      const [postRes, tags] = await Promise.all([
+        fetchPosts({
+          category: selectedCategory || undefined,
+          area: selectedArea || undefined,
+          tag: selectedTag || undefined,
+          q: searchQuery || undefined,
+        }),
+        fetchVocabularyTags(),
+      ]);
+      posts = postRes.posts || [];
+      totalPosts = postRes.total || 0;
+      vocabularyTags = tags;
     } catch (err) {
       console.error('Failed to reload posts:', err);
     }
@@ -103,6 +114,12 @@
   // カテゴリ選択ハンドラ
   function handleSelectCategory(catId: string | null) {
     selectedCategory = catId;
+    reloadPosts();
+  }
+
+  // タグ（ボキャブラリ）選択ハンドラ
+  function handleSelectTag(tag: string | null) {
+    selectedTag = tag;
     reloadPosts();
   }
 
@@ -154,6 +171,13 @@
     onSelect={handleSelectCategory}
   />
 
+  <!-- 自発的ボキャブラリ（タグ）バー -->
+  <VocabularyBar
+    tags={vocabularyTags}
+    {selectedTag}
+    onSelectTag={handleSelectTag}
+  />
+
   <!-- サブバー: 検索・エリア・表示切替 (List ⇄ Map) -->
   <div class="max-w-4xl mx-auto px-4 w-full mb-3 flex flex-col sm:flex-row items-center justify-between gap-2.5">
     <div class="flex items-center gap-2 w-full sm:w-auto flex-1">
@@ -164,7 +188,7 @@
           type="text"
           value={searchQuery}
           oninput={handleSearchInput}
-          placeholder="場所名、物資名、キーワード検索..."
+          placeholder="場所名、物資名、タグ、キーワード検索..."
           class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
         />
       </div>
@@ -232,31 +256,81 @@
       </div>
     {:else if viewMode === 'map'}
       <!-- 地図ビュー -->
-      <MapView
-        {posts}
-        onOpenUpdateStatus={(p) => { updatingPost = p; }}
-      />
-    {:else}
-      <!-- リストビュー -->
       {#if posts.length === 0}
-        <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
-          <div class="text-3xl mb-2">🔍</div>
-          <h3 class="text-sm font-bold text-slate-800 mb-1">該当する情報が見つかりません</h3>
+        <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs mb-4">
+          <div class="text-3xl mb-2">🗺️</div>
+          <h3 class="text-sm font-bold text-slate-800 mb-1">地図上に表示できる情報がまだありません</h3>
           <p class="text-xs text-slate-500 mb-4">
-            検索条件を変更するか、右下の「＋ 情報を投稿」から新しい拠点情報を登録してください。
+            「＋ 情報を投稿」から緯度経度や住所を含む生活情報を投稿すると、ここにピンが表示されます。
           </p>
           <button
             type="button"
-            onclick={() => { selectedCategory = null; searchQuery = ''; selectedArea = ''; reloadPosts(); }}
-            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
+            onclick={() => { showCreateModal = true; }}
+            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
           >
-            条件をクリア
+            ＋ 最初の情報を登録する
           </button>
         </div>
       {:else}
+        <MapView
+          {posts}
+          onOpenUpdateStatus={(p) => { updatingPost = p; }}
+        />
+      {/if}
+    {:else}
+      <!-- リストビュー -->
+      {#if posts.length === 0}
+        {#if selectedCategory || selectedTag || searchQuery || selectedArea}
+          <!-- 絞り込みによる0件 -->
+          <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
+            <div class="text-3xl mb-2">🔍</div>
+            <h3 class="text-sm font-bold text-slate-800 mb-1">条件に一致する情報が見つかりません</h3>
+            <p class="text-xs text-slate-500 mb-4">
+              検索条件を変更するか、右上の「＋ 情報を投稿」から新しい生活情報を登録してください。
+            </p>
+            <button
+              type="button"
+              onclick={() => { selectedCategory = null; selectedTag = null; searchQuery = ''; selectedArea = ''; reloadPosts(); }}
+              class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
+            >
+              条件をクリア
+            </button>
+          </div>
+        {:else}
+          <!-- 完全白紙時のウェルカムCTA -->
+          <div class="py-12 sm:py-16 text-center bg-gradient-to-b from-white to-blue-50/40 rounded-3xl border border-blue-100 p-8 sm:p-12 shadow-xs">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+              🌱
+            </div>
+            <h3 class="text-lg font-black text-slate-900 mb-2">
+              まだ生活情報が登録されていません
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mb-6">
+              平時のカフェ・店舗・地域イベントから、有事の給水所・避難所・物資配布まで。<br />
+              あなたの身近な生活情報を投稿して、地域の情報板を一緒に育てましょう。
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onclick={() => { showCreateModal = true; }}
+                class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Plus class="w-4 h-4" />
+                <span>＋ 最初の生活情報を投稿する</span>
+              </button>
+            </div>
+          </div>
+        {/if}
+      {:else}
         <div class="flex items-center justify-between text-xs text-slate-500 mb-2 px-1">
           <span>{totalPosts} 件の生活情報</span>
-          <span class="text-[11px] text-slate-400">※ 数秒〜数十秒間隔で自動キャッシュ更新</span>
+          {#if selectedTag}
+            <span class="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+              #{selectedTag} で絞り込み中
+              <button type="button" onclick={() => handleSelectTag(null)} class="hover:text-blue-800">×</button>
+            </span>
+          {/if}
+          <span class="text-[11px] text-slate-400">※ エッジキャッシュにより高速配信</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -264,6 +338,7 @@
             <PostCard
               {post}
               onOpenUpdateStatus={(p) => { updatingPost = p; }}
+              onSelectTag={handleSelectTag}
             />
           {/each}
         </div>
@@ -271,15 +346,15 @@
     {/if}
   </main>
 
-  <!-- フローティング投稿ボタン（スマホ用） -->
+  <!-- フローティング投稿ボタン（スマホ用・目立つデザイン） -->
   <div class="fixed bottom-5 right-5 sm:hidden z-30">
     <button
       type="button"
       onclick={() => { showCreateModal = true; }}
-      class="flex items-center gap-1.5 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-black text-xs shadow-lg active:scale-95 transition cursor-pointer"
+      class="flex items-center gap-2 px-5 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white rounded-full font-black text-sm shadow-xl active:scale-95 transition-all cursor-pointer ring-4 ring-blue-500/20"
     >
       <Plus class="w-4 h-4" />
-      <span>情報投稿</span>
+      <span>情報を投稿</span>
     </button>
   </div>
 
@@ -295,6 +370,7 @@
   {#if showCreateModal}
     <CreatePostModal
       {categories}
+      vocabularyTags={vocabularyTags}
       token={authToken}
       onClose={() => { showCreateModal = false; }}
       onCreated={() => { reloadPosts(); }}

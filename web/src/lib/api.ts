@@ -1,6 +1,6 @@
 // web/src/lib/api.ts: API client and WebAuthn browser logic
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
-import type { Category, Post, StatusUpdate, SystemSettings, User } from './types';
+import type { Category, Post, StatusUpdate, SystemSettings, User, TagCount } from './types';
 
 const API_BASE = '/api';
 
@@ -32,16 +32,28 @@ export async function fetchCategories(mode?: string): Promise<Category[]> {
   return data.categories || [];
 }
 
+export async function fetchVocabularyTags(): Promise<TagCount[]> {
+  try {
+    const res = await fetch(`${API_BASE}/posts/tags/vocabulary`);
+    const data = await res.json();
+    return data.tags || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchPosts(params: {
   category?: string;
   area?: string;
   status?: string;
+  tag?: string;
   q?: string;
 } = {}): Promise<{ posts: Post[]; total: number }> {
   const query = new URLSearchParams();
   if (params.category) query.set('category', params.category);
   if (params.area) query.set('area', params.area);
   if (params.status) query.set('status', params.status);
+  if (params.tag) query.set('tag', params.tag);
   if (params.q) query.set('q', params.q);
 
   const res = await fetch(`${API_BASE}/posts?${query.toString()}`);
@@ -73,6 +85,7 @@ export async function createPost(postData: {
   note?: string;
   url?: string;
   attributes?: Record<string, unknown>;
+  tags?: string[];
   reporterName?: string;
 }, token?: string | null): Promise<{ success: boolean; id?: string; error?: string }> {
   const headers: Record<string, string> = {

@@ -25,10 +25,16 @@ export interface Post {
   note: string | null;
   url: string | null;
   attributes: string; // JSON string
+  tags?: string; // JSON array string
   is_verified: number;
   reporter_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TagCount {
+  name: string;
+  count: number;
 }
 
 export interface StatusUpdate {

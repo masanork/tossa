@@ -1,5 +1,5 @@
 // src/db/queries.ts: Database access layer for Cloudflare D1
-import type { Category, Post, StatusUpdate, SystemSetting, User, Credential } from '../types';
+import type { Category, Post, StatusUpdate, SystemSetting, User, Credential, TagCount } from '../types';
 
 export async function getSystemSettings(db: D1Database): Promise<Record<string, string>> {
   const result = await db.prepare('SELECT key, value FROM system_settings').all<SystemSetting>();
@@ -40,6 +40,7 @@ export async function getPosts(
     area?: string;
     status?: string;
     search?: string;
+    tag?: string;
     limit?: number;
     offset?: number;
   } = {}
@@ -60,6 +61,11 @@ export async function getPosts(
   if (filter.status) {
     conditions.push('p.current_status = ?');
     params.push(filter.status);
+  }
+
+  if (filter.tag) {
+    conditions.push('EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value = ?)');
+    params.push(filter.tag);
   }
 
   if (filter.search) {
@@ -139,18 +145,21 @@ export async function createPost(
     note?: string;
     url?: string;
     attributes?: Record<string, unknown>;
+    tags?: string[];
     isVerified?: boolean;
     reporterName?: string;
   }
 ): Promise<void> {
   const attrJson = post.attributes ? JSON.stringify(post.attributes) : '{}';
+  const tagsJson = post.tags && post.tags.length > 0 ? JSON.stringify(post.tags) : '[]';
+
   await db
     .prepare(
       `INSERT INTO posts (
         id, category_id, title, area, address, lat, lng,
-        current_status, status_label, note, url, attributes, is_verified, reporter_name,
+        current_status, status_label, note, url, attributes, tags, is_verified, reporter_name,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
     .bind(
       post.id,
@@ -165,6 +174,7 @@ export async function createPost(
       post.note || null,
       post.url || null,
       attrJson,
+      tagsJson,
       post.isVerified ? 1 : 0,
       post.reporterName || null
     )
@@ -185,6 +195,25 @@ export async function createPost(
       'initial'
     )
     .run();
+}
+
+// 自発的に成長するボキャブラリ（頻出タグ）の集計
+export async function getVocabularyTags(db: D1Database, limit = 40): Promise<TagCount[]> {
+  try {
+    const query = `
+      SELECT j.value as name, COUNT(*) as count
+      FROM posts p, json_each(p.tags) j
+      WHERE j.value IS NOT NULL AND trim(j.value) != ''
+      GROUP BY j.value
+      ORDER BY count DESC, j.value ASC
+      LIMIT ?
+    `;
+    const result = await db.prepare(query).bind(limit).all<TagCount>();
+    return result.results || [];
+  } catch (err) {
+    // tags カラム未作成時などのフォールバック
+    return [];
+  }
 }
 
 export async function updatePostStatus(

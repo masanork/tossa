@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS posts (
     note TEXT,                    -- 補足・備考
     url TEXT,                     -- 関連リンク・SNS URL
     attributes TEXT NOT NULL DEFAULT '{}', -- JSON: カテゴリ別任意属性 ({"supplies": ["水", "タオル"], "hours": "9:00-17:00"})
+    tags TEXT NOT NULL DEFAULT '[]',       -- JSON配列: 自発的成長タグ (["給水", "ポリタンク持参", "Wi-Fi"])
     is_verified INTEGER NOT NULL DEFAULT 0, -- 1: 自治体・公式確認済
     reporter_name TEXT,           -- 投稿者表示名（任意）
     created_at TEXT NOT NULL DEFAULT (datetime('now')),

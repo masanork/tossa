@@ -6,9 +6,19 @@
   interface Props {
     post: Post;
     onOpenUpdateStatus: (post: Post) => void;
+    onSelectTag?: (tag: string) => void;
   }
 
-  let { post, onOpenUpdateStatus }: Props = $props();
+  let { post, onOpenUpdateStatus, onSelectTag }: Props = $props();
+
+  // Tags パース
+  let parsedTags = $derived.by(() => {
+    try {
+      return post.tags ? (JSON.parse(post.tags) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // JSON attributes パース
   let parsedAttrs = $derived.by(() => {
@@ -122,6 +132,27 @@
               🏷️ {item}
             </span>
           {/each}
+        {/if}
+      {/each}
+    </div>
+  {/if}
+
+  <!-- 自発的ボキャブラリ・タグ -->
+  {#if parsedTags.length > 0}
+    <div class="flex items-center gap-1.5 flex-wrap">
+      {#each parsedTags as t}
+        {#if onSelectTag}
+          <button
+            type="button"
+            onclick={() => onSelectTag?.(t)}
+            class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-semibold transition cursor-pointer"
+          >
+            #{t}
+          </button>
+        {:else}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
+            #{t}
+          </span>
         {/if}
       {/each}
     </div>

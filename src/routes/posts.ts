@@ -7,10 +7,21 @@ import {
   getStatusUpdatesByPostId,
   createPost,
   updatePostStatus,
+  getVocabularyTags,
 } from '../db/queries';
 import { verifySessionToken } from '../auth/session';
 
 export const postsRoute = new Hono<{ Bindings: Bindings }>();
+
+// GET /api/posts/tags/vocabulary (ボキャブラリ一覧)
+postsRoute.get('/tags/vocabulary', async (c) => {
+  const tags = await getVocabularyTags(c.env.DB, 40);
+  c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+  return c.json({
+    success: true,
+    tags,
+  });
+});
 
 // GET /api/posts
 postsRoute.get('/', async (c) => {
@@ -18,6 +29,7 @@ postsRoute.get('/', async (c) => {
   const area = c.req.query('area');
   const status = c.req.query('status');
   const search = c.req.query('q');
+  const tag = c.req.query('tag');
   const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
   const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : 0;
 
@@ -26,6 +38,7 @@ postsRoute.get('/', async (c) => {
     area,
     status,
     search,
+    tag,
     limit,
     offset,
   });
@@ -96,6 +109,7 @@ postsRoute.post('/', async (c) => {
     note: body.note,
     url: body.url,
     attributes: body.attributes,
+    tags: Array.isArray(body.tags) ? body.tags : undefined,
     isVerified,
     reporterName: body.reporterName,
   });
