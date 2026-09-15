@@ -20,7 +20,6 @@
   import { List, Map as MapIcon, Search, Plus, RotateCw, Sparkles, MessageSquarePlus } from '@lucide/svelte';
 
   let settings = $state<SystemSettings>({
-    app_mode: 'normal',
     site_title: 'tossa｜生活情報板',
     emergency_banner: '',
     default_area: '熊本市',
@@ -79,7 +78,7 @@
       const fetchedSettings = await fetchSettings();
       settings = fetchedSettings || {};
 
-      const cats = await fetchCategories(settings.app_mode);
+      const cats = await fetchCategories();
       categories = cats || [];
 
       vocabularyTags = await fetchVocabularyTags();
@@ -148,9 +147,6 @@
 
   async function handleSettingsUpdated(newSettings: SystemSettings) {
     settings = newSettings;
-    // モードが変わった場合、カテゴリもリロード
-    const cats = await fetchCategories(settings.app_mode);
-    categories = cats;
     await reloadPosts();
   }
 </script>

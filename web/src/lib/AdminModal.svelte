@@ -29,13 +29,11 @@
   let statusMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // 設定編集用
-  let appMode = $state<'normal' | 'disaster'>('disaster');
   let emergencyBanner = $state('');
   let defaultArea = $state('熊本市');
   let isSavingSettings = $state(false);
 
   $effect(() => {
-    appMode = settings.app_mode || 'disaster';
     emergencyBanner = settings.emergency_banner || '';
     defaultArea = settings.default_area || '熊本市';
   });
@@ -95,7 +93,6 @@
     try {
       const res = await updateSettings(
         {
-          app_mode: appMode,
           emergency_banner: emergencyBanner,
           default_area: defaultArea,
         },
@@ -215,56 +212,35 @@
             </button>
           </div>
 
-          <!-- デュアルユース切り替え（平時 ⇄ 災害時） -->
-          <div>
-            <span class="block text-xs font-bold text-slate-700 mb-2">稼働モード切り替え</span>
-            <div class="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onclick={() => { appMode = 'disaster'; }}
-                class={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                  appMode === 'disaster'
-                    ? 'border-rose-500 bg-rose-50 text-rose-900 ring-2 ring-rose-400 font-bold'
-                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                }`}
-              >
-                <div class="flex items-center gap-1.5 text-xs font-bold">
-                  <ShieldAlert class="w-4 h-4 text-rose-600" />
-                  <span>災害モード</span>
-                </div>
-                <span class="text-[10px] text-slate-500">給水・避難所・物資を最優先表示</span>
-              </button>
-
-              <button
-                type="button"
-                onclick={() => { appMode = 'normal'; }}
-                class={`p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer ${
-                  appMode === 'normal'
-                    ? 'border-emerald-500 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-400 font-bold'
-                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                }`}
-              >
-                <div class="flex items-center gap-1.5 text-xs font-bold">
-                  <Sparkles class="w-4 h-4 text-emerald-600" />
-                  <span>平時モード</span>
-                </div>
-                <span class="text-[10px] text-slate-500">地域店舗・イベント・助け合い表示</span>
-              </button>
-            </div>
-          </div>
-
           <!-- 緊急告知アナウンス文 -->
           <div>
             <label for="admin-emergency-banner" class="block text-xs font-bold text-slate-700 mb-1">
-              緊急告知バー文言（全画面最上部に表示）
+              緊急告知アナウンス文（全画面最上部に固定表示）
             </label>
             <textarea
               id="admin-emergency-banner"
               bind:value={emergencyBanner}
               rows="2"
-              placeholder="現在【災害モード】で稼働中です。給水の最新状況を共有してください。"
+              placeholder="例: 台風接近に伴い避難所が開設されています。給水・物資の最新状況を共有してください。（空にすると非表示）"
               class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             ></textarea>
+            <p class="text-[10px] text-slate-500 mt-1">
+              ※ 空欄にすると最上部の告知バーは非表示になります。
+            </p>
+          </div>
+
+          <!-- 標準エリア -->
+          <div>
+            <label for="admin-default-area" class="block text-xs font-bold text-slate-700 mb-1">
+              標準表示エリア名
+            </label>
+            <input
+              id="admin-default-area"
+              type="text"
+              bind:value={defaultArea}
+              placeholder="熊本市"
+              class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            />
           </div>
 
           <!-- 保存ボタン -->

@@ -5,7 +5,7 @@ export interface Category {
   name: string;
   icon: string;
   color: string;
-  scope: 'normal' | 'disaster' | 'both';
+  scope?: string;
   sort_order: number;
 }
 
@@ -47,7 +47,6 @@ export interface StatusUpdate {
 }
 
 export interface SystemSettings {
-  app_mode?: 'normal' | 'disaster';
   site_title?: string;
   emergency_banner?: string;
   default_area?: string;

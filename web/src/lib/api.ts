@@ -25,9 +25,8 @@ export async function updateSettings(
   return await res.json();
 }
 
-export async function fetchCategories(mode?: string): Promise<Category[]> {
-  const url = mode ? `${API_BASE}/categories?mode=${mode}` : `${API_BASE}/categories`;
-  const res = await fetch(url);
+export async function fetchCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_BASE}/categories`);
   const data = await res.json();
   return data.categories || [];
 }

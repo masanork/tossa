@@ -17,18 +17,8 @@ export async function updateSystemSetting(db: D1Database, key: string, value: st
     .run();
 }
 
-export async function getCategories(db: D1Database, mode?: string): Promise<Category[]> {
-  let query = 'SELECT * FROM categories';
-  const params: unknown[] = [];
-
-  if (mode === 'disaster') {
-    query += ' WHERE scope IN ("disaster", "both")';
-  } else if (mode === 'normal') {
-    query += ' WHERE scope IN ("normal", "both")';
-  }
-
-  query += ' ORDER BY sort_order ASC, name ASC';
-
+export async function getCategories(db: D1Database): Promise<Category[]> {
+  const query = 'SELECT * FROM categories ORDER BY sort_order ASC, name ASC';
   const result = await db.prepare(query).all<Category>();
   return result.results || [];
 }
@@ -197,15 +187,15 @@ export async function createPost(
     .run();
 }
 
-// 自発的に成長するボキャブラリ（頻出タグ）の集計
+// 自発的に成長するボキャブラリ（直近のアクティビティ・出現頻度順に集計）
 export async function getVocabularyTags(db: D1Database, limit = 40): Promise<TagCount[]> {
   try {
     const query = `
-      SELECT j.value as name, COUNT(*) as count
+      SELECT j.value as name, COUNT(*) as count, MAX(p.updated_at) as last_updated
       FROM posts p, json_each(p.tags) j
       WHERE j.value IS NOT NULL AND trim(j.value) != ''
       GROUP BY j.value
-      ORDER BY count DESC, j.value ASC
+      ORDER BY last_updated DESC, count DESC
       LIMIT ?
     `;
     const result = await db.prepare(query).bind(limit).all<TagCount>();
