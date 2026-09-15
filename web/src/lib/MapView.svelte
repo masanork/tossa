@@ -65,23 +65,29 @@
         hasCoords = true;
         bounds.extend([post.lat, post.lng]);
 
-        // アイコン生成
+        // アイコン生成（ステータスに応じた視認性の高いピン）
+        const pinColor = post.current_status === 'danger' || post.current_status === 'closed'
+          ? '#dc2626'
+          : post.current_status === 'crowded'
+          ? '#d97706'
+          : '#2563eb';
+
         const customIcon = leaflet!.divIcon({
           className: 'custom-map-pin',
           html: `
             <div style="
-              background-color: ${post.category_color || '#2563eb'};
-              width: 32px;
-              height: 32px;
+              background-color: ${pinColor};
+              width: 30px;
+              height: 30px;
               border-radius: 50%;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 16px;
+              font-size: 15px;
               box-shadow: 0 2px 5px rgba(0,0,0,0.3);
               border: 2px solid white;
             ">
-              ${post.category_icon || '📍'}
+              📍
             </div>
           `,
           iconSize: [32, 32],

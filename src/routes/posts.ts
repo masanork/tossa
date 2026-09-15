@@ -79,8 +79,8 @@ postsRoute.get('/:id', async (c) => {
 postsRoute.post('/', async (c) => {
   const body = await c.req.json();
 
-  if (!body.title || !body.categoryId || !body.area || !body.currentStatus) {
-    return c.json({ success: false, error: 'Missing required fields' }, 400);
+  if (!body.title || !body.area || !body.currentStatus) {
+    return c.json({ success: false, error: 'Missing required fields (title, area, currentStatus)' }, 400);
   }
 
   // ログインユーザーの場合は検証フラグ等を設定可能

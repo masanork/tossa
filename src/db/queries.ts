@@ -124,7 +124,7 @@ export async function createPost(
   db: D1Database,
   post: {
     id: string;
-    categoryId: string;
+    categoryId?: string;
     title: string;
     area: string;
     address?: string;
@@ -153,7 +153,7 @@ export async function createPost(
     )
     .bind(
       post.id,
-      post.categoryId,
+      post.categoryId || 'general',
       post.title,
       post.area,
       post.address || null,

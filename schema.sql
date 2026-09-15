@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS categories (
 -- 投稿テーブル
 CREATE TABLE IF NOT EXISTS posts (
     id TEXT PRIMARY KEY,
-    category_id TEXT NOT NULL REFERENCES categories(id),
+    category_id TEXT DEFAULT 'general',
     title TEXT NOT NULL,
     area TEXT NOT NULL,           -- 市区町村・地区名 (熊本市中央区, 東区 等)
     address TEXT,                 -- 詳細住所・施設名

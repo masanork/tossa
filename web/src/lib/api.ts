@@ -73,7 +73,7 @@ export async function fetchPostDetail(id: string): Promise<{ post: Post; history
 }
 
 export async function createPost(postData: {
-  categoryId: string;
+  categoryId?: string;
   title: string;
   area: string;
   address?: string;

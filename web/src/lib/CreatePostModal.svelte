@@ -1,28 +1,20 @@
 <!-- web/src/lib/CreatePostModal.svelte -->
 <script lang="ts">
-  import type { Category, TagCount } from './types';
+  import type { TagCount } from './types';
   import { createPost } from './api';
   import { X, Plus, AlertCircle, Sparkles, Tag } from '@lucide/svelte';
 
   interface Props {
-    categories: Category[];
     vocabularyTags: TagCount[];
     token: string | null;
     onClose: () => void;
     onCreated: () => void;
   }
 
-  let { categories, vocabularyTags, token, onClose, onCreated }: Props = $props();
+  let { vocabularyTags, token, onClose, onCreated }: Props = $props();
 
-  let categoryId = $state('water');
   let title = $state('');
   let area = $state('中央区');
-
-  $effect(() => {
-    if (categories.length > 0 && !categories.some(c => c.id === categoryId)) {
-      categoryId = categories[0].id;
-    }
-  });
   let address = $state('');
   let currentStatus = $state('available');
   let statusLabel = $state('受付中 / 利用可能');
@@ -90,7 +82,6 @@
     try {
       const res = await createPost(
         {
-          categoryId,
           title: title.trim(),
           area: area.trim(),
           address: address.trim() || undefined,
@@ -141,26 +132,7 @@
         </div>
       {/if}
 
-      <!-- カテゴリ -->
-      <div>
-        <label for="post-category" class="block text-xs font-bold text-slate-700 mb-1.5">カテゴリ</label>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-          {#each categories as cat}
-            <button
-              type="button"
-              onclick={() => { categoryId = cat.id; }}
-              class={`px-3 py-2 rounded-xl text-xs font-bold border text-left flex items-center gap-1.5 transition-all cursor-pointer ${
-                categoryId === cat.id
-                  ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-400'
-                  : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-              }`}
-            >
-              <span>{cat.icon}</span>
-              <span class="truncate">{cat.name}</span>
-            </button>
-          {/each}
-        </div>
-      </div>
+
 
       <!-- 施設・拠点名 -->
       <div>

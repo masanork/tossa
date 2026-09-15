@@ -65,13 +65,21 @@
   <!-- 上段: カテゴリ・エリア・公式バッジ -->
   <div class="flex items-center justify-between gap-2 text-xs">
     <div class="flex items-center gap-1.5 flex-wrap">
-      <span
-        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-white text-[11px]"
-        style={`background-color: ${post.category_color || '#3b82f6'};`}
-      >
-        <span>{post.category_icon || '📌'}</span>
-        <span>{post.category_name || '情報'}</span>
-      </span>
+      {#if parsedTags.length > 0}
+        <button
+          type="button"
+          onclick={() => onSelectTag?.(parsedTags[0])}
+          class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-white text-[11px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition shadow-2xs cursor-pointer"
+        >
+          <span>🏷️</span>
+          <span>#{parsedTags[0]}</span>
+        </button>
+      {:else}
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-white text-[11px] bg-slate-600">
+          <span>📌</span>
+          <span>生活情報</span>
+        </span>
+      {/if}
 
       <span class="px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700 text-[11px]">
         {post.area}

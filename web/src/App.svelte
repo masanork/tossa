@@ -1,23 +1,21 @@
 <!-- web/src/App.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { Category, Post, SystemSettings, User, TagCount } from './lib/types';
+  import type { Post, SystemSettings, User, TagCount } from './lib/types';
   import {
     fetchSettings,
-    fetchCategories,
     fetchPosts,
     fetchVocabularyTags,
     checkAuth,
   } from './lib/api';
   import Header from './lib/Header.svelte';
-  import CategoryFilter from './lib/CategoryFilter.svelte';
-  import VocabularyBar from './lib/VocabularyBar.svelte';
+  import VocabularyFilter from './lib/VocabularyFilter.svelte';
   import PostCard from './lib/PostCard.svelte';
   import MapView from './lib/MapView.svelte';
   import UpdateStatusModal from './lib/UpdateStatusModal.svelte';
   import CreatePostModal from './lib/CreatePostModal.svelte';
   import AdminModal from './lib/AdminModal.svelte';
-  import { List, Map as MapIcon, Search, Plus, RotateCw, Sparkles, MessageSquarePlus } from '@lucide/svelte';
+  import { List, Map as MapIcon, Search, Plus, RotateCw } from '@lucide/svelte';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa｜生活情報板',
@@ -25,14 +23,12 @@
     default_area: '熊本市',
   });
 
-  let categories = $state<Category[]>([]);
   let posts = $state<Post[]>([]);
   let vocabularyTags = $state<TagCount[]>([]);
   let totalPosts = $state(0);
   let isLoading = $state(true);
 
-  // フィルタ状態
-  let selectedCategory = $state<string | null>(null);
+  // フィルタ状態（ボキャブラリタグ、キーワード、エリア）
   let selectedTag = $state<string | null>(null);
   let searchQuery = $state('');
   let selectedArea = $state<string>('');
@@ -78,9 +74,6 @@
       const fetchedSettings = await fetchSettings();
       settings = fetchedSettings || {};
 
-      const cats = await fetchCategories();
-      categories = cats || [];
-
       vocabularyTags = await fetchVocabularyTags();
 
       await reloadPosts();
@@ -95,7 +88,6 @@
     try {
       const [postRes, tags] = await Promise.all([
         fetchPosts({
-          category: selectedCategory || undefined,
           area: selectedArea || undefined,
           tag: selectedTag || undefined,
           q: searchQuery || undefined,
@@ -108,12 +100,6 @@
     } catch (err) {
       console.error('Failed to reload posts:', err);
     }
-  }
-
-  // カテゴリ選択ハンドラ
-  function handleSelectCategory(catId: string | null) {
-    selectedCategory = catId;
-    reloadPosts();
   }
 
   // タグ（ボキャブラリ）選択ハンドラ
@@ -160,17 +146,11 @@
     onOpenCreate={() => { showCreateModal = true; }}
   />
 
-  <!-- ピル/カテゴリフィルターバー -->
-  <CategoryFilter
-    {categories}
-    {selectedCategory}
-    onSelect={handleSelectCategory}
-  />
-
-  <!-- 自発的ボキャブラリ（タグ）バー -->
-  <VocabularyBar
+  <!-- 自発的ボキャブラリ（タグ）メインフィルターバー -->
+  <VocabularyFilter
     tags={vocabularyTags}
     {selectedTag}
+    totalCount={totalPosts}
     onSelectTag={handleSelectTag}
   />
 
@@ -276,7 +256,7 @@
     {:else}
       <!-- リストビュー -->
       {#if posts.length === 0}
-        {#if selectedCategory || selectedTag || searchQuery || selectedArea}
+        {#if selectedTag || searchQuery || selectedArea}
           <!-- 絞り込みによる0件 -->
           <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
             <div class="text-3xl mb-2">🔍</div>
@@ -286,7 +266,7 @@
             </p>
             <button
               type="button"
-              onclick={() => { selectedCategory = null; selectedTag = null; searchQuery = ''; selectedArea = ''; reloadPosts(); }}
+              onclick={() => { selectedTag = null; searchQuery = ''; selectedArea = ''; reloadPosts(); }}
               class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
             >
               条件をクリア
@@ -365,7 +345,6 @@
 
   {#if showCreateModal}
     <CreatePostModal
-      {categories}
       vocabularyTags={vocabularyTags}
       token={authToken}
       onClose={() => { showCreateModal = false; }}
