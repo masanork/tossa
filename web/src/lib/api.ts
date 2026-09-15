@@ -212,3 +212,35 @@ export async function checkAuth(token: string): Promise<{
     return { authenticated: false };
   }
 }
+
+// ================= Federation & Migration Functions =================
+
+export async function importFederationFromUrl(
+  remoteUrl: string,
+  token: string
+): Promise<{ success: boolean; message?: string; stats?: { added: number; updated: number; skipped: number }; error?: string }> {
+  const res = await fetch(`${API_BASE}/federation/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ remoteUrl }),
+  });
+  return await res.json();
+}
+
+export async function importFederationFromFeatures(
+  features: any[],
+  token: string
+): Promise<{ success: boolean; message?: string; stats?: { added: number; updated: number; skipped: number }; error?: string }> {
+  const res = await fetch(`${API_BASE}/federation/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ features }),
+  });
+  return await res.json();
+}

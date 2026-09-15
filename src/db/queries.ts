@@ -291,3 +291,273 @@ export async function getUserCredentials(db: D1Database, userId: string): Promis
   const res = await db.prepare('SELECT * FROM credentials WHERE user_id = ?').bind(userId).all<Credential>();
   return res.results || [];
 }
+
+// ================= Federation & Migration Functions =================
+
+export interface FederatedGeoJSONFeature {
+  type: 'Feature';
+  id: string;
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number]; // [lng, lat]
+  } | null;
+  properties: {
+    title: string;
+    area: string;
+    address?: string | null;
+    currentStatus: string;
+    statusLabel: string;
+    note?: string | null;
+    url?: string | null;
+    sourceUrl?: string | null;
+    imageUrl?: string | null;
+    imageMeta?: Record<string, unknown>;
+    attributes?: Record<string, unknown>;
+    tags?: string[];
+    verificationCount?: number;
+    lastVerifiedAt?: string | null;
+    isVerified?: number;
+    reporterName?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    statusHistory?: Array<{
+      status: string;
+      statusLabel: string;
+      note?: string | null;
+      createdAt: string;
+    }>;
+  };
+}
+
+/**
+ * 全投稿およびステータス履歴を GeoJSON-LD 互換の FeatureCollection 形式でエクスポート
+ */
+export async function exportAllPostsForFederation(
+  db: D1Database
+): Promise<FederatedGeoJSONFeature[]> {
+  const postsRes = await db
+    .prepare('SELECT * FROM posts ORDER BY updated_at DESC')
+    .all<Post>();
+  const posts = postsRes.results || [];
+
+  const historyRes = await db
+    .prepare('SELECT * FROM status_updates ORDER BY created_at ASC')
+    .all<StatusUpdate>();
+  const allHistory = historyRes.results || [];
+
+  // postId ごとに履歴をグループ化
+  const historyMap = new Map<string, StatusUpdate[]>();
+  for (const h of allHistory) {
+    const list = historyMap.get(h.post_id) || [];
+    list.push(h);
+    historyMap.set(h.post_id, list);
+  }
+
+  return posts.map((p) => {
+    let parsedAttrs: Record<string, unknown> = {};
+    try {
+      if (p.attributes) parsedAttrs = JSON.parse(p.attributes);
+    } catch {
+      // ignore
+    }
+
+    let parsedTags: string[] = [];
+    try {
+      if (p.tags) parsedTags = JSON.parse(p.tags);
+    } catch {
+      // ignore
+    }
+
+    let parsedImageMeta: Record<string, unknown> = {};
+    try {
+      if (p.image_meta) parsedImageMeta = JSON.parse(p.image_meta);
+    } catch {
+      // ignore
+    }
+
+    const histories = historyMap.get(p.id) || [];
+
+    return {
+      type: 'Feature',
+      id: p.id,
+      geometry:
+        p.lat !== null && p.lng !== null
+          ? {
+              type: 'Point',
+              coordinates: [p.lng, p.lat], // GeoJSON standard: [longitude, latitude]
+            }
+          : null,
+      properties: {
+        title: p.title,
+        area: p.area,
+        address: p.address,
+        currentStatus: p.current_status,
+        statusLabel: p.status_label,
+        note: p.note,
+        url: p.url,
+        sourceUrl: p.source_url,
+        imageUrl: p.image_url,
+        imageMeta: parsedImageMeta,
+        attributes: parsedAttrs,
+        tags: parsedTags,
+        verificationCount: p.verification_count || 0,
+        lastVerifiedAt: p.last_verified_at,
+        isVerified: p.is_verified,
+        reporterName: p.reporter_name,
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+        statusHistory: histories.map((h) => ({
+          status: h.status,
+          statusLabel: h.status_label,
+          note: h.note,
+          createdAt: h.created_at,
+        })),
+      },
+    };
+  });
+}
+
+/**
+ * 外部サイトの GeoJSON Feature 配列を受け取り、ローカルDBへマージ・重複排除インポート
+ */
+export async function importFederatedPosts(
+  db: D1Database,
+  features: FederatedGeoJSONFeature[]
+): Promise<{ added: number; updated: number; skipped: number }> {
+  let added = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const feature of features) {
+    if (!feature.id || !feature.properties?.title || !feature.properties?.area) {
+      skipped++;
+      continue;
+    }
+
+    const props = feature.properties;
+    const lat = feature.geometry?.coordinates ? feature.geometry.coordinates[1] : null;
+    const lng = feature.geometry?.coordinates ? feature.geometry.coordinates[0] : null;
+
+    const existing = await db
+      .prepare('SELECT id, updated_at FROM posts WHERE id = ?')
+      .bind(feature.id)
+      .first<{ id: string; updated_at: string }>();
+
+    const attrJson = props.attributes ? JSON.stringify(props.attributes) : '{}';
+    const tagsJson = props.tags && props.tags.length > 0 ? JSON.stringify(props.tags) : '[]';
+    const imageMetaJson = props.imageMeta ? JSON.stringify(props.imageMeta) : '{}';
+
+    if (existing) {
+      // 既存レコードがある場合: 相手の updatedAt の方が新しい場合のみ上書き更新
+      const localTime = new Date(existing.updated_at).getTime();
+      const remoteTime = new Date(props.updatedAt).getTime();
+
+      if (remoteTime > localTime) {
+        await db
+          .prepare(
+            `UPDATE posts SET
+              title = ?, area = ?, address = ?, lat = ?, lng = ?,
+              current_status = ?, status_label = ?, note = ?, url = ?, source_url = ?,
+              image_url = COALESCE(?, image_url),
+              image_meta = ?, attributes = ?, tags = ?,
+              verification_count = MAX(verification_count, ?),
+              last_verified_at = COALESCE(?, last_verified_at),
+              is_verified = MAX(is_verified, ?),
+              updated_at = ?
+             WHERE id = ?`
+          )
+          .bind(
+            props.title,
+            props.area,
+            props.address || null,
+            lat,
+            lng,
+            props.currentStatus,
+            props.statusLabel,
+            props.note || null,
+            props.url || null,
+            props.sourceUrl || null,
+            props.imageUrl || null,
+            imageMetaJson,
+            attrJson,
+            tagsJson,
+            props.verificationCount || 0,
+            props.lastVerifiedAt || null,
+            props.isVerified ? 1 : 0,
+            props.updatedAt,
+            feature.id
+          )
+          .run();
+        updated++;
+      } else {
+        skipped++;
+      }
+    } else {
+      // 新規レコードとして INSERT
+      await db
+        .prepare(
+          `INSERT INTO posts (
+            id, category_id, title, area, address, lat, lng,
+            current_status, status_label, note, url, source_url, image_url, image_meta,
+            verification_count, last_verified_at, attributes, tags, is_verified, reporter_name,
+            created_at, updated_at
+          ) VALUES (?, 'general', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          feature.id,
+          props.title,
+          props.area,
+          props.address || null,
+          lat,
+          lng,
+          props.currentStatus,
+          props.statusLabel,
+          props.note || null,
+          props.url || null,
+          props.sourceUrl || null,
+          props.imageUrl || null,
+          imageMetaJson,
+          props.verificationCount || 0,
+          props.lastVerifiedAt || null,
+          attrJson,
+          tagsJson,
+          props.isVerified ? 1 : 0,
+          props.reporterName || null,
+          props.createdAt,
+          props.updatedAt
+        )
+        .run();
+      added++;
+    }
+
+    // ステータス履歴のマージ
+    if (props.statusHistory && props.statusHistory.length > 0) {
+      for (const h of props.statusHistory) {
+        // 同一 post_id かつ同一日時の履歴がなければ追加
+        const histExists = await db
+          .prepare('SELECT id FROM status_updates WHERE post_id = ? AND created_at = ?')
+          .bind(feature.id, h.createdAt)
+          .first();
+
+        if (!histExists) {
+          await db
+            .prepare(
+              `INSERT INTO status_updates (id, post_id, status, status_label, note, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)`
+            )
+            .bind(
+              `update_${crypto.randomUUID()}`,
+              feature.id,
+              h.status,
+              h.statusLabel,
+              h.note || null,
+              h.createdAt
+            )
+            .run();
+        }
+      }
+    }
+  }
+
+  return { added, updated, skipped };
+}

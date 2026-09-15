@@ -7,6 +7,7 @@ import { categoriesRoute } from './routes/categories';
 import { postsRoute } from './routes/posts';
 import { settingsRoute } from './routes/settings';
 import { authRoute } from './routes/auth';
+import { federationRoute } from './routes/federation';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -27,6 +28,8 @@ app.route('/api/categories', categoriesRoute);
 app.route('/api/posts', postsRoute);
 app.route('/api/settings', settingsRoute);
 app.route('/api/auth', authRoute);
+app.route('/api', federationRoute);
+app.route('/api/federation', federationRoute);
 
 // ヘルスチェック
 app.get('/api/health', (c) => {
