@@ -642,12 +642,12 @@
         </button>
       {/if}
 
-      <!-- Contact (E2EE) button -->
+      <!-- Contact button -->
       <button
         type="button"
         onclick={() => onContactPost?.(post)}
         class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        title="この投稿について管理者や投稿者にセキュア連絡"
+        title="この投稿について管理者や投稿者に連絡"
       >
         <MessageSquareLock
           class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"

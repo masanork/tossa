@@ -374,12 +374,12 @@
         {/if}
       </div>
 
-      <!-- 6. 連絡 (Secure messaging / E2EE) button: Always visible -->
+      <!-- 6. 連絡 (Secure messaging) button: Always visible -->
       <button
         type="button"
         onclick={onOpenMessages}
         class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-blue-50/60 hover:text-blue-700 sm:px-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        title="管理者や他利用者とのE2EE暗号化連絡"
+        title="管理者や投稿者への連絡・相談"
         aria-label={m.btn_messages()}
       >
         <MessageSquareLock

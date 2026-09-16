@@ -136,5 +136,5 @@
   "push_type_emergency": "きんきゅう ひなん・たいせつな おしらせ",
   "push_type_evacuation": "ひなんじょ・きゅうすいじょの じょうほう",
   "push_type_status": "ちかくの ばしょの あたらしい じょうほう",
-  "push_type_messages": "あんごうか れんらく（E2EE）"
+  "push_type_messages": "あたらしい れんらく・メッセージ"
 }

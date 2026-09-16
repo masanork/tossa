@@ -300,7 +300,7 @@
         identityKey = await initializeE2eeKeys(undefined, token);
       }
       if (!identityKey) {
-        throw new Error('E2EE暗号化鍵の取得に失敗しました');
+        throw new Error('通信鍵の初期化に失敗しました');
       }
 
       // 1. Generate shared thread key
@@ -399,7 +399,7 @@
         createError = res.error || 'スレッド作成に失敗しました';
       }
     } catch (err: any) {
-      createError = err.message || '暗号化または通信エラーが発生しました';
+      createError = err.message || '通信エラーが発生しました';
     } finally {
       isSending = false;
     }
@@ -516,18 +516,18 @@
           <h2
             class="flex items-center gap-1.5 text-sm font-black text-slate-900 sm:text-base dark:text-slate-100"
           >
-            <span>セキュア連絡（E2EE）</span>
+            <span>連絡・メッセージ</span>
             <span
               class="flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
             >
               <Check class="h-2.5 w-2.5" />
-              <span>Passkey PRF 暗号化</span>
+              <span>保護された通信</span>
             </span>
           </h2>
           <p class="text-[10px] text-slate-500 dark:text-slate-400">
             {identityKey?.isPrfDerived
-              ? '生体認証（PRF）によるゼロ知識暗号化で通信中'
-              : '端末内暗号鍵により保護されています'}
+              ? '端末認証により保護されています'
+              : '端末認証により保護されています'}
           </p>
         </div>
       </div>
@@ -654,7 +654,7 @@
               id="first-msg"
               bind:value={firstMessageText}
               rows="4"
-              placeholder="相談内容や要件を具体的に入力してください（E2EEで暗号化されて送信されます）"
+              placeholder="相談内容や要件を具体的に入力してください"
               class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
             ></textarea>
           </div>
@@ -677,12 +677,8 @@
               disabled={isSending || !newThreadTitle.trim()}
               class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
             >
-              <Lock class="h-3.5 w-3.5" />
-              <span
-                >{isSending
-                  ? '暗号化して作成中...'
-                  : '暗号化して連絡を開始'}</span
-              >
+              <Send class="h-3.5 w-3.5" />
+              <span>{isSending ? '作成中...' : '連絡を開始'}</span>
             </button>
           </div>
         </div>
@@ -728,7 +724,7 @@
                 >
                   <span>参加メンバー ({activeThreadMembers.length}名)</span>
                   <span>•</span>
-                  <span>E2EE 暗号化保護</span>
+                  <span>保護された通信</span>
                 </div>
               </div>
             </div>
@@ -756,15 +752,17 @@
                 <div
                   class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
                 ></div>
-                <span>暗号化メッセージを復号中...</span>
+                <span>メッセージを読み込み中...</span>
               </div>
             {:else if decryptedMessages.length === 0}
               <div
                 class="flex flex-col items-center gap-1.5 py-12 text-center text-xs text-slate-400 dark:text-slate-500"
               >
-                <Lock class="h-6 w-6 text-slate-300 dark:text-slate-600" />
+                <MessageSquare
+                  class="h-6 w-6 text-slate-300 dark:text-slate-600"
+                />
                 <span
-                  >まだメッセージがありません。最初のメッセージを暗号化送信してください。</span
+                  >まだメッセージがありません。最初のメッセージを送信してください。</span
                 >
               </div>
             {:else}
@@ -813,7 +811,7 @@
             <input
               type="text"
               bind:value={newMessageText}
-              placeholder="メッセージを入力（E2EE暗号化して送信）..."
+              placeholder="メッセージを入力..."
               class="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
             />
             <button
@@ -867,7 +865,7 @@
                 「＋
                 新しい連絡・問い合わせ」から管理者への相談や利用者同士の連絡を開始できます。<br
                 />
-                メッセージはすべて端末の生体認証（Passkey PRF）で暗号化されます。
+                メッセージは端末認証（Passkey）により安全に保護されます。
               </p>
               <button
                 type="button"
@@ -970,7 +968,7 @@
       </div>
 
       <p class="text-[11px] leading-tight text-slate-500 dark:text-slate-400">
-        招待されたメンバーは、あなたの手元にある暗号鍵が相手の公開鍵で安全に共有され、このスレッドの閲覧・発言が可能になります。
+        招待されたメンバーは、このスレッドの安全な閲覧・発言が可能になります。
       </p>
 
       {#if inviteError}
