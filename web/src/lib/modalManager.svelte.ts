@@ -5,10 +5,15 @@ export type ModalName = 'create' | 'admin' | 'messages' | 'update_status';
 class ModalManager {
   stack = $state<ModalName[]>([]);
   private isHandlingPopstate = false;
+  private ignoreNextPopstate = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
       window.addEventListener('popstate', (_event) => {
+        if (this.ignoreNextPopstate) {
+          this.ignoreNextPopstate = false;
+          return;
+        }
         if (this.stack.length > 0) {
           this.isHandlingPopstate = true;
           this.stack.pop();
@@ -30,7 +35,14 @@ class ModalManager {
   }
 
   isTop(name: ModalName): boolean {
-    return this.stack.length > 0 && this.stack[this.stack.length - 1] === name;
+    const top = this.stack[this.stack.length - 1];
+    return top === name;
+  }
+
+  getZIndex(name: ModalName): number {
+    const idx = this.stack.indexOf(name);
+    if (idx === -1) return 50;
+    return 50 + idx * 10;
   }
 
   open(name: ModalName): void {
@@ -51,8 +63,8 @@ class ModalManager {
       this.updateBodyScrollLock();
 
       if (typeof window !== 'undefined' && !this.isHandlingPopstate) {
-        // If this was the state pushed on history, go back one step to keep history clean
         if (history.state?.tossaModal) {
+          this.ignoreNextPopstate = true;
           history.back();
         }
       }

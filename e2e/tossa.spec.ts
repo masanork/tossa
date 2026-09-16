@@ -124,24 +124,30 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     const createModal = page.locator('div.fixed.inset-0');
     await expect(createModal.first()).toBeVisible();
 
-    // Click passkey login link inside CreatePostModal
-    const passkeyLink = page.locator('button:has-text("Passkeyでログイン")');
-    if (await passkeyLink.isVisible()) {
-      await passkeyLink.click();
+    // Click passkey login link inside CreatePostModal to open stacked AdminModal
+    const passkeyLink = page.locator(
+      'form button:has-text("Passkeyでログイン"), form button:has-text("Passkey Login")'
+    );
+    await expect(passkeyLink).toBeVisible();
+    await passkeyLink.click();
 
-      // Verify AdminModal opened as stacked modal
-      const adminModal = page.locator('h2:has-text("Passkey 認証・設定")');
-      await expect(adminModal).toBeVisible();
+    // Verify AdminModal opened as stacked modal
+    const adminModal = page.locator('h2:has-text("Passkey 認証・設定")');
+    await expect(adminModal).toBeVisible();
 
-      // Press browser back button -> should dismiss AdminModal and keep CreateModal
-      await page.goBack();
-      await expect(adminModal).not.toBeVisible();
-    }
+    // Verify CreateModal remains in DOM behind AdminModal
+    const createModalTitle = page.locator(
+      'h2:has-text("情報を投稿"), h2:has-text("Post Information")'
+    );
+    await expect(createModalTitle).toBeAttached();
 
-    // Press browser back button -> should dismiss CreateModal
+    // Press browser back button -> should dismiss AdminModal and reveal CreateModal
     await page.goBack();
-    await expect(
-      page.locator('h2:has-text("情報を投稿"), h2:has-text("Post Information")')
-    ).not.toBeVisible();
+    await expect(adminModal).not.toBeVisible();
+    await expect(createModalTitle).toBeVisible();
+
+    // Press browser back button second time -> should dismiss CreateModal
+    await page.goBack();
+    await expect(createModalTitle).not.toBeVisible();
   });
 });

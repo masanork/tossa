@@ -1,6 +1,7 @@
 <!-- web/src/lib/AdminModal.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { swipeDown } from './swipeToDismiss';
   import type { SystemSettings, User } from './types';
   import {
     registerPasskey,
@@ -33,6 +34,8 @@
     settings: SystemSettings;
     user: User | null;
     token: string | null;
+    isTop?: boolean;
+    zIndex?: number;
     onClose: () => void;
     onAuthSuccess: (user: User, token: string) => void;
     onLogout: () => void;
@@ -43,6 +46,8 @@
     settings,
     user,
     token,
+    isTop = true,
+    zIndex = 60,
     onClose,
     onAuthSuccess,
     onLogout,
@@ -329,17 +334,24 @@
 
 <div
   role="presentation"
+  style="z-index: {zIndex};"
+  inert={!isTop}
   onclick={(e) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget && isTop) onClose();
   }}
-  class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
+  class="fixed inset-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs transition-opacity duration-200 sm:items-center sm:p-4 {isTop
+    ? 'opacity-100'
+    : 'opacity-80'}"
 >
   <div
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-150 sm:rounded-2xl"
+    use:swipeDown={onClose}
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl {isTop
+      ? 'scale-100 opacity-100'
+      : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
-      class="mx-auto my-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden"
+      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
     ></div>
 
     <!-- Header -->

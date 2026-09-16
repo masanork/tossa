@@ -39,7 +39,7 @@
   "map_empty_desc": "「＋ 情報を投稿」から緯度経度や住所を含む生活情報を投稿すると、ここにピンが表示されます。",
   "nudge_cookie_title": "端末識別（Cookie）で生活情報を投稿・編集できます",
   "nudge_cookie_desc": "Passkeyを登録すると、エンドツーエンド暗号化（E2EE）で管理者や投稿者に相談・連絡でき、別の端末からも自分の投稿を安全に管理できます。",
-  "nudge_register_btn": "Passkey登録",
+  "nudge_register_btn": "Passkeyでログイン / 登録",
   "modal_create_title": "＋ 情報を投稿",
   "modal_edit_title": "生活情報を編集",
   "modal_cookie_info_title": "端末識別（Cookie）でこのまま投稿できます。",

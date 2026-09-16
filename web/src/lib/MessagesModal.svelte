@@ -1,6 +1,7 @@
 <!-- web/src/lib/MessagesModal.svelte: E2EE Secure Messaging Panel -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { swipeDown } from './swipeToDismiss';
   import type {
     User,
     Thread,
@@ -45,6 +46,8 @@
     token: string;
     initialPostId?: string;
     initialPostTitle?: string;
+    isTop?: boolean;
+    zIndex?: number;
     onClose: () => void;
   }
 
@@ -53,6 +56,8 @@
     token,
     initialPostId,
     initialPostTitle,
+    isTop = true,
+    zIndex = 50,
     onClose,
   }: Props = $props();
 
@@ -477,17 +482,24 @@
 
 <div
   role="presentation"
+  style="z-index: {zIndex};"
+  inert={!isTop}
   onclick={(e) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget && isTop) onClose();
   }}
-  class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
+  class="fixed inset-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs transition-opacity duration-200 sm:items-center sm:p-4 {isTop
+    ? 'opacity-100'
+    : 'opacity-80'}"
 >
   <div
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-150 sm:h-[88vh] sm:max-h-[720px] sm:rounded-2xl"
+    use:swipeDown={onClose}
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:h-[88vh] sm:max-h-[720px] sm:rounded-2xl {isTop
+      ? 'scale-100 opacity-100'
+      : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
-      class="mx-auto my-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden"
+      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
     ></div>
 
     <!-- Header -->

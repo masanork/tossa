@@ -25,9 +25,11 @@
     RotateCw,
     WifiOff,
     Check,
+    Smartphone,
   } from '@lucide/svelte';
   import { m } from './lib/i18n.svelte';
   import { getPendingQueueCount, flushOfflineQueue } from './lib/offlineQueue';
+  import { modalManager, type ModalName } from './lib/modalManager.svelte';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa',
@@ -46,10 +48,7 @@
   let selectedArea = $state<string>('');
   let viewMode = $state<'list' | 'map'>('list');
 
-  // Modal state
-  let showAdminModal = $state(false);
-  let showCreateModal = $state(false);
-  let showMessagesModal = $state(false);
+  // Modal context state
   let updatingPost = $state<Post | null>(null);
   let editingPost = $state<Post | null>(null);
   let messageContextPost = $state<Post | null>(null);
@@ -64,48 +63,45 @@
   );
   let pendingCount = $state(0);
   let offlineNotice = $state<string | null>(null);
+  let isSyncing = $state(false);
+  let deferredInstallPrompt = $state<any>(null);
+  let showInstallBanner = $state(false);
 
   // Candidate areas (extracted from posts)
   const availableAreas = $derived(
     Array.from(new Set(posts.map((p) => p.area).filter(Boolean)))
   );
 
-  // Lock body scroll when any modal is open
-  $effect(() => {
-    const hasModal =
-      showAdminModal ||
-      showCreateModal ||
-      showMessagesModal ||
-      updatingPost !== null;
-    if (typeof document !== 'undefined') {
-      document.body.style.overflow = hasModal ? 'hidden' : '';
-    }
-  });
-
-  function pushModalHistory() {
-    if (typeof window !== 'undefined') {
-      history.pushState({ tossaModal: true }, '');
-    }
+  function handleCloseModal(name: ModalName) {
+    modalManager.close(name);
+    if (name === 'create') editingPost = null;
+    if (name === 'update_status') updatingPost = null;
+    if (name === 'messages') messageContextPost = null;
   }
 
   async function syncOfflineQueue() {
     pendingCount = getPendingQueueCount();
-    if (pendingCount === 0) return;
+    if (pendingCount === 0 || isSyncing) return;
 
-    const res = await flushOfflineQueue(authToken);
-    pendingCount = getPendingQueueCount();
-    if (res.succeeded > 0) {
-      offlineNotice = m.offline_sync_success({ count: res.succeeded });
-      setTimeout(() => {
-        offlineNotice = null;
-      }, 4000);
-      await reloadPosts();
+    isSyncing = true;
+    try {
+      const res = await flushOfflineQueue(authToken);
+      pendingCount = getPendingQueueCount();
+      if (res.succeeded > 0) {
+        offlineNotice = m.offline_sync_success({ count: res.succeeded });
+        setTimeout(() => {
+          offlineNotice = null;
+        }, 4000);
+        await reloadPosts();
+      }
+    } finally {
+      isSyncing = false;
     }
   }
 
   function handleOnline() {
     isOnline = true;
-    syncOfflineQueue();
+    void syncOfflineQueue();
   }
 
   function handleOffline() {
@@ -113,18 +109,28 @@
     pendingCount = getPendingQueueCount();
   }
 
-  function handlePopstate() {
-    if (showAdminModal) {
-      showAdminModal = false;
-    } else if (showCreateModal) {
-      showCreateModal = false;
-      editingPost = null;
-    } else if (showMessagesModal) {
-      showMessagesModal = false;
-      messageContextPost = null;
-    } else if (updatingPost) {
-      updatingPost = null;
+  function handleBeforeInstallPrompt(e: Event) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const dismissedAt = localStorage.getItem('tossa_pwa_dismissed');
+    if (!dismissedAt || Date.now() - Number(dismissedAt) > 7 * 86400000) {
+      showInstallBanner = true;
     }
+  }
+
+  async function handleInstallPwa() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if (choice?.outcome === 'accepted') {
+      showInstallBanner = false;
+    }
+    deferredInstallPrompt = null;
+  }
+
+  function handleDismissInstall() {
+    showInstallBanner = false;
+    localStorage.setItem('tossa_pwa_dismissed', String(Date.now()));
   }
 
   onMount(async () => {
@@ -142,12 +148,12 @@
     // 2. Load initial data
     await loadInitialData();
 
-    // 3. Online/Offline & Outbox Listeners
+    // 3. Online/Offline, PWA & Outbox Listeners
     pendingCount = getPendingQueueCount();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('popstate', handlePopstate);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     if (navigator.onLine && pendingCount > 0) {
       await syncOfflineQueue();
@@ -158,7 +164,10 @@
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('popstate', handlePopstate);
+      window.removeEventListener(
+        'beforeinstallprompt',
+        handleBeforeInstallPrompt
+      );
     }
   });
 
@@ -224,22 +233,20 @@
   }
 
   function handleOpenUpdateStatus(post: Post) {
-    pushModalHistory();
     updatingPost = post;
+    modalManager.open('update_status');
   }
 
   // Open create post (cookie identification allows instant posting without login)
   function handleOpenCreate() {
-    pushModalHistory();
     editingPost = null;
-    showCreateModal = true;
+    modalManager.open('create');
   }
 
   // Open edit post
   function handleEditPost(post: Post) {
-    pushModalHistory();
     editingPost = post;
-    showCreateModal = true;
+    modalManager.open('create');
   }
 
   // Delete post (cookie owner, author, or admin)
@@ -261,28 +268,24 @@
     await reloadPosts();
   }
 
+  function handleOpenAdmin() {
+    modalManager.open('admin');
+  }
+
   // Open E2EE messaging modal
-  function handleOpenMessages() {
-    pushModalHistory();
+  function handleOpenMessages(post?: Post) {
     if (!currentUser || !authToken) {
       alert(m.e2ee_need_auth());
-      showAdminModal = true;
+      modalManager.open('admin');
       return;
     }
-    messageContextPost = null;
-    showMessagesModal = true;
+    messageContextPost = post || null;
+    modalManager.open('messages');
   }
 
   // Contact about post (open messages modal with post context)
   function handleContactPost(post: Post) {
-    pushModalHistory();
-    if (!currentUser || !authToken) {
-      alert(m.e2ee_need_auth());
-      showAdminModal = true;
-      return;
-    }
-    messageContextPost = post;
-    showMessagesModal = true;
+    handleOpenMessages(post);
   }
 
   // Passkey nudge banner dismissed state
@@ -294,13 +297,41 @@
   <Header
     {settings}
     user={currentUser}
-    onOpenAdmin={() => {
-      pushModalHistory();
-      showAdminModal = true;
-    }}
+    onOpenAdmin={handleOpenAdmin}
     onOpenCreate={handleOpenCreate}
-    onOpenMessages={handleOpenMessages}
+    onOpenMessages={() => handleOpenMessages()}
   />
+
+  <!-- PWA Install Banner -->
+  {#if showInstallBanner}
+    <div
+      class="animate-in fade-in flex items-center justify-between gap-3 bg-gradient-to-r from-blue-700 to-indigo-700 px-4 py-2.5 text-xs text-white shadow-md duration-200"
+    >
+      <div class="flex items-center gap-2">
+        <Smartphone class="h-4 w-4 shrink-0 text-blue-200" />
+        <span class="font-medium"
+          >ホーム画面に追加して、オフラインでも迅速に起動できます</span
+        >
+      </div>
+      <div class="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onclick={handleInstallPwa}
+          class="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-blue-700 shadow-2xs transition hover:bg-blue-50"
+        >
+          インストール
+        </button>
+        <button
+          type="button"
+          onclick={handleDismissInstall}
+          class="cursor-pointer rounded-md p-1 text-blue-200 transition hover:text-white"
+          aria-label="閉じる"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <!-- Offline status & Sync notification banners -->
   {#if !isOnline}
@@ -316,6 +347,25 @@
           未送信: {pendingCount}件
         </span>
       {/if}
+    </div>
+  {:else if pendingCount > 0}
+    <div
+      class="animate-in fade-in flex items-center justify-between gap-2 bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs duration-200"
+    >
+      <div class="flex items-center gap-2">
+        <RotateCw
+          class="h-3.5 w-3.5 shrink-0 {isSyncing ? 'animate-spin' : ''}"
+        />
+        <span>未送信の投稿・更新が {pendingCount} 件あります</span>
+      </div>
+      <button
+        type="button"
+        onclick={() => syncOfflineQueue()}
+        disabled={isSyncing}
+        class="cursor-pointer rounded bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-white/30 disabled:opacity-50"
+      >
+        {isSyncing ? '送信中...' : '今すぐ送信'}
+      </button>
     </div>
   {:else if offlineNotice}
     <div
@@ -358,9 +408,7 @@
         <div class="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onclick={() => {
-              showAdminModal = true;
-            }}
+            onclick={handleOpenAdmin}
             class="cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-white shadow-2xs transition hover:bg-blue-700"
           >
             {m.nudge_register_btn()}
@@ -608,66 +656,66 @@
     </button>
   </div>
 
-  <!-- Modals -->
-  {#if updatingPost}
+  <!-- Modals (with Stack & Bottom Sheet coordination) -->
+  {#if modalManager.isOpen('update_status') && updatingPost}
     <UpdateStatusModal
       post={updatingPost}
-      onClose={() => {
-        updatingPost = null;
-      }}
+      isTop={modalManager.isTop('update_status')}
+      zIndex={modalManager.getZIndex('update_status')}
+      onClose={() => handleCloseModal('update_status')}
       onUpdated={() => {
         reloadPosts();
       }}
     />
   {/if}
 
-  {#if showCreateModal}
+  {#if modalManager.isOpen('create')}
     <CreatePostModal
       {vocabularyTags}
       defaultArea={settings.default_area || ''}
       {availableAreas}
       token={authToken}
       {editingPost}
-      onClose={() => {
-        showCreateModal = false;
-        editingPost = null;
-      }}
+      isTop={modalManager.isTop('create')}
+      zIndex={modalManager.getZIndex('create')}
+      onClose={() => handleCloseModal('create')}
       onCreated={() => {
+        pendingCount = getPendingQueueCount();
         reloadPosts();
       }}
       onUpdated={() => {
+        pendingCount = getPendingQueueCount();
         reloadPosts();
       }}
       onOpenAuth={() => {
-        showAdminModal = true;
+        modalManager.open('admin');
       }}
     />
   {/if}
 
-  {#if showAdminModal}
+  {#if modalManager.isOpen('admin')}
     <AdminModal
       {settings}
       user={currentUser}
       token={authToken}
-      onClose={() => {
-        showAdminModal = false;
-      }}
+      isTop={modalManager.isTop('admin')}
+      zIndex={modalManager.getZIndex('admin')}
+      onClose={() => handleCloseModal('admin')}
       onAuthSuccess={handleAuthSuccess}
       onLogout={handleLogout}
       onSettingsUpdated={handleSettingsUpdated}
     />
   {/if}
 
-  {#if showMessagesModal && currentUser && authToken}
+  {#if modalManager.isOpen('messages') && currentUser && authToken}
     <MessagesModal
       {currentUser}
       token={authToken}
       initialPostId={messageContextPost?.id}
       initialPostTitle={messageContextPost?.title}
-      onClose={() => {
-        showMessagesModal = false;
-        messageContextPost = null;
-      }}
+      isTop={modalManager.isTop('messages')}
+      zIndex={modalManager.getZIndex('messages')}
+      onClose={() => handleCloseModal('messages')}
     />
   {/if}
 </div>
