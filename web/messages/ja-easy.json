@@ -2,7 +2,7 @@
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "app_title": "tossa",
   "app_subtitle": "まちの くらしの じょうほう",
-  "btn_post": "＋ じょうほうを かく",
+  "btn_post": "じょうほうを かく",
   "btn_auth": "ログイン / とうろく",
   "btn_messages": "あんぜんな メッセージ",
   "btn_list_view": "いちらん",

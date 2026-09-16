@@ -52,7 +52,10 @@ app.all('*', async (c) => {
   if (c.env.ASSETS) {
     return await c.env.ASSETS.fetch(c.req.raw);
   }
-  return c.text('tossa API Server. Web assets not configured in this environment.', 404);
+  return c.text(
+    'tossa API Server. Web assets not configured in this environment.',
+    404
+  );
 });
 
 export default app;

@@ -199,7 +199,9 @@
   <Header
     {settings}
     user={currentUser}
-    onOpenAdmin={() => { showAdminModal = true; }}
+    onOpenAdmin={() => {
+      showAdminModal = true;
+    }}
     onOpenCreate={handleOpenCreate}
     onOpenMessages={handleOpenMessages}
   />
@@ -215,13 +217,19 @@
   <!-- 未ログイン（端末Cookie識別）ユーザーへのPasskey登録促進バナー -->
   {#if !currentUser && !hidePasskeyNudge}
     <div class="max-w-4xl mx-auto px-4 w-full mb-3">
-      <div class="bg-gradient-to-r from-blue-50 via-indigo-50 to-white border border-blue-200/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+      <div
+        class="bg-gradient-to-r from-blue-50 via-indigo-50 to-white border border-blue-200/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs"
+      >
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs font-bold text-sm">
+          <div
+            class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs font-bold text-sm"
+          >
             🔑
           </div>
           <div class="text-xs leading-tight">
-            <span class="font-bold text-slate-800">{m.nudge_cookie_title()}</span>
+            <span class="font-bold text-slate-800"
+              >{m.nudge_cookie_title()}</span
+            >
             <p class="text-[11px] text-slate-500 mt-0.5">
               {m.nudge_cookie_desc()}
             </p>
@@ -230,14 +238,18 @@
         <div class="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            onclick={() => { showAdminModal = true; }}
+            onclick={() => {
+              showAdminModal = true;
+            }}
             class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer whitespace-nowrap"
           >
             {m.nudge_register_btn()}
           </button>
           <button
             type="button"
-            onclick={() => { hidePasskeyNudge = true; }}
+            onclick={() => {
+              hidePasskeyNudge = true;
+            }}
             class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition cursor-pointer"
             title="閉じる"
           >
@@ -249,11 +261,15 @@
   {/if}
 
   <!-- サブバー: 検索・エリア・表示切替 (List ⇄ Map) -->
-  <div class="max-w-4xl mx-auto px-4 w-full mb-3 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+  <div
+    class="max-w-4xl mx-auto px-4 w-full mb-3 flex flex-col sm:flex-row items-center justify-between gap-2.5"
+  >
     <div class="flex items-center gap-2 w-full sm:w-auto flex-1">
       <!-- 検索バー -->
       <div class="relative flex-1">
-        <Search class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Search
+          class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        />
         <input
           type="text"
           value={searchQuery}
@@ -279,10 +295,14 @@
     </div>
 
     <!-- リスト / 地図トグルボタン -->
-    <div class="flex items-center bg-slate-200/80 p-0.5 rounded-lg shrink-0 self-end sm:self-auto">
+    <div
+      class="flex items-center bg-slate-200/80 p-0.5 rounded-lg shrink-0 self-end sm:self-auto"
+    >
       <button
         type="button"
-        onclick={() => { viewMode = 'list'; }}
+        onclick={() => {
+          viewMode = 'list';
+        }}
         class={`flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
           viewMode === 'list'
             ? 'bg-white text-slate-900 shadow-xs'
@@ -295,7 +315,9 @@
 
       <button
         type="button"
-        onclick={() => { viewMode = 'map'; }}
+        onclick={() => {
+          viewMode = 'map';
+        }}
         class={`flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
           viewMode === 'map'
             ? 'bg-white text-slate-900 shadow-xs'
@@ -320,16 +342,24 @@
   <!-- メインコンテンツ -->
   <main class="max-w-4xl mx-auto px-4 w-full flex-1 pb-16">
     {#if isLoading}
-      <div class="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-        <div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <div
+        class="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-2"
+      >
+        <div
+          class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
+        ></div>
         <span>{m.loading_posts()}</span>
       </div>
     {:else if viewMode === 'map'}
       <!-- 地図ビュー -->
       {#if posts.length === 0}
-        <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs mb-4">
+        <div
+          class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs mb-4"
+        >
           <div class="text-3xl mb-2">🗺️</div>
-          <h3 class="text-sm font-bold text-slate-800 mb-1">{m.map_empty_title()}</h3>
+          <h3 class="text-sm font-bold text-slate-800 mb-1">
+            {m.map_empty_title()}
+          </h3>
           <p class="text-xs text-slate-500 mb-4">
             {m.map_empty_desc()}
           </p>
@@ -345,7 +375,9 @@
         <MapView
           {posts}
           defaultArea={settings.default_area || ''}
-          onOpenUpdateStatus={(p) => { updatingPost = p; }}
+          onOpenUpdateStatus={(p) => {
+            updatingPost = p;
+          }}
         />
       {/if}
     {:else}
@@ -353,15 +385,24 @@
       {#if posts.length === 0}
         {#if selectedTag || searchQuery || selectedArea}
           <!-- 絞り込みによる0件 -->
-          <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
+          <div
+            class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs"
+          >
             <div class="text-3xl mb-2">🔍</div>
-            <h3 class="text-sm font-bold text-slate-800 mb-1">{m.empty_filter_title()}</h3>
+            <h3 class="text-sm font-bold text-slate-800 mb-1">
+              {m.empty_filter_title()}
+            </h3>
             <p class="text-xs text-slate-500 mb-4">
               {m.empty_filter_desc()}
             </p>
             <button
               type="button"
-              onclick={() => { selectedTag = null; searchQuery = ''; selectedArea = ''; reloadPosts(); }}
+              onclick={() => {
+                selectedTag = null;
+                searchQuery = '';
+                selectedArea = '';
+                reloadPosts();
+              }}
               class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
             >
               {m.btn_clear_filters()}
@@ -369,17 +410,25 @@
           </div>
         {:else}
           <!-- 完全白紙時のウェルカムCTA -->
-          <div class="py-12 sm:py-16 text-center bg-gradient-to-b from-white to-blue-50/40 rounded-3xl border border-blue-100 p-8 sm:p-12 shadow-xs">
-            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner">
+          <div
+            class="py-12 sm:py-16 text-center bg-gradient-to-b from-white to-blue-50/40 rounded-3xl border border-blue-100 p-8 sm:p-12 shadow-xs"
+          >
+            <div
+              class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner"
+            >
               🌱
             </div>
             <h3 class="text-lg font-black text-slate-900 mb-2">
               {m.empty_title()}
             </h3>
-            <p class="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mb-6">
+            <p
+              class="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mb-6"
+            >
               {m.empty_description()}
             </p>
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div
+              class="flex flex-col sm:flex-row items-center justify-center gap-3"
+            >
               <button
                 type="button"
                 onclick={handleOpenCreate}
@@ -392,23 +441,34 @@
           </div>
         {/if}
       {:else}
-        <div class="flex items-center justify-between text-xs text-slate-500 mb-2 px-1">
+        <div
+          class="flex items-center justify-between text-xs text-slate-500 mb-2 px-1"
+        >
           <span>{m.posts_count({ count: totalPosts })}</span>
           {#if selectedTag}
-            <span class="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+            <span
+              class="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded"
+            >
               {m.filtering_by_tag({ tag: selectedTag })}
-              <button type="button" onclick={() => handleSelectTag(null)} class="hover:text-blue-800">×</button>
+              <button
+                type="button"
+                onclick={() => handleSelectTag(null)}
+                class="hover:text-blue-800">×</button
+              >
             </span>
           {/if}
-          <span class="text-[11px] text-slate-400">{m.edge_cache_notice()}</span>
+          <span class="text-[11px] text-slate-400">{m.edge_cache_notice()}</span
+          >
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           {#each posts as post (post.id)}
             <PostCard
               {post}
-              currentUser={currentUser}
-              onOpenUpdateStatus={(p) => { updatingPost = p; }}
+              {currentUser}
+              onOpenUpdateStatus={(p) => {
+                updatingPost = p;
+              }}
               onSelectTag={handleSelectTag}
               onEditPost={handleEditPost}
               onDeletePost={handleDeletePost}
@@ -436,22 +496,35 @@
   {#if updatingPost}
     <UpdateStatusModal
       post={updatingPost}
-      onClose={() => { updatingPost = null; }}
-      onUpdated={() => { reloadPosts(); }}
+      onClose={() => {
+        updatingPost = null;
+      }}
+      onUpdated={() => {
+        reloadPosts();
+      }}
     />
   {/if}
 
   {#if showCreateModal}
     <CreatePostModal
-      vocabularyTags={vocabularyTags}
+      {vocabularyTags}
       defaultArea={settings.default_area || ''}
-      availableAreas={availableAreas}
+      {availableAreas}
       token={authToken}
-      editingPost={editingPost}
-      onClose={() => { showCreateModal = false; editingPost = null; }}
-      onCreated={() => { reloadPosts(); }}
-      onUpdated={() => { reloadPosts(); }}
-      onOpenAuth={() => { showAdminModal = true; }}
+      {editingPost}
+      onClose={() => {
+        showCreateModal = false;
+        editingPost = null;
+      }}
+      onCreated={() => {
+        reloadPosts();
+      }}
+      onUpdated={() => {
+        reloadPosts();
+      }}
+      onOpenAuth={() => {
+        showAdminModal = true;
+      }}
     />
   {/if}
 
@@ -460,7 +533,9 @@
       {settings}
       user={currentUser}
       token={authToken}
-      onClose={() => { showAdminModal = false; }}
+      onClose={() => {
+        showAdminModal = false;
+      }}
       onAuthSuccess={handleAuthSuccess}
       onLogout={handleLogout}
       onSettingsUpdated={handleSettingsUpdated}
@@ -469,11 +544,14 @@
 
   {#if showMessagesModal && currentUser && authToken}
     <MessagesModal
-      currentUser={currentUser}
+      {currentUser}
       token={authToken}
       initialPostId={messageContextPost?.id}
       initialPostTitle={messageContextPost?.title}
-      onClose={() => { showMessagesModal = false; messageContextPost = null; }}
+      onClose={() => {
+        showMessagesModal = false;
+        messageContextPost = null;
+      }}
     />
   {/if}
 </div>

@@ -56,7 +56,12 @@ threadsRoute.get('/public-keys', async (c) => {
 
   const role = c.req.query('role');
   const userIdsParam = c.req.query('ids');
-  const userIds = userIdsParam ? userIdsParam.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+  const userIds = userIdsParam
+    ? userIdsParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
 
   const users = await getUsersPublicKeys(c.env.DB, { role, userIds });
 
@@ -101,12 +106,18 @@ threadsRoute.post('/', async (c) => {
   }>();
 
   if (!body.title || !body.type || !body.members || body.members.length === 0) {
-    return c.json({ success: false, error: 'Title, type, and members are required' }, 400);
+    return c.json(
+      { success: false, error: 'Title, type, and members are required' },
+      400
+    );
   }
 
   // 管理者会議（admin_chat）は管理者のみ作成可能
   if (body.type === 'admin_chat' && session.role !== 'admin') {
-    return c.json({ success: false, error: '管理者会議は管理者のみ作成できます' }, 403);
+    return c.json(
+      { success: false, error: '管理者会議は管理者のみ作成できます' },
+      403
+    );
   }
 
   const threadId = `thread_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -123,11 +134,14 @@ threadsRoute.post('/', async (c) => {
     body.members
   );
 
-  return c.json({
-    success: true,
-    id: threadId,
-    message: 'Thread created successfully',
-  }, 201);
+  return c.json(
+    {
+      success: true,
+      id: threadId,
+      message: 'Thread created successfully',
+    },
+    201
+  );
 });
 
 // 5. スレッド詳細 & メッセージ履歴取得 (GET /api/threads/:id)
@@ -140,7 +154,10 @@ threadsRoute.get('/:id', async (c) => {
   const threadId = c.req.param('id');
   const isMember = await isThreadMember(c.env.DB, threadId, session.userId);
   if (!isMember) {
-    return c.json({ success: false, error: 'このスレッドへのアクセス権限がありません' }, 403);
+    return c.json(
+      { success: false, error: 'このスレッドへのアクセス権限がありません' },
+      403
+    );
   }
 
   const thread = await getThreadById(c.env.DB, threadId, session.userId);
@@ -169,12 +186,18 @@ threadsRoute.post('/:id/messages', async (c) => {
   const threadId = c.req.param('id');
   const isMember = await isThreadMember(c.env.DB, threadId, session.userId);
   if (!isMember) {
-    return c.json({ success: false, error: 'このスレッドへの送信権限がありません' }, 403);
+    return c.json(
+      { success: false, error: 'このスレッドへの送信権限がありません' },
+      403
+    );
   }
 
   const body = await c.req.json<{ ciphertext: string; iv: string }>();
   if (!body.ciphertext || !body.iv) {
-    return c.json({ success: false, error: 'Ciphertext and IV are required' }, 400);
+    return c.json(
+      { success: false, error: 'Ciphertext and IV are required' },
+      400
+    );
   }
 
   const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -187,11 +210,14 @@ threadsRoute.post('/:id/messages', async (c) => {
     iv: body.iv,
   });
 
-  return c.json({
-    success: true,
-    id: messageId,
-    message: 'Message sent successfully',
-  }, 201);
+  return c.json(
+    {
+      success: true,
+      id: messageId,
+      message: 'Message sent successfully',
+    },
+    201
+  );
 });
 
 // 7. スレッドへの新規参加者・管理者招待 (POST /api/threads/:id/members)
@@ -204,7 +230,10 @@ threadsRoute.post('/:id/members', async (c) => {
   const threadId = c.req.param('id');
   const isMember = await isThreadMember(c.env.DB, threadId, session.userId);
   if (!isMember) {
-    return c.json({ success: false, error: 'このスレッドへの招待権限がありません' }, 403);
+    return c.json(
+      { success: false, error: 'このスレッドへの招待権限がありません' },
+      403
+    );
   }
 
   const body = await c.req.json<{
@@ -215,7 +244,14 @@ threadsRoute.post('/:id/members', async (c) => {
   }>();
 
   if (!body.userId || !body.encryptedThreadKey || !body.ephemeralPublicKey) {
-    return c.json({ success: false, error: 'userId, encryptedThreadKey, and ephemeralPublicKey are required' }, 400);
+    return c.json(
+      {
+        success: false,
+        error:
+          'userId, encryptedThreadKey, and ephemeralPublicKey are required',
+      },
+      400
+    );
   }
 
   const targetUser = await getUserById(c.env.DB, body.userId);

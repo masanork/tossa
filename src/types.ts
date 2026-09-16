@@ -47,7 +47,7 @@ export interface Post {
   is_verified: number; // 0 or 1
   author_id?: string | null;
   author_cookie_id?: string | null; // Cookie識別ユーザー（Passkey未登録）
-  is_owner?: boolean;               // Cookieベースの所有者フラグ（クエリ時に付与）
+  is_owner?: boolean; // Cookieベースの所有者フラグ（クエリ時に付与）
   reporter_name: string | null;
   created_at: string;
   updated_at: string;

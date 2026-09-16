@@ -24,7 +24,8 @@
       status: 'available',
       label: '受付中 / 利用可能',
       desc: '問題なく利用・給水・配布が行われています',
-      color: 'bg-emerald-50 border-emerald-300 text-emerald-800 ring-emerald-500',
+      color:
+        'bg-emerald-50 border-emerald-300 text-emerald-800 ring-emerald-500',
       icon: CheckCircle2,
     },
     {
@@ -63,7 +64,12 @@
     errorMessage = '';
 
     try {
-      const res = await updatePostStatus(post.id, selectedStatus, selectedLabel, note);
+      const res = await updatePostStatus(
+        post.id,
+        selectedStatus,
+        selectedLabel,
+        note
+      );
       if (res.success) {
         onUpdated();
         onClose();
@@ -79,13 +85,25 @@
 </script>
 
 {#if post}
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-    <div class="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+  >
+    <div
+      class="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+    >
       <!-- モーダルヘッダー -->
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div
+        class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50"
+      >
         <div>
-          <span class="text-xs font-bold text-blue-600 tracking-wide uppercase">状況の報告・更新</span>
-          <h2 class="text-base font-black text-slate-900 truncate max-w-xs sm:max-w-md">{post.title}</h2>
+          <span class="text-xs font-bold text-blue-600 tracking-wide uppercase"
+            >状況の報告・更新</span
+          >
+          <h2
+            class="text-base font-black text-slate-900 truncate max-w-xs sm:max-w-md"
+          >
+            {post.title}
+          </h2>
         </div>
         <button
           type="button"
@@ -99,13 +117,17 @@
       <!-- フォーム -->
       <form onsubmit={handleSubmit} class="p-5 flex flex-col gap-4">
         {#if errorMessage}
-          <div class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium">
+          <div
+            class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium"
+          >
             {errorMessage}
           </div>
         {/if}
 
         <div>
-          <span class="block text-xs font-bold text-slate-700 mb-2">現在の状況を選択（1タップ）</span>
+          <span class="block text-xs font-bold text-slate-700 mb-2"
+            >現在の状況を選択（1タップ）</span
+          >
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {#each statusOptions as opt}
               {@const Icon = opt.icon}
@@ -122,7 +144,9 @@
                   <Icon class="w-4 h-4 shrink-0" />
                   <span class="font-bold">{opt.label}</span>
                 </div>
-                <span class="text-[11px] text-slate-500 line-clamp-2 leading-tight">
+                <span
+                  class="text-[11px] text-slate-500 line-clamp-2 leading-tight"
+                >
                   {opt.desc}
                 </span>
               </button>
@@ -132,7 +156,10 @@
 
         <!-- 補足コメント -->
         <div>
-          <label for="update-note" class="block text-xs font-bold text-slate-700 mb-1">
+          <label
+            for="update-note"
+            class="block text-xs font-bold text-slate-700 mb-1"
+          >
             補足・現場メモ（任意）
           </label>
           <input
@@ -144,12 +171,16 @@
           />
         </div>
 
-        <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] leading-relaxed">
+        <div
+          class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-[11px] leading-relaxed"
+        >
           💡 現場の善意による情報提供です。正確な情報の維持にご協力ください。
         </div>
 
         <!-- ボタン -->
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <div
+          class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100"
+        >
           <button
             type="button"
             onclick={onClose}

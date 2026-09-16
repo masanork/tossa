@@ -57,7 +57,11 @@ export async function createSessionToken(
   const payloadB64 = base64UrlEncode(enc.encode(payloadJson));
 
   const key = await getHmacKey(secret);
-  const sigBuffer = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64));
+  const sigBuffer = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    enc.encode(payloadB64)
+  );
   const sigB64 = base64UrlEncode(new Uint8Array(sigBuffer));
 
   return `${payloadB64}.${sigB64}`;

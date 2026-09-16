@@ -63,6 +63,33 @@ npm run dev
 
 ---
 
+## 🧪 品質保証 & テスト (Quality Assurance)
+
+プロジェクトには包括的なテストと品質維持スイートが整備されています。
+
+```bash
+# 1. ユニット & 統合テスト (Vitest: D1 SQLite インメモリ高速実行)
+npm test
+
+# 2. ブラウザ E2E テスト (Playwright: 多言語切替・投稿・クッキー識別・Passkey)
+npm run test:e2e
+
+# 3. 型検査 (TypeScript & svelte-check)
+npm run typecheck
+
+# 4. リンター (ESLint flat config)
+npm run lint
+npm run lint:fix
+
+# 5. フォーマッター (Prettier)
+npm run format:check
+npm run format
+```
+
+プルリクエストおよび `main` ブランチへのプッシュ時には、GitHub Actions CI (`.github/workflows/ci.yml`) によりこれらすべての検査が自動実行されます。
+
+---
+
 ## 📦 Cloudflare への本番デプロイ
 
 ### 1. D1 データベースの作成

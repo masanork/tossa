@@ -4,9 +4,7 @@ import {
   isLocale,
   type Locale,
 } from '../paraglide/runtime.js';
-import * as m from '../paraglide/messages.js';
-
-export { m };
+import * as paraglideMessages from '../paraglide/messages.js';
 
 export interface LanguageOption {
   code: Locale;
@@ -17,7 +15,12 @@ export interface LanguageOption {
 
 export const LANGUAGES: LanguageOption[] = [
   { code: 'ja', label: '日本語 (標準)', shortLabel: '日本語', flag: '🇯🇵' },
-  { code: 'ja-easy', label: 'やさしい にほんご', shortLabel: 'やさしい', flag: '🌸' },
+  {
+    code: 'ja-easy',
+    label: 'やさしい にほんご',
+    shortLabel: 'やさしい',
+    flag: '🌸',
+  },
   { code: 'en', label: 'English', shortLabel: 'EN', flag: '🇺🇸' },
 ];
 
@@ -77,3 +80,17 @@ class I18nState {
 }
 
 export const i18n = new I18nState();
+
+// Svelte 5 reactive Proxy for Paraglide messages: automatically subscribes callers to i18n.current
+export const m = new Proxy(paraglideMessages, {
+  get(target: any, prop: string | symbol, receiver: any) {
+    const orig = Reflect.get(target, prop, receiver);
+    if (typeof orig === 'function') {
+      return (...args: any[]) => {
+        void i18n.current;
+        return orig(...args);
+      };
+    }
+    return orig;
+  },
+}) as typeof paraglideMessages;

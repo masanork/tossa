@@ -34,7 +34,7 @@ export interface Post {
   is_verified: number;
   author_id?: string | null;
   author_cookie_id?: string | null; // Cookie識別ユーザー（Passkey未登録）
-  is_owner?: boolean;               // サーバー側でCookieを照合した結果
+  is_owner?: boolean; // サーバー側でCookieを照合した結果
   reporter_name: string | null;
   created_at: string;
   updated_at: string;

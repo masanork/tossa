@@ -35,7 +35,10 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
     });
 
     if (exifData) {
-      if (typeof exifData.latitude === 'number' && typeof exifData.longitude === 'number') {
+      if (
+        typeof exifData.latitude === 'number' &&
+        typeof exifData.longitude === 'number'
+      ) {
         gpsCoordinates = {
           lat: Math.round(exifData.latitude * 1000000) / 1000000,
           lng: Math.round(exifData.longitude * 1000000) / 1000000,
@@ -111,7 +114,7 @@ function detectC2PA(bytes: Uint8Array): {
   let hasC2pa = false;
   let isSigned = false;
   let generator: string | undefined;
-  let format = 'JUMBF/C2PA';
+  const format = 'JUMBF/C2PA';
 
   // 簡易高速シグネチャ検索（最初の1MBおよび最後の512KBを中心にスキャン）
   const searchRanges: [number, number][] = [
@@ -139,13 +142,18 @@ function detectC2PA(bytes: Uint8Array): {
         );
 
         if (snippet.includes('Leica')) generator = 'Leica Camera C2PA';
-        else if (snippet.includes('Nikon')) generator = 'Nikon Authentic Provenance';
-        else if (snippet.includes('Sony')) generator = 'Sony In-Camera Signature';
+        else if (snippet.includes('Nikon'))
+          generator = 'Nikon Authentic Provenance';
+        else if (snippet.includes('Sony'))
+          generator = 'Sony In-Camera Signature';
         else if (snippet.includes('Canon')) generator = 'Canon Authenticity';
-        else if (snippet.includes('Pixel') || snippet.includes('Google')) generator = 'Google Pixel Camera';
-        else if (snippet.includes('Apple') || snippet.includes('iPhone')) generator = 'Apple C2PA / CAI';
+        else if (snippet.includes('Pixel') || snippet.includes('Google'))
+          generator = 'Google Pixel Camera';
+        else if (snippet.includes('Apple') || snippet.includes('iPhone'))
+          generator = 'Apple C2PA / CAI';
         else if (snippet.includes('Truepic')) generator = 'Truepic Verified';
-        else if (snippet.includes('Adobe')) generator = 'Adobe Content Authenticity';
+        else if (snippet.includes('Adobe'))
+          generator = 'Adobe Content Authenticity';
         else generator = 'C2PA 準拠デバイス / アプリケーション';
 
         break;
@@ -209,7 +217,7 @@ async function resizeAndCompressImage(
           resolve(webpData);
           return;
         }
-      } catch (e) {
+      } catch (_e) {
         // フォールバック
       }
 

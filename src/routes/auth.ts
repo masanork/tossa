@@ -21,7 +21,10 @@ import { createSessionToken, verifySessionToken } from '../auth/session';
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
 
 type AuthVariables = { deviceSessionId: string };
-export const authRoute = new Hono<{ Bindings: Bindings; Variables: AuthVariables }>();
+export const authRoute = new Hono<{
+  Bindings: Bindings;
+  Variables: AuthVariables;
+}>();
 
 // 0. 認証ステータス・初回セットアップ状況取得 (GET /api/auth/status)
 authRoute.get('/status', async (c) => {
@@ -52,7 +55,8 @@ authRoute.post('/register-options', async (c) => {
   if (!user) {
     const totalUsers = await countUsers(c.env.DB);
     const adminCount = await countAdmins(c.env.DB);
-    const role: 'admin' | 'user' = (totalUsers === 0 || adminCount === 0) ? 'admin' : 'user';
+    const role: 'admin' | 'user' =
+      totalUsers === 0 || adminCount === 0 ? 'admin' : 'user';
 
     const newId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     await c.env.DB.prepare(
@@ -65,7 +69,10 @@ authRoute.post('/register-options', async (c) => {
   }
 
   if (!user) {
-    return c.json({ success: false, error: 'Failed to find or create user' }, 500);
+    return c.json(
+      { success: false, error: 'Failed to find or create user' },
+      500
+    );
   }
 
   const existingCreds = await getUserCredentials(c.env.DB, user.id);
@@ -82,7 +89,10 @@ authRoute.post('/register-options', async (c) => {
 authRoute.post('/verify-registration', async (c) => {
   const body = await c.req.json<{ username: string; response: any }>();
   if (!body.username || !body.response) {
-    return c.json({ success: false, error: 'Username and response are required' }, 400);
+    return c.json(
+      { success: false, error: 'Username and response are required' },
+      400
+    );
   }
 
   const user = await getUserByUsername(c.env.DB, body.username.trim());
@@ -108,10 +118,18 @@ authRoute.post('/verify-registration', async (c) => {
     // アクセスログ（登録イベント）
     const ip = getClientIp(c.req.raw);
     const ua = c.req.header('User-Agent') || '';
-    await logAccess(c.env.DB, 'passkey_register', deviceId || null, user.id, ip, ua, {
-      username: user.username,
-      role: user.role,
-    });
+    await logAccess(
+      c.env.DB,
+      'passkey_register',
+      deviceId || null,
+      user.id,
+      ip,
+      ua,
+      {
+        username: user.username,
+        role: user.role,
+      }
+    );
 
     return c.json({
       success: true,
@@ -125,13 +143,18 @@ authRoute.post('/verify-registration', async (c) => {
       },
     });
   } catch (err: any) {
-    return c.json({ success: false, error: err.message || 'Registration failed' }, 400);
+    return c.json(
+      { success: false, error: err.message || 'Registration failed' },
+      400
+    );
   }
 });
 
 // 3. ログインオプション取得 (POST /api/auth/login-options)
 authRoute.post('/login-options', async (c) => {
-  const body = await c.req.json<{ username?: string }>().catch(() => ({ username: undefined }));
+  const body = await c.req
+    .json<{ username?: string }>()
+    .catch(() => ({ username: undefined }));
   let user: User | null = null;
 
   if (body?.username) {
@@ -150,7 +173,10 @@ authRoute.post('/login-options', async (c) => {
 authRoute.post('/verify-authentication', async (c) => {
   const body = await c.req.json<{ username?: string; response: any }>();
   if (!body.response) {
-    return c.json({ success: false, error: 'Authentication response required' }, 400);
+    return c.json(
+      { success: false, error: 'Authentication response required' },
+      400
+    );
   }
 
   let user: User | null = null;
@@ -170,7 +196,10 @@ authRoute.post('/verify-authentication', async (c) => {
   }
 
   if (!user) {
-    return c.json({ success: false, error: 'User for credential not found' }, 404);
+    return c.json(
+      { success: false, error: 'User for credential not found' },
+      404
+    );
   }
 
   try {
@@ -190,10 +219,18 @@ authRoute.post('/verify-authentication', async (c) => {
     // アクセスログ（ログインイベント）
     const ip = getClientIp(c.req.raw);
     const ua = c.req.header('User-Agent') || '';
-    await logAccess(c.env.DB, 'passkey_login', deviceId || null, user.id, ip, ua, {
-      username: user.username,
-      role: user.role,
-    });
+    await logAccess(
+      c.env.DB,
+      'passkey_login',
+      deviceId || null,
+      user.id,
+      ip,
+      ua,
+      {
+        username: user.username,
+        role: user.role,
+      }
+    );
 
     return c.json({
       success: true,
@@ -207,7 +244,10 @@ authRoute.post('/verify-authentication', async (c) => {
       },
     });
   } catch (err: any) {
-    return c.json({ success: false, error: err.message || 'Authentication failed' }, 400);
+    return c.json(
+      { success: false, error: err.message || 'Authentication failed' },
+      400
+    );
   }
 });
 
@@ -289,7 +329,13 @@ authRoute.patch('/users/:id/role', async (c) => {
   if (targetUser.role === 'admin' && body.role !== 'admin') {
     const adminCount = await countAdmins(c.env.DB);
     if (adminCount <= 1) {
-      return c.json({ success: false, error: '最後の管理者の権限を解除することはできません' }, 400);
+      return c.json(
+        {
+          success: false,
+          error: '最後の管理者の権限を解除することはできません',
+        },
+        400
+      );
     }
   }
 

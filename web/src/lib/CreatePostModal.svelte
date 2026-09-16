@@ -64,7 +64,9 @@
   let imageMeta = $state<ImageMeta | null>(null);
   let isProcessingImage = $state(false);
   let c2paVerified = $state(false);
-  let c2paInfo = $state<{ generator?: string; isSigned?: boolean } | null>(null);
+  let c2paInfo = $state<{ generator?: string; isSigned?: boolean } | null>(
+    null
+  );
   let photoTakenTime = $state<string | null>(null);
 
   // 緯度経度・地図ピッカー用ステート
@@ -72,7 +74,10 @@
   let lng = $state<number | null>(null);
   let isLocating = $state(false);
   let isGeocoding = $state(false);
-  let geoStatusMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+  let geoStatusMessage = $state<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   let pickerMapContainer: HTMLDivElement;
   let pickerMap: L.Map | null = null;
@@ -145,7 +150,11 @@
 
       // EXIF GPS 座標があれば自動的にピンをセット！
       if (result.gpsCoordinates) {
-        setCoordinates(result.gpsCoordinates.lat, result.gpsCoordinates.lng, 16);
+        setCoordinates(
+          result.gpsCoordinates.lat,
+          result.gpsCoordinates.lng,
+          16
+        );
         geoStatusMessage = {
           type: 'success',
           text: '📷 写真のEXIF撮影位置からピンを自動セットしました！',
@@ -171,13 +180,23 @@
   let sourceTrustBadge = $derived.by(() => {
     if (!sourceUrl.trim()) return null;
     try {
-      const parsed = new URL(sourceUrl.startsWith('http') ? sourceUrl : `https://${sourceUrl}`);
+      const parsed = new URL(
+        sourceUrl.startsWith('http') ? sourceUrl : `https://${sourceUrl}`
+      );
       const host = parsed.hostname.toLowerCase();
       if (host.endsWith('.go.jp') || host.endsWith('.lg.jp')) {
-        return { label: '公的機関・自治体公式', color: 'bg-emerald-50 text-emerald-800 border-emerald-300', icon: '🏛️' };
+        return {
+          label: '公的機関・自治体公式',
+          color: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+          icon: '🏛️',
+        };
       }
       if (host.endsWith('.ac.jp')) {
-        return { label: '大学・学術研究機関', color: 'bg-blue-50 text-blue-800 border-blue-300', icon: '🎓' };
+        return {
+          label: '大学・学術研究機関',
+          color: 'bg-blue-50 text-blue-800 border-blue-300',
+          icon: '🎓',
+        };
       }
       if (
         host.includes('nhk.or.jp') ||
@@ -187,12 +206,24 @@
         host.includes('nikkei.com') ||
         host.includes('kyodonews.jp')
       ) {
-        return { label: '報道機関・ニュース', color: 'bg-indigo-50 text-indigo-800 border-indigo-300', icon: '📰' };
+        return {
+          label: '報道機関・ニュース',
+          color: 'bg-indigo-50 text-indigo-800 border-indigo-300',
+          icon: '📰',
+        };
       }
       if (host.includes('x.com') || host.includes('twitter.com')) {
-        return { label: 'SNS公式・現地ポスト', color: 'bg-slate-100 text-slate-800 border-slate-300', icon: '📱' };
+        return {
+          label: 'SNS公式・現地ポスト',
+          color: 'bg-slate-100 text-slate-800 border-slate-300',
+          icon: '📱',
+        };
       }
-      return { label: '外部リンク', color: 'bg-slate-50 text-slate-700 border-slate-200', icon: '🔗' };
+      return {
+        label: '外部リンク',
+        color: 'bg-slate-50 text-slate-700 border-slate-200',
+        icon: '🔗',
+      };
     } catch {
       return null;
     }
@@ -233,17 +264,26 @@
       imagePreviewUrl = editingPost.image_url || null;
       if (editingPost.image_meta) {
         try {
-          imageMeta = typeof editingPost.image_meta === 'string' ? JSON.parse(editingPost.image_meta) : (editingPost.image_meta as ImageMeta);
+          imageMeta =
+            typeof editingPost.image_meta === 'string'
+              ? JSON.parse(editingPost.image_meta)
+              : (editingPost.image_meta as ImageMeta);
         } catch {}
       }
       if (editingPost.tags) {
         try {
-          selectedTags = typeof editingPost.tags === 'string' ? JSON.parse(editingPost.tags) : editingPost.tags;
+          selectedTags =
+            typeof editingPost.tags === 'string'
+              ? JSON.parse(editingPost.tags)
+              : editingPost.tags;
         } catch {}
       }
       if (editingPost.attributes) {
         try {
-          attributes = typeof editingPost.attributes === 'string' ? JSON.parse(editingPost.attributes) : (editingPost.attributes as Record<string, string>);
+          attributes =
+            typeof editingPost.attributes === 'string'
+              ? JSON.parse(editingPost.attributes)
+              : (editingPost.attributes as Record<string, string>);
         } catch {}
       }
     }
@@ -263,15 +303,20 @@
 
     leaflet.control.zoom({ position: 'bottomright' }).addTo(pickerMap);
 
-    leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap',
-    }).addTo(pickerMap);
+    leaflet
+      .tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap',
+      })
+      .addTo(pickerMap);
 
     // 地図クリックでピン設置・移動
     pickerMap.on('click', (e: L.LeafletMouseEvent) => {
       setCoordinates(e.latlng.lat, e.latlng.lng);
-      geoStatusMessage = { type: 'success', text: '地図をタップしてピンを配置しました' };
+      geoStatusMessage = {
+        type: 'success',
+        text: '地図をタップしてピンを配置しました',
+      };
     });
 
     setTimeout(() => {
@@ -279,7 +324,13 @@
     }, 250);
 
     // 編集対象に位置情報がある場合はその位置をセット、なければ defaultArea を中心にする
-    if (editingPost && editingPost.lat !== null && editingPost.lng !== null && editingPost.lat !== undefined && editingPost.lng !== undefined) {
+    if (
+      editingPost &&
+      editingPost.lat !== null &&
+      editingPost.lng !== null &&
+      editingPost.lat !== undefined &&
+      editingPost.lng !== undefined
+    ) {
       setCoordinates(editingPost.lat, editingPost.lng, 15);
     } else if (defaultArea) {
       try {
@@ -347,7 +398,10 @@
         const pos = pickerMarker!.getLatLng();
         lat = Math.round(pos.lat * 1000000) / 1000000;
         lng = Math.round(pos.lng * 1000000) / 1000000;
-        geoStatusMessage = { type: 'success', text: 'ピンの位置を微調整しました' };
+        geoStatusMessage = {
+          type: 'success',
+          text: 'ピンの位置を微調整しました',
+        };
       });
     }
 
@@ -370,7 +424,10 @@
 
   function handleGetCurrentLocation() {
     if (!navigator.geolocation) {
-      geoStatusMessage = { type: 'error', text: 'お使いのブラウザは現在地取得に対応していません' };
+      geoStatusMessage = {
+        type: 'error',
+        text: 'お使いのブラウザは現在地取得に対応していません',
+      };
       return;
     }
 
@@ -381,7 +438,10 @@
       (pos) => {
         isLocating = false;
         setCoordinates(pos.coords.latitude, pos.coords.longitude, 16);
-        geoStatusMessage = { type: 'success', text: '現在地の位置情報をセットしました' };
+        geoStatusMessage = {
+          type: 'success',
+          text: '現在地の位置情報をセットしました',
+        };
       },
       (err) => {
         isLocating = false;
@@ -395,9 +455,15 @@
   }
 
   async function handleGeocodeAddress() {
-    const query = [defaultArea, area, address, title].filter(Boolean).join(' ').trim();
+    const query = [defaultArea, area, address, title]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
     if (!query) {
-      geoStatusMessage = { type: 'error', text: '拠点名または住所を入力してください' };
+      geoStatusMessage = {
+        type: 'error',
+        text: '拠点名または住所を入力してください',
+      };
       return;
     }
 
@@ -419,7 +485,9 @@
         };
       } else {
         const osmUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
-        const osmRes = await fetch(osmUrl, { headers: { 'Accept-Language': 'ja' } });
+        const osmRes = await fetch(osmUrl, {
+          headers: { 'Accept-Language': 'ja' },
+        });
         const osmResults = await osmRes.json();
         if (osmResults && osmResults.length > 0) {
           const cLat = parseFloat(osmResults[0].lat);
@@ -500,7 +568,8 @@
             sourceUrl: sourceUrl.trim() || undefined,
             imageUrl: imagePreviewUrl || undefined,
             imageMeta: imageMeta ? (imageMeta as any) : undefined,
-            attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+            attributes:
+              Object.keys(attributes).length > 0 ? attributes : undefined,
             tags: selectedTags.length > 0 ? selectedTags : undefined,
           },
           token
@@ -521,17 +590,28 @@
   }
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
-  <div class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[94vh] flex flex-col">
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs"
+>
+  <div
+    class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[94vh] flex flex-col"
+  >
     <!-- ヘッダー -->
-    <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+    <div
+      class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
+    >
       <div class="flex items-center gap-2">
         {#if editingPost}
           <Edit3 class="w-4 h-4 text-blue-600" />
-          <h2 class="text-base font-black text-slate-900">{m.modal_edit_title()}</h2>
+          <h2 class="text-base font-black text-slate-900">
+            {m.modal_edit_title()}
+          </h2>
         {:else}
-          <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
-          <h2 class="text-base font-black text-slate-900">{m.modal_create_title()}</h2>
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"
+          ></span>
+          <h2 class="text-base font-black text-slate-900">
+            {m.modal_create_title()}
+          </h2>
         {/if}
       </div>
       <button
@@ -544,20 +624,32 @@
     </div>
 
     <!-- フォーム -->
-    <form onsubmit={handleSubmit} class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto">
+    <form
+      onsubmit={handleSubmit}
+      class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto"
+    >
       {#if !token}
-        <div class="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+        <div
+          class="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs"
+        >
           <div class="flex items-start gap-2 text-slate-700">
             <ShieldCheck class="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
             <div class="leading-relaxed">
-              <span class="font-bold text-slate-900">{m.modal_cookie_info_title()}</span><br />
-              <span class="text-[11px] text-slate-600">{m.modal_cookie_info_desc()}</span>
+              <span class="font-bold text-slate-900"
+                >{m.modal_cookie_info_title()}</span
+              ><br />
+              <span class="text-[11px] text-slate-600"
+                >{m.modal_cookie_info_desc()}</span
+              >
             </div>
           </div>
           {#if onOpenAuth}
             <button
               type="button"
-              onclick={() => { onClose(); onOpenAuth(); }}
+              onclick={() => {
+                onClose();
+                onOpenAuth();
+              }}
               class="shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer flex items-center gap-1 self-end sm:self-auto"
             >
               <span>{m.nudge_register_btn()}</span>
@@ -567,16 +659,22 @@
       {/if}
 
       {#if errorMessage}
-        <div class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-center gap-1.5">
+        <div
+          class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-center gap-1.5"
+        >
           <AlertCircle class="w-4 h-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       {/if}
 
       <!-- 📸 写真の添付（EXIF自動位置取得 & C2PA真正性検証） -->
-      <div class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col gap-2.5">
+      <div
+        class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
+      >
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+          <div
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+          >
             <Camera class="w-4 h-4 text-blue-600" />
             <span>{m.photo_attach()}</span>
           </div>
@@ -585,9 +683,17 @@
 
         {#if imagePreviewUrl}
           <!-- 写真プレビューとメタ情報バッジ -->
-          <div class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex flex-col">
-            <div class="relative max-h-56 overflow-hidden flex items-center justify-center bg-black/40">
-              <img src={imagePreviewUrl} alt="添付写真" class="w-full h-auto max-h-56 object-contain" />
+          <div
+            class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex flex-col"
+          >
+            <div
+              class="relative max-h-56 overflow-hidden flex items-center justify-center bg-black/40"
+            >
+              <img
+                src={imagePreviewUrl}
+                alt="添付写真"
+                class="w-full h-auto max-h-56 object-contain"
+              />
               <button
                 type="button"
                 onclick={removeImage}
@@ -599,21 +705,32 @@
             </div>
 
             <!-- EXIF & C2PA 検証ステータスバー -->
-            <div class="p-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+            <div
+              class="p-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]"
+            >
               <div class="flex flex-wrap items-center gap-1.5">
                 {#if c2paVerified}
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300"
+                  >
                     <ShieldCheck class="w-3.5 h-3.5 text-emerald-600" />
-                    <span>C2PA 真正性確認済 ({c2paInfo?.generator || '認証カメラ'})</span>
+                    <span
+                      >C2PA 真正性確認済 ({c2paInfo?.generator ||
+                        '認証カメラ'})</span
+                    >
                   </span>
                 {:else}
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
+                  >
                     <span>標準画像</span>
                   </span>
                 {/if}
 
                 {#if photoTakenTime}
-                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-200">
+                  <span
+                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-200"
+                  >
                     <Clock class="w-3 h-3 text-blue-500" />
                     <span>撮影: {photoTakenTime}</span>
                   </span>
@@ -621,7 +738,9 @@
               </div>
 
               {#if imageMeta?.exif?.latitude && imageMeta?.exif?.longitude}
-                <span class="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                <span
+                  class="text-[10px] text-emerald-700 font-semibold flex items-center gap-1"
+                >
                   ✓ EXIF座標連動済
                 </span>
               {/if}
@@ -629,7 +748,9 @@
           </div>
         {:else}
           <!-- アップロード選択エリア -->
-          <label class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 bg-white cursor-pointer transition hover:bg-blue-50/20 group">
+          <label
+            class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 bg-white cursor-pointer transition hover:bg-blue-50/20 group"
+          >
             <input
               type="file"
               accept="image/*"
@@ -638,13 +759,20 @@
               class="hidden"
             />
             {#if isProcessingImage}
-              <div class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span class="text-xs text-slate-500">EXIF解析・C2PA検証中...</span>
+              <div
+                class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
+              ></div>
+              <span class="text-xs text-slate-500">EXIF解析・C2PA検証中...</span
+              >
             {:else}
-              <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition">
+              <div
+                class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition"
+              >
                 <Camera class="w-4 h-4" />
               </div>
-              <div class="text-xs font-bold text-slate-700">写真を撮影または選択</div>
+              <div class="text-xs font-bold text-slate-700">
+                写真を撮影または選択
+              </div>
               <p class="text-[10px] text-slate-400 text-center leading-tight">
                 写真の位置情報（EXIF GPS）からピンが自動配置されます。<br />
                 C2PA来歴署名も自動検知し真正性を担保します。
@@ -656,7 +784,10 @@
 
       <!-- 施設・拠点名 -->
       <div>
-        <label for="post-title" class="block text-xs font-bold text-slate-700 mb-1">
+        <label
+          for="post-title"
+          class="block text-xs font-bold text-slate-700 mb-1"
+        >
           施設・拠点・情報タイトル <span class="text-rose-600">*</span>
         </label>
         <input
@@ -672,14 +803,19 @@
       <!-- 地区名 & 住所 -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
-          <label for="post-area" class="block text-xs font-bold text-slate-700 mb-1">
+          <label
+            for="post-area"
+            class="block text-xs font-bold text-slate-700 mb-1"
+          >
             地区・地域名 <span class="text-rose-600">*</span>
           </label>
           <input
             id="post-area"
             type="text"
             bind:value={area}
-            placeholder={defaultArea ? `例: ${defaultArea}` : '例: 中央区、本町、北地区'}
+            placeholder={defaultArea
+              ? `例: ${defaultArea}`
+              : '例: 中央区、本町、北地区'}
             required
             class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           />
@@ -689,7 +825,9 @@
               {#each availableAreas.slice(0, 5) as a}
                 <button
                   type="button"
-                  onclick={() => { area = a; }}
+                  onclick={() => {
+                    area = a;
+                  }}
                   class="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
                 >
                   {a}
@@ -699,7 +837,11 @@
           {/if}
         </div>
         <div class="sm:col-span-2">
-          <label for="post-address" class="block text-xs font-bold text-slate-700 mb-1">住所・場所の詳細（任意）</label>
+          <label
+            for="post-address"
+            class="block text-xs font-bold text-slate-700 mb-1"
+            >住所・場所の詳細（任意）</label
+          >
           <input
             id="post-address"
             type="text"
@@ -711,19 +853,27 @@
       </div>
 
       <!-- 📍 地図上の位置（緯度経度・直感的なピン設定） -->
-      <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-2.5">
+      <div
+        class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
+      >
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+          <div
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+          >
             <MapPin class="w-4 h-4 text-blue-600" />
             <span>地図上の位置（ピン設定）</span>
           </div>
           {#if lat !== null && lng !== null}
-            <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <span
+              class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"
+            >
               <Check class="w-3 h-3" />
               <span>ピン設定済み</span>
             </span>
           {:else}
-            <span class="text-[10px] text-slate-500">写真EXIF、GPS、住所または地図タップで設定</span>
+            <span class="text-[10px] text-slate-500"
+              >写真EXIF、GPS、住所または地図タップで設定</span
+            >
           {/if}
         </div>
 
@@ -735,18 +885,25 @@
             disabled={isLocating}
             class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
           >
-            <Navigation class={`w-3.5 h-3.5 text-blue-600 ${isLocating ? 'animate-spin' : ''}`} />
-            <span>{isLocating ? '現在地を取得中...' : '📍 現在地からセット'}</span>
+            <Navigation
+              class={`w-3.5 h-3.5 text-blue-600 ${isLocating ? 'animate-spin' : ''}`}
+            />
+            <span
+              >{isLocating ? '現在地を取得中...' : '📍 現在地からセット'}</span
+            >
           </button>
 
           <button
             type="button"
             onclick={handleGeocodeAddress}
-            disabled={isGeocoding || (!address.trim() && !title.trim() && !area.trim())}
+            disabled={isGeocoding ||
+              (!address.trim() && !title.trim() && !area.trim())}
             class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
             title="入力した住所や拠点名から地図位置を自動検索します"
           >
-            <Search class={`w-3.5 h-3.5 text-indigo-600 ${isGeocoding ? 'animate-spin' : ''}`} />
+            <Search
+              class={`w-3.5 h-3.5 text-indigo-600 ${isGeocoding ? 'animate-spin' : ''}`}
+            />
             <span>{isGeocoding ? '住所検索中...' : '🔍 住所からピン配置'}</span>
           </button>
         </div>
@@ -762,7 +919,9 @@
             <span>{geoStatusMessage.text}</span>
             <button
               type="button"
-              onclick={() => { geoStatusMessage = null; }}
+              onclick={() => {
+                geoStatusMessage = null;
+              }}
               class="text-slate-400 hover:text-slate-700 font-bold ml-1 cursor-pointer"
             >
               ×
@@ -771,18 +930,26 @@
         {/if}
 
         <!-- インタラクティブミニマップ -->
-        <div class="relative w-full h-44 rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-200">
+        <div
+          class="relative w-full h-44 rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-200"
+        >
           <div bind:this={pickerMapContainer} class="w-full h-full z-0"></div>
 
-          <div class="absolute top-2 left-2 right-2 z-[400] pointer-events-none flex justify-center">
-            <div class="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-full shadow-xs">
+          <div
+            class="absolute top-2 left-2 right-2 z-[400] pointer-events-none flex justify-center"
+          >
+            <div
+              class="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-full shadow-xs"
+            >
               👆 地図タップでピン配置、ピンのドラッグで位置微調整
             </div>
           </div>
         </div>
 
         <!-- 座標数値表示 & 解除ボタン -->
-        <div class="flex items-center justify-between text-[11px] text-slate-600 pt-0.5">
+        <div
+          class="flex items-center justify-between text-[11px] text-slate-600 pt-0.5"
+        >
           {#if lat !== null && lng !== null}
             <div class="font-mono font-semibold text-slate-800 text-[11px]">
               緯度: {lat.toFixed(5)}, 経度: {lng.toFixed(5)}
@@ -797,16 +964,22 @@
             </button>
           {:else}
             <span class="text-slate-400 text-[10px]">
-              ※ 地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
+              ※
+              地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
             </span>
           {/if}
         </div>
       </div>
 
       <!-- 🔗 情報源・参照リンク（任意） -->
-      <div class="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-2">
+      <div
+        class="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-2"
+      >
         <div class="flex items-center justify-between">
-          <label for="post-source-url" class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+          <label
+            for="post-source-url"
+            class="text-xs font-bold text-slate-700 flex items-center gap-1.5"
+          >
             <Link class="w-3.5 h-3.5 text-blue-600" />
             <span>情報源・参照リンク（任意）</span>
           </label>
@@ -823,11 +996,15 @@
 
         {#if sourceTrustBadge}
           <div class="flex items-center gap-2">
-            <span class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${sourceTrustBadge.color}`}>
+            <span
+              class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${sourceTrustBadge.color}`}
+            >
               <span>{sourceTrustBadge.icon}</span>
               <span>{sourceTrustBadge.label}</span>
             </span>
-            <span class="text-[10px] text-slate-500">信頼できる情報源として識別されます</span>
+            <span class="text-[10px] text-slate-500"
+              >信頼できる情報源として識別されます</span
+            >
           </div>
         {/if}
       </div>
@@ -835,7 +1012,11 @@
       <!-- 初期ステータス -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
-          <label for="post-status-select" class="block text-xs font-bold text-slate-700 mb-1">現在の状況</label>
+          <label
+            for="post-status-select"
+            class="block text-xs font-bold text-slate-700 mb-1"
+            >現在の状況</label
+          >
           <select
             id="post-status-select"
             bind:value={currentStatus}
@@ -855,7 +1036,11 @@
           </select>
         </div>
         <div>
-          <label for="post-status-label" class="block text-xs font-bold text-slate-700 mb-1">状況の表示名</label>
+          <label
+            for="post-status-label"
+            class="block text-xs font-bold text-slate-700 mb-1"
+            >状況の表示名</label
+          >
           <input
             id="post-status-label"
             type="text"
@@ -868,7 +1053,11 @@
 
       <!-- 詳細メモ -->
       <div>
-        <label for="post-note" class="block text-xs font-bold text-slate-700 mb-1">補足メモ・備考（任意）</label>
+        <label
+          for="post-note"
+          class="block text-xs font-bold text-slate-700 mb-1"
+          >補足メモ・備考（任意）</label
+        >
         <textarea
           id="post-note"
           bind:value={note}
@@ -879,9 +1068,13 @@
       </div>
 
       <!-- 自発的ボキャブラリ（タグ） -->
-      <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col gap-2.5">
+      <div
+        class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col gap-2.5"
+      >
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+          <div
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+          >
             <Sparkles class="w-3.5 h-3.5 text-blue-600" />
             <span>タグ（地域のボキャブラリ）</span>
           </div>
@@ -891,7 +1084,9 @@
         {#if selectedTags.length > 0}
           <div class="flex flex-wrap gap-1.5">
             {#each selectedTags as tag}
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-2xs">
+              <span
+                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-2xs"
+              >
                 <span>#{tag}</span>
                 <button
                   type="button"
@@ -910,7 +1105,9 @@
             <span class="block text-[11px] font-semibold text-slate-500 mb-1">
               地域のボキャブラリから選ぶ（タップで追加）:
             </span>
-            <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1.5 bg-white rounded-lg border border-slate-200">
+            <div
+              class="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1.5 bg-white rounded-lg border border-slate-200"
+            >
               {#each vocabularyTags as vt}
                 <button
                   type="button"
@@ -935,7 +1132,10 @@
           </span>
           <div class="flex items-center gap-1.5">
             <div class="relative flex-1">
-              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">#</span>
+              <span
+                class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold"
+                >#</span
+              >
               <input
                 type="text"
                 bind:value={newTagInput}
@@ -956,7 +1156,9 @@
       </div>
 
       <!-- フッター -->
-      <div class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
+      <div
+        class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 shrink-0"
+      >
         <button
           type="button"
           onclick={onClose}
@@ -969,7 +1171,13 @@
           disabled={isSubmitting}
           class="px-5 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-xs transition active:scale-95 cursor-pointer"
         >
-          {isSubmitting ? (editingPost ? m.btn_updating() : m.btn_submitting()) : (editingPost ? m.btn_save() : m.btn_submit_post())}
+          {isSubmitting
+            ? editingPost
+              ? m.btn_updating()
+              : m.btn_submitting()
+            : editingPost
+              ? m.btn_save()
+              : m.btn_submit_post()}
         </button>
       </div>
     </form>

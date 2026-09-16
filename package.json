@@ -13,7 +13,13 @@
     "db:reset:local": "npm run db:init:local && npm run db:seed:local",
     "db:init:remote": "wrangler d1 execute tossa-db --remote --file=./schema.sql",
     "db:seed:remote": "wrangler d1 execute tossa-db --remote --file=./seed.sql",
-    "typecheck": "tsc --noEmit && npm --prefix web run check"
+    "typecheck": "tsc --noEmit && npm --prefix web run check",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@simplewebauthn/server": "^13.1.1",
@@ -21,7 +27,17 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250204.0",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "eslint": "^10.10.0",
+    "eslint-plugin-svelte": "^3.23.0",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-svelte": "^4.1.1",
+    "svelte": "^5.57.0",
     "typescript": "^5.7.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.1",
     "wrangler": "^3.107.3"
   }
 }

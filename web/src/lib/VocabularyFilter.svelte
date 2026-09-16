@@ -28,9 +28,13 @@
       <span>🌐</span>
       <span>すべて</span>
       {#if totalCount > 0}
-        <span class={`text-[10px] px-1.5 py-0.2 rounded-full ${
-          selectedTag === null ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-500'
-        }`}>
+        <span
+          class={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            selectedTag === null
+              ? 'bg-slate-700 text-slate-200'
+              : 'bg-slate-100 text-slate-500'
+          }`}
+        >
           {totalCount}
         </span>
       {/if}
@@ -38,7 +42,9 @@
 
     <!-- 投稿から自発的に生まれたタグ（ボキャブラリ）ピル群 -->
     {#if tags.length === 0}
-      <div class="flex items-center gap-1.5 text-xs text-slate-400 pl-2 select-none">
+      <div
+        class="flex items-center gap-1.5 text-xs text-slate-400 pl-2 select-none"
+      >
         <Sparkles class="w-3.5 h-3.5 text-amber-500 shrink-0" />
         <span>投稿にタグをつけると、ここにフィルターが自発的に並びます</span>
       </div>
@@ -54,9 +60,13 @@
           }`}
         >
           <span>#{t.name}</span>
-          <span class={`text-[10px] px-1.5 py-0.2 rounded-full ${
-            selectedTag === t.name ? 'bg-blue-800 text-blue-100' : 'bg-slate-100 text-slate-600'
-          }`}>
+          <span
+            class={`text-[10px] px-1.5 py-0.2 rounded-full ${
+              selectedTag === t.name
+                ? 'bg-blue-800 text-blue-100'
+                : 'bg-slate-100 text-slate-600'
+            }`}
+          >
             {t.count}
           </span>
           {#if selectedTag === t.name}

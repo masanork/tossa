@@ -17,7 +17,10 @@ import { verifySessionToken } from '../auth/session';
 
 type PostsVariables = { deviceSessionId: string };
 
-export const postsRoute = new Hono<{ Bindings: Bindings; Variables: PostsVariables }>();
+export const postsRoute = new Hono<{
+  Bindings: Bindings;
+  Variables: PostsVariables;
+}>();
 
 /** Passkeyセッションを任意取得（未ログインでもエラーにしない） */
 async function getOptionalSession(c: any) {
@@ -45,7 +48,9 @@ postsRoute.get('/', async (c) => {
   const search = c.req.query('q');
   const tag = c.req.query('tag');
   const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
-  const offset = c.req.query('offset') ? parseInt(c.req.query('offset')!, 10) : 0;
+  const offset = c.req.query('offset')
+    ? parseInt(c.req.query('offset')!, 10)
+    : 0;
   const deviceId = c.get('deviceSessionId') || null;
 
   const result = await getPosts(c.env.DB, {
@@ -61,7 +66,11 @@ postsRoute.get('/', async (c) => {
   // 端末Cookieに基づいて is_owner を付与（サーバー側照合）
   const posts = result.posts.map((post: any) => ({
     ...post,
-    is_owner: !!(deviceId && post.author_cookie_id && post.author_cookie_id === deviceId),
+    is_owner: !!(
+      deviceId &&
+      post.author_cookie_id &&
+      post.author_cookie_id === deviceId
+    ),
   }));
 
   // is_owner 含むためキャッシュ不可
@@ -94,7 +103,11 @@ postsRoute.get('/:id', async (c) => {
     success: true,
     post: {
       ...post,
-      is_owner: !!(deviceId && (post as any).author_cookie_id && (post as any).author_cookie_id === deviceId),
+      is_owner: !!(
+        deviceId &&
+        (post as any).author_cookie_id &&
+        (post as any).author_cookie_id === deviceId
+      ),
     },
     history,
   });
@@ -107,7 +120,13 @@ postsRoute.post('/', async (c) => {
 
   const body = await c.req.json();
   if (!body.title || !body.area || !body.currentStatus) {
-    return c.json({ success: false, error: 'Missing required fields (title, area, currentStatus)' }, 400);
+    return c.json(
+      {
+        success: false,
+        error: 'Missing required fields (title, area, currentStatus)',
+      },
+      400
+    );
   }
 
   const postId = `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -138,14 +157,25 @@ postsRoute.post('/', async (c) => {
   // アクセスログ
   const ip = getClientIp(c.req.raw);
   const ua = c.req.header('User-Agent') || '';
-  await logAccess(c.env.DB, 'post_created', deviceId || null, session?.userId || null, ip, ua, { postId });
+  await logAccess(
+    c.env.DB,
+    'post_created',
+    deviceId || null,
+    session?.userId || null,
+    ip,
+    ua,
+    { postId }
+  );
 
-  return c.json({
-    success: true,
-    id: postId,
-    message: 'Post created successfully',
-    hasPasskey: !!session,
-  }, 201);
+  return c.json(
+    {
+      success: true,
+      id: postId,
+      message: 'Post created successfully',
+      hasPasskey: !!session,
+    },
+    201
+  );
 });
 
 // PUT /api/posts/:id - 投稿編集（Cookie所有者、Passkey投稿者、または管理者）
@@ -160,12 +190,23 @@ postsRoute.put('/:id', async (c) => {
   }
 
   // 権限チェック（優先順位: 管理者 > Passkey本人 > Cookie本人）
-  const isCookieOwner = !!(deviceId && (post as any).author_cookie_id && (post as any).author_cookie_id === deviceId);
-  const isPasskeyAuthor = !!(session && post.author_id && post.author_id === session.userId);
+  const isCookieOwner = !!(
+    deviceId &&
+    (post as any).author_cookie_id &&
+    (post as any).author_cookie_id === deviceId
+  );
+  const isPasskeyAuthor = !!(
+    session &&
+    post.author_id &&
+    post.author_id === session.userId
+  );
   const isAdmin = session?.role === 'admin';
 
   if (!isCookieOwner && !isPasskeyAuthor && !isAdmin) {
-    return c.json({ success: false, error: '自分が投稿した情報のみ編集できます' }, 403);
+    return c.json(
+      { success: false, error: '自分が投稿した情報のみ編集できます' },
+      403
+    );
   }
 
   const body = await c.req.json();
@@ -174,8 +215,18 @@ postsRoute.put('/:id', async (c) => {
     title: body.title,
     area: body.area,
     address: body.address,
-    lat: body.lat !== undefined ? (body.lat !== null ? parseFloat(body.lat) : null) : undefined,
-    lng: body.lng !== undefined ? (body.lng !== null ? parseFloat(body.lng) : null) : undefined,
+    lat:
+      body.lat !== undefined
+        ? body.lat !== null
+          ? parseFloat(body.lat)
+          : null
+        : undefined,
+    lng:
+      body.lng !== undefined
+        ? body.lng !== null
+          ? parseFloat(body.lng)
+          : null
+        : undefined,
     currentStatus: body.currentStatus,
     statusLabel: body.statusLabel,
     note: body.note,
@@ -189,7 +240,15 @@ postsRoute.put('/:id', async (c) => {
 
   const ip = getClientIp(c.req.raw);
   const ua = c.req.header('User-Agent') || '';
-  await logAccess(c.env.DB, 'post_updated', deviceId, session?.userId || null, ip, ua, { postId });
+  await logAccess(
+    c.env.DB,
+    'post_updated',
+    deviceId,
+    session?.userId || null,
+    ip,
+    ua,
+    { postId }
+  );
 
   return c.json({
     success: true,
@@ -208,19 +267,38 @@ postsRoute.delete('/:id', async (c) => {
     return c.json({ success: false, error: 'Post not found' }, 404);
   }
 
-  const isCookieOwner = !!(deviceId && (post as any).author_cookie_id && (post as any).author_cookie_id === deviceId);
-  const isPasskeyAuthor = !!(session && post.author_id && post.author_id === session.userId);
+  const isCookieOwner = !!(
+    deviceId &&
+    (post as any).author_cookie_id &&
+    (post as any).author_cookie_id === deviceId
+  );
+  const isPasskeyAuthor = !!(
+    session &&
+    post.author_id &&
+    post.author_id === session.userId
+  );
   const isAdmin = session?.role === 'admin';
 
   if (!isCookieOwner && !isPasskeyAuthor && !isAdmin) {
-    return c.json({ success: false, error: '自分が投稿した情報のみ削除できます' }, 403);
+    return c.json(
+      { success: false, error: '自分が投稿した情報のみ削除できます' },
+      403
+    );
   }
 
   await deletePost(c.env.DB, postId);
 
   const ip = getClientIp(c.req.raw);
   const ua = c.req.header('User-Agent') || '';
-  await logAccess(c.env.DB, 'post_deleted', deviceId, session?.userId || null, ip, ua, { postId });
+  await logAccess(
+    c.env.DB,
+    'post_deleted',
+    deviceId,
+    session?.userId || null,
+    ip,
+    ua,
+    { postId }
+  );
 
   return c.json({
     success: true,
@@ -239,15 +317,24 @@ postsRoute.post('/:id/status', async (c) => {
 
   const body = await c.req.json();
   if (!body.status || !body.statusLabel) {
-    return c.json({ success: false, error: 'Status and statusLabel are required' }, 400);
+    return c.json(
+      { success: false, error: 'Status and statusLabel are required' },
+      400
+    );
   }
 
   // IPアドレスからハッシュ値を生成（プライバシー保護とスパム防止の最小ハッシュ）
   const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
   const enc = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(clientIp));
+  const hashBuffer = await crypto.subtle.digest(
+    'SHA-256',
+    enc.encode(clientIp)
+  );
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const ipHash = hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+  const ipHash = hashArray
+    .slice(0, 8)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 
   await updatePostStatus(
     c.env.DB,
@@ -275,9 +362,15 @@ postsRoute.post('/:id/verify', async (c) => {
 
   const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
   const enc = new TextEncoder();
-  const hashBuffer = await crypto.subtle.digest('SHA-256', enc.encode(clientIp));
+  const hashBuffer = await crypto.subtle.digest(
+    'SHA-256',
+    enc.encode(clientIp)
+  );
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const ipHash = hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+  const ipHash = hashArray
+    .slice(0, 8)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 
   const result = await verifyPost(c.env.DB, postId, ipHash);
 

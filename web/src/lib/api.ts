@@ -1,5 +1,8 @@
 // web/src/lib/api.ts: API client and WebAuthn browser logic
-import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import {
+  startRegistration,
+  startAuthentication,
+} from '@simplewebauthn/browser';
 import type {
   Category,
   Post,
@@ -18,7 +21,6 @@ import {
   PRF_SALT,
   bufferToBase64,
   base64ToBuffer,
-  getCurrentIdentityKey,
 } from './e2ee';
 
 const API_BASE = '/api';
@@ -60,13 +62,15 @@ export async function fetchVocabularyTags(): Promise<TagCount[]> {
   }
 }
 
-export async function fetchPosts(params: {
-  category?: string;
-  area?: string;
-  status?: string;
-  tag?: string;
-  q?: string;
-} = {}): Promise<{ posts: Post[]; total: number }> {
+export async function fetchPosts(
+  params: {
+    category?: string;
+    area?: string;
+    status?: string;
+    tag?: string;
+    q?: string;
+  } = {}
+): Promise<{ posts: Post[]; total: number }> {
   const query = new URLSearchParams();
   if (params.category) query.set('category', params.category);
   if (params.area) query.set('area', params.area);
@@ -82,7 +86,9 @@ export async function fetchPosts(params: {
   };
 }
 
-export async function fetchPostDetail(id: string): Promise<{ post: Post; history: StatusUpdate[] }> {
+export async function fetchPostDetail(
+  id: string
+): Promise<{ post: Post; history: StatusUpdate[] }> {
   const res = await fetch(`${API_BASE}/posts/${id}`);
   const data = await res.json();
   return {
@@ -91,24 +97,27 @@ export async function fetchPostDetail(id: string): Promise<{ post: Post; history
   };
 }
 
-export async function createPost(postData: {
-  categoryId?: string;
-  title: string;
-  area: string;
-  address?: string;
-  lat?: number;
-  lng?: number;
-  currentStatus: string;
-  statusLabel: string;
-  note?: string;
-  url?: string;
-  sourceUrl?: string;
-  imageUrl?: string;
-  imageMeta?: Record<string, unknown>;
-  attributes?: Record<string, unknown>;
-  tags?: string[];
-  reporterName?: string;
-}, token?: string | null): Promise<{ success: boolean; id?: string; error?: string }> {
+export async function createPost(
+  postData: {
+    categoryId?: string;
+    title: string;
+    area: string;
+    address?: string;
+    lat?: number;
+    lng?: number;
+    currentStatus: string;
+    statusLabel: string;
+    note?: string;
+    url?: string;
+    sourceUrl?: string;
+    imageUrl?: string;
+    imageMeta?: Record<string, unknown>;
+    attributes?: Record<string, unknown>;
+    tags?: string[];
+    reporterName?: string;
+  },
+  token?: string | null
+): Promise<{ success: boolean; id?: string; error?: string }> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -189,9 +198,12 @@ export async function updatePostStatus(
   return await res.json();
 }
 
-export async function verifyPost(
-  postId: string
-): Promise<{ success: boolean; verificationCount?: number; lastVerifiedAt?: string; error?: string }> {
+export async function verifyPost(postId: string): Promise<{
+  success: boolean;
+  verificationCount?: number;
+  lastVerifiedAt?: string;
+  error?: string;
+}> {
   const res = await fetch(`${API_BASE}/posts/${postId}/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -211,11 +223,19 @@ export async function fetchAuthStatus(): Promise<{
     const res = await fetch(`${API_BASE}/auth/status`);
     return await res.json();
   } catch {
-    return { success: false, totalUsers: 0, adminCount: 0, isFirstUserSetup: false };
+    return {
+      success: false,
+      totalUsers: 0,
+      adminCount: 0,
+      isFirstUserSetup: false,
+    };
   }
 }
 
-export async function registerPasskey(username: string, displayName?: string): Promise<{
+export async function registerPasskey(
+  username: string,
+  displayName?: string
+): Promise<{
   success: boolean;
   token?: string;
   user?: User;
@@ -230,7 +250,10 @@ export async function registerPasskey(username: string, displayName?: string): P
   });
   const optData = await optRes.json();
   if (!optData.success) {
-    return { success: false, error: optData.error || 'Failed to get registration options' };
+    return {
+      success: false,
+      error: optData.error || 'Failed to get registration options',
+    };
   }
 
   // 2. ブラウザの Passkey プロンプト起動（PRF Extension 要求）
@@ -245,7 +268,10 @@ export async function registerPasskey(username: string, displayName?: string): P
     };
     attestationResponse = await startRegistration({ optionsJSON: regOptions });
   } catch (err: any) {
-    return { success: false, error: err.message || 'Passkey registration cancelled' };
+    return {
+      success: false,
+      error: err.message || 'Passkey registration cancelled',
+    };
   }
 
   // 3. サーバーでレスポンス検証
@@ -259,7 +285,10 @@ export async function registerPasskey(username: string, displayName?: string): P
   // 4. E2EE 鍵の初期化 & 公開鍵のサーバー登録
   if (verifyData.success && verifyData.token) {
     try {
-      await initializeE2eeKeys(attestationResponse?.clientExtensionResults?.prf, verifyData.token);
+      await initializeE2eeKeys(
+        attestationResponse?.clientExtensionResults?.prf,
+        verifyData.token
+      );
     } catch (e) {
       console.warn('Failed to auto-initialize E2EE key:', e);
     }
@@ -282,13 +311,19 @@ export async function loginPasskey(username?: string): Promise<{
   });
   const optData = await optRes.json();
   if (!optData.success) {
-    return { success: false, error: optData.error || 'Failed to get authentication options' };
+    return {
+      success: false,
+      error: optData.error || 'Failed to get authentication options',
+    };
   }
 
   // 2. ブラウザの Passkey プロンプト起動（PRF Extension eval で生体鍵シードを取得）
   let assertionResponse;
   try {
-    const prfSaltBase64 = bufferToBase64(PRF_SALT).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const prfSaltBase64 = bufferToBase64(PRF_SALT)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
     const authOptions = {
       ...optData.options,
       extensions: {
@@ -316,7 +351,10 @@ export async function loginPasskey(username?: string): Promise<{
   // 4. PRF シードから E2EE 鍵を復元・初期化
   if (verifyData.success && verifyData.token) {
     try {
-      await initializeE2eeKeys(assertionResponse?.clientExtensionResults?.prf, verifyData.token);
+      await initializeE2eeKeys(
+        assertionResponse?.clientExtensionResults?.prf,
+        verifyData.token
+      );
     } catch (e) {
       console.warn('Failed to initialize E2EE key on login:', e);
     }
@@ -328,7 +366,10 @@ export async function loginPasskey(username?: string): Promise<{
 /**
  * ログイン中ユーザーの E2EE 鍵を初期化・取得し、サーバーに公開鍵を同期
  */
-export async function initializeE2eeKeys(prfResult?: any, token?: string): Promise<any> {
+export async function initializeE2eeKeys(
+  prfResult?: any,
+  token?: string
+): Promise<any> {
   let identity;
   let prfSeed: ArrayBuffer | null = null;
 
@@ -407,7 +448,10 @@ export async function updateUserRole(
     });
     return await res.json();
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to update user role' };
+    return {
+      success: false,
+      error: err.message || 'Failed to update user role',
+    };
   }
 }
 
@@ -416,7 +460,12 @@ export async function updateUserRole(
 export async function importFederationFromUrl(
   remoteUrl: string,
   token: string
-): Promise<{ success: boolean; message?: string; stats?: { added: number; updated: number; skipped: number }; error?: string }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  stats?: { added: number; updated: number; skipped: number };
+  error?: string;
+}> {
   const res = await fetch(`${API_BASE}/federation/import`, {
     method: 'POST',
     headers: {
@@ -431,7 +480,12 @@ export async function importFederationFromUrl(
 export async function importFederationFromFeatures(
   features: any[],
   token: string
-): Promise<{ success: boolean; message?: string; stats?: { added: number; updated: number; skipped: number }; error?: string }> {
+): Promise<{
+  success: boolean;
+  message?: string;
+  stats?: { added: number; updated: number; skipped: number };
+  error?: string;
+}> {
   const res = await fetch(`${API_BASE}/federation/import`, {
     method: 'POST',
     headers: {
@@ -460,29 +514,47 @@ export async function updateMyPublicKey(
     });
     return await res.json();
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to update public key' };
+    return {
+      success: false,
+      error: err.message || 'Failed to update public key',
+    };
   }
 }
 
 export async function fetchPublicKeys(
   token: string,
   options?: { role?: string; ids?: string[] }
-): Promise<{ success: boolean; users?: Array<Pick<User, 'id' | 'username' | 'displayName' | 'role' | 'e2ee_public_key'>>; error?: string }> {
+): Promise<{
+  success: boolean;
+  users?: Array<
+    Pick<User, 'id' | 'username' | 'displayName' | 'role' | 'e2ee_public_key'>
+  >;
+  error?: string;
+}> {
   try {
     const params = new URLSearchParams();
     if (options?.role) params.set('role', options.role);
-    if (options?.ids && options.ids.length > 0) params.set('ids', options.ids.join(','));
+    if (options?.ids && options.ids.length > 0)
+      params.set('ids', options.ids.join(','));
 
-    const res = await fetch(`${API_BASE}/threads/public-keys?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(
+      `${API_BASE}/threads/public-keys?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
     return await res.json();
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch public keys' };
+    return {
+      success: false,
+      error: err.message || 'Failed to fetch public keys',
+    };
   }
 }
 
-export async function fetchThreads(token: string): Promise<{ success: boolean; threads?: Thread[]; error?: string }> {
+export async function fetchThreads(
+  token: string
+): Promise<{ success: boolean; threads?: Thread[]; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/threads`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -538,7 +610,10 @@ export async function fetchThreadDetail(
     });
     return await res.json();
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to fetch thread detail' };
+    return {
+      success: false,
+      error: err.message || 'Failed to fetch thread detail',
+    };
   }
 }
 

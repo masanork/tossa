@@ -45,7 +45,8 @@
     // Passkey管理者
     if (currentUser?.role === 'admin') return true;
     // Passkeyで投稿した本人
-    if (currentUser && post.author_id && post.author_id === currentUser.id) return true;
+    if (currentUser && post.author_id && post.author_id === currentUser.id)
+      return true;
     // Cookie識別で投稿した本人（サーバー側照合済み）
     if (post.is_owner) return true;
     return false;
@@ -77,12 +78,15 @@
   let photoTakenTime = $derived.by(() => {
     if (!parsedImageMeta?.exif?.dateTimeOriginal) return null;
     try {
-      return new Date(parsedImageMeta.exif.dateTimeOriginal).toLocaleString('ja-JP', {
-        month: 'numeric',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return new Date(parsedImageMeta.exif.dateTimeOriginal).toLocaleString(
+        'ja-JP',
+        {
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }
+      );
     } catch {
       return null;
     }
@@ -110,13 +114,27 @@
   let sourceTrustBadge = $derived.by(() => {
     if (!post.source_url) return null;
     try {
-      const parsed = new URL(post.source_url.startsWith('http') ? post.source_url : `https://${post.source_url}`);
+      const parsed = new URL(
+        post.source_url.startsWith('http')
+          ? post.source_url
+          : `https://${post.source_url}`
+      );
       const host = parsed.hostname.toLowerCase();
       if (host.endsWith('.go.jp') || host.endsWith('.lg.jp')) {
-        return { label: '公的機関・自治体公式', color: 'bg-emerald-50 text-emerald-800 border-emerald-300', icon: '🏛️', host };
+        return {
+          label: '公的機関・自治体公式',
+          color: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+          icon: '🏛️',
+          host,
+        };
       }
       if (host.endsWith('.ac.jp')) {
-        return { label: '大学・学術機関', color: 'bg-blue-50 text-blue-800 border-blue-300', icon: '🎓', host };
+        return {
+          label: '大学・学術機関',
+          color: 'bg-blue-50 text-blue-800 border-blue-300',
+          icon: '🎓',
+          host,
+        };
       }
       if (
         host.includes('nhk.or.jp') ||
@@ -126,12 +144,27 @@
         host.includes('nikkei.com') ||
         host.includes('kyodonews.jp')
       ) {
-        return { label: '報道機関', color: 'bg-indigo-50 text-indigo-800 border-indigo-300', icon: '📰', host };
+        return {
+          label: '報道機関',
+          color: 'bg-indigo-50 text-indigo-800 border-indigo-300',
+          icon: '📰',
+          host,
+        };
       }
       if (host.includes('x.com') || host.includes('twitter.com')) {
-        return { label: 'SNS公式・現地ポスト', color: 'bg-slate-100 text-slate-800 border-slate-300', icon: '📱', host };
+        return {
+          label: 'SNS公式・現地ポスト',
+          color: 'bg-slate-100 text-slate-800 border-slate-300',
+          icon: '📱',
+          host,
+        };
       }
-      return { label: '情報源', color: 'bg-slate-50 text-slate-700 border-slate-200', icon: '🔗', host };
+      return {
+        label: '情報源',
+        color: 'bg-slate-50 text-slate-700 border-slate-200',
+        icon: '🔗',
+        host,
+      };
     } catch {
       return null;
     }
@@ -196,7 +229,9 @@
   let showImageModal = $state(false);
 </script>
 
-<article class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-slate-300 transition-all flex flex-col gap-3">
+<article
+  class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-slate-300 transition-all flex flex-col gap-3"
+>
   <!-- 上段: エリア・タグ・公式バッジ・最終更新 -->
   <div class="flex items-center justify-between gap-2 text-xs">
     <div class="flex items-center gap-1.5 flex-wrap">
@@ -211,12 +246,16 @@
         </button>
       {/if}
 
-      <span class="px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700 text-[11px]">
+      <span
+        class="px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700 text-[11px]"
+      >
         {post.area}
       </span>
 
       {#if (post.author_id && currentUser?.id === post.author_id) || post.is_owner}
-        <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px]">
+        <span
+          class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px]"
+        >
           {m.my_post_badge()}
         </span>
       {:else if post.reporter_name}
@@ -226,7 +265,9 @@
       {/if}
 
       {#if post.is_verified === 1}
-        <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-700 border border-blue-200 text-[10px]">
+        <span
+          class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-700 border border-blue-200 text-[10px]"
+        >
           <CheckCircle class="w-3 h-3 text-blue-600" />
           {m.official_verified()}
         </span>
@@ -234,7 +275,9 @@
     </div>
 
     <!-- 最終更新時刻 -->
-    <div class="flex items-center gap-1 text-[11px] text-slate-400 font-medium shrink-0">
+    <div
+      class="flex items-center gap-1 text-[11px] text-slate-400 font-medium shrink-0"
+    >
       <Clock class="w-3 h-3" />
       <span>{formatRelativeTime(post.updated_at)}</span>
     </div>
@@ -242,10 +285,14 @@
 
   <!-- 写真（添付されている場合） -->
   {#if post.image_url}
-    <div class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-950/5 flex flex-col">
+    <div
+      class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-950/5 flex flex-col"
+    >
       <button
         type="button"
-        onclick={() => { showImageModal = true; }}
+        onclick={() => {
+          showImageModal = true;
+        }}
         class="relative w-full h-44 sm:h-48 overflow-hidden bg-slate-900 group cursor-pointer"
       >
         <img
@@ -253,14 +300,18 @@
           alt={post.title}
           class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
-        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+        <div
+          class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1"
+        >
           <span>🔍</span>
           <span>タップして拡大</span>
         </div>
       </button>
 
       <!-- 写真の信頼性メタ情報（撮影日時・位置情報・C2PA署名） -->
-      <div class="px-3 py-2 bg-slate-900/90 text-white text-[11px] flex items-center justify-between gap-2 border-t border-slate-800">
+      <div
+        class="px-3 py-2 bg-slate-900/90 text-white text-[11px] flex items-center justify-between gap-2 border-t border-slate-800"
+      >
         <div class="flex items-center gap-2">
           {#if photoTakenTime}
             <span class="inline-flex items-center gap-1 text-slate-300">
@@ -270,7 +321,9 @@
           {/if}
 
           {#if parsedImageMeta?.c2pa?.hasC2pa}
-            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] font-bold">
+            <span
+              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] font-bold"
+            >
               <ShieldCheck class="w-3 h-3 text-blue-400" />
               <span>C2PA真正性検証済</span>
             </span>
@@ -290,7 +343,9 @@
       {post.title}
     </h3>
 
-    <span class={`shrink-0 px-3 py-1 rounded-lg text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}>
+    <span
+      class={`shrink-0 px-3 py-1 rounded-lg text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}
+    >
       {i18n.translateStatus(post.current_status, post.status_label)}
     </span>
   </div>
@@ -305,14 +360,18 @@
 
   <!-- 備考・詳細情報 -->
   {#if post.note}
-    <p class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap">
+    <p
+      class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap"
+    >
       {post.note}
     </p>
   {/if}
 
   <!-- 情報源・参照リンク（検証バッジ付き） -->
   {#if post.source_url && sourceTrustBadge}
-    <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200/80 text-xs">
+    <div
+      class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200/80 text-xs"
+    >
       <span class="text-slate-400 shrink-0">情報源:</span>
       <a
         href={post.source_url}
@@ -324,7 +383,9 @@
         <span>{sourceTrustBadge.label}</span>
         <ExternalLink class="w-2.5 h-2.5 ml-0.5" />
       </a>
-      <span class="text-[10px] text-slate-400 truncate">{sourceTrustBadge.host}</span>
+      <span class="text-[10px] text-slate-400 truncate"
+        >{sourceTrustBadge.host}</span
+      >
     </div>
   {/if}
 
@@ -333,12 +394,17 @@
     <div class="flex items-center gap-1.5 flex-wrap">
       {#each Object.entries(parsedAttrs) as [key, val]}
         {#if typeof val === 'string' || typeof val === 'number'}
-          <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium">
-            <span class="text-slate-400 mr-1">{key}:</span> {val}
+          <span
+            class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium"
+          >
+            <span class="text-slate-400 mr-1">{key}:</span>
+            {val}
           </span>
         {:else if Array.isArray(val)}
           {#each val as item}
-            <span class="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium">
+            <span
+              class="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium"
+            >
               🏷️ {item}
             </span>
           {/each}
@@ -360,7 +426,9 @@
             #{t}
           </button>
         {:else}
-          <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold">
+          <span
+            class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold"
+          >
             #{t}
           </span>
         {/if}
@@ -369,7 +437,9 @@
   {/if}
 
   <!-- 下段: 正確性の検証 & 状況報告アクションバー -->
-  <div class="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 mt-auto">
+  <div
+    class="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 mt-auto"
+  >
     <!-- 情報の正確性・現地確認ボタン -->
     <div class="flex items-center gap-2">
       <button
@@ -457,7 +527,9 @@
     <!-- 背景オーバーレイ -->
     <button
       type="button"
-      onclick={() => { showImageModal = false; }}
+      onclick={() => {
+        showImageModal = false;
+      }}
       class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity cursor-pointer border-none"
       aria-label="モーダルを閉じる"
     ></button>
@@ -469,23 +541,36 @@
       aria-modal="true"
       aria-label="写真拡大表示"
     >
-      <div class="p-3 bg-slate-800 text-white flex items-center justify-between">
+      <div
+        class="p-3 bg-slate-800 text-white flex items-center justify-between"
+      >
         <span class="text-xs font-bold truncate pr-4">{post.title} の写真</span>
         <button
           type="button"
-          onclick={() => { showImageModal = false; }}
+          onclick={() => {
+            showImageModal = false;
+          }}
           class="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
         >
           <X class="w-5 h-5" />
         </button>
       </div>
       <div class="p-2 flex items-center justify-center bg-black overflow-auto">
-        <img src={post.image_url} alt={post.title} class="max-w-full max-h-[75vh] object-contain rounded" />
+        <img
+          src={post.image_url}
+          alt={post.title}
+          class="max-w-full max-h-[75vh] object-contain rounded"
+        />
       </div>
       {#if parsedImageMeta?.c2pa?.hasC2pa}
-        <div class="p-3 bg-slate-800 border-t border-slate-700 text-xs text-emerald-400 flex items-center gap-1.5 font-bold">
+        <div
+          class="p-3 bg-slate-800 border-t border-slate-700 text-xs text-emerald-400 flex items-center gap-1.5 font-bold"
+        >
           <ShieldCheck class="w-4 h-4 text-emerald-400" />
-          <span>C2PA コンテンツ来歴・真正性認証済み ({parsedImageMeta.c2pa.claimGenerator || '真正カメラ署名'})</span>
+          <span
+            >C2PA コンテンツ来歴・真正性認証済み ({parsedImageMeta.c2pa
+              .claimGenerator || '真正カメラ署名'})</span
+          >
         </div>
       {/if}
     </div>

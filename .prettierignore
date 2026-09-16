@@ -1,0 +1,10 @@
+node_modules
+dist
+.wrangler
+web/dist
+web/src/paraglide
+package-lock.json
+web/package-lock.json
+web/project.inlang
+test-results
+playwright-report

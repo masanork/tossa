@@ -5,7 +5,9 @@
 // 3. 複数メンバー・管理者への安全な招待と鍵共有
 // 4. メッセージ本文の AES-256-GCM ゼロ知識暗号化
 
-export const PRF_SALT = new TextEncoder().encode('tossa:e2ee:identity:salt:v1:2026');
+export const PRF_SALT = new TextEncoder().encode(
+  'tossa:e2ee:identity:salt:v1:2026'
+);
 
 // Base64 / ArrayBuffer 変換ヘルパー
 export function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
@@ -41,15 +43,13 @@ let currentIdentityKey: UserIdentityKey | null = null;
  * PRF Extension から返された 32 バイトのシードを用いて、
  * ユーザー固有の ECDH P-256 キーペアを決定論的に導出・または安全にアンロックします。
  */
-export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserIdentityKey> {
+export async function deriveKeyFromPrfSeed(
+  prfSeed: ArrayBuffer
+): Promise<UserIdentityKey> {
   // 1. PRF シードから HKDF で「Storage Wrapping Key (AES-256-GCM)」を導出
-  const prfKey = await crypto.subtle.importKey(
-    'raw',
-    prfSeed,
-    'HKDF',
-    false,
-    ['deriveKey']
-  );
+  const prfKey = await crypto.subtle.importKey('raw', prfSeed, 'HKDF', false, [
+    'deriveKey',
+  ]);
 
   const wrappingKey = await crypto.subtle.deriveKey(
     {
@@ -65,7 +65,9 @@ export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserId
   );
 
   // 2. ローカルストレージに暗号化された秘密鍵があるか確認
-  const storedEncryptedKey = localStorage.getItem('tossa_prf_encrypted_identity_key');
+  const storedEncryptedKey = localStorage.getItem(
+    'tossa_prf_encrypted_identity_key'
+  );
   const storedPublicKeyJwk = localStorage.getItem('tossa_prf_public_key_jwk');
 
   if (storedEncryptedKey && storedPublicKeyJwk) {
@@ -80,7 +82,9 @@ export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserId
         ciphertext as any
       );
 
-      const privateKeyJwk = JSON.parse(new TextDecoder().decode(decryptedJwkBuffer));
+      const privateKeyJwk = JSON.parse(
+        new TextDecoder().decode(decryptedJwkBuffer)
+      );
       const publicKeyJwk = JSON.parse(storedPublicKeyJwk);
 
       const privateKey = await crypto.subtle.importKey(
@@ -109,7 +113,10 @@ export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserId
       currentIdentityKey = identity;
       return identity;
     } catch (e) {
-      console.warn('Failed to decrypt existing PRF identity key, regenerating...', e);
+      console.warn(
+        'Failed to decrypt existing PRF identity key, regenerating...',
+        e
+      );
     }
   }
 
@@ -120,7 +127,10 @@ export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserId
     ['deriveKey', 'deriveBits']
   );
 
-  const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+  const privateKeyJwk = await crypto.subtle.exportKey(
+    'jwk',
+    keyPair.privateKey
+  );
   const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
 
   const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -137,7 +147,10 @@ export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserId
       ciphertext: bufferToBase64(encryptedPrivateKey),
     })
   );
-  localStorage.setItem('tossa_prf_public_key_jwk', JSON.stringify(publicKeyJwk));
+  localStorage.setItem(
+    'tossa_prf_public_key_jwk',
+    JSON.stringify(publicKeyJwk)
+  );
 
   const identity: UserIdentityKey = {
     privateKey: keyPair.privateKey,
@@ -155,8 +168,12 @@ export async function deriveKeyFromPrfSeed(prfSeed: ArrayBuffer): Promise<UserId
  * デバイス固有の ECDH キーペアを生成・取得します。
  */
 export async function getOrCreateFallbackIdentityKey(): Promise<UserIdentityKey> {
-  const storedPrivate = localStorage.getItem('tossa_fallback_identity_private_jwk');
-  const storedPublic = localStorage.getItem('tossa_fallback_identity_public_jwk');
+  const storedPrivate = localStorage.getItem(
+    'tossa_fallback_identity_private_jwk'
+  );
+  const storedPublic = localStorage.getItem(
+    'tossa_fallback_identity_public_jwk'
+  );
 
   if (storedPrivate && storedPublic) {
     try {
@@ -200,11 +217,20 @@ export async function getOrCreateFallbackIdentityKey(): Promise<UserIdentityKey>
     ['deriveKey', 'deriveBits']
   );
 
-  const privateKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.privateKey);
+  const privateKeyJwk = await crypto.subtle.exportKey(
+    'jwk',
+    keyPair.privateKey
+  );
   const publicKeyJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
 
-  localStorage.setItem('tossa_fallback_identity_private_jwk', JSON.stringify(privateKeyJwk));
-  localStorage.setItem('tossa_fallback_identity_public_jwk', JSON.stringify(publicKeyJwk));
+  localStorage.setItem(
+    'tossa_fallback_identity_private_jwk',
+    JSON.stringify(privateKeyJwk)
+  );
+  localStorage.setItem(
+    'tossa_fallback_identity_public_jwk',
+    JSON.stringify(publicKeyJwk)
+  );
 
   const identity: UserIdentityKey = {
     privateKey: keyPair.privateKey,
@@ -233,7 +259,10 @@ export function setCurrentIdentityKey(key: UserIdentityKey | null): void {
 /**
  * 新しいスレッド専用の対称暗号化キー (AES-256-GCM) を生成
  */
-export async function generateThreadKey(): Promise<{ key: CryptoKey; raw: Uint8Array }> {
+export async function generateThreadKey(): Promise<{
+  key: CryptoKey;
+  raw: Uint8Array;
+}> {
   const rawKey = crypto.getRandomValues(new Uint8Array(32));
   const key = await crypto.subtle.importKey(
     'raw',
@@ -293,7 +322,10 @@ export async function encryptThreadKeyForUser(
   combined.set(iv, 0);
   combined.set(new Uint8Array(ciphertextBuffer), iv.byteLength);
 
-  const ephemeralPublicKeyJwk = await crypto.subtle.exportKey('jwk', ephemeralKeyPair.publicKey);
+  const ephemeralPublicKeyJwk = await crypto.subtle.exportKey(
+    'jwk',
+    ephemeralKeyPair.publicKey
+  );
 
   return {
     encryptedThreadKey: bufferToBase64(combined),

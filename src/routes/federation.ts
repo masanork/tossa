@@ -89,7 +89,7 @@ federationRoute.post('/import', async (c) => {
     remoteUrl?: string;
   }>();
 
-  let featuresToImport: FederatedGeoJSONFeature[] = [];
+  let featuresToImport: FederatedGeoJSONFeature[];
 
   if (body.remoteUrl) {
     let targetUrl = body.remoteUrl.trim();
@@ -100,7 +100,9 @@ federationRoute.post('/import', async (c) => {
     targetUrl = targetUrl.replace(/\/$/, '');
 
     // feed.json または export エンドポイントを試行
-    const feedUrl = targetUrl.endsWith('/api/feed.json') ? targetUrl : `${targetUrl}/api/feed.json`;
+    const feedUrl = targetUrl.endsWith('/api/feed.json')
+      ? targetUrl
+      : `${targetUrl}/api/feed.json`;
 
     try {
       const res = await fetch(feedUrl, {
@@ -117,10 +119,16 @@ federationRoute.post('/import', async (c) => {
         );
       }
 
-      const feedData = await res.json<{ features?: FederatedGeoJSONFeature[] }>();
+      const feedData = await res.json<{
+        features?: FederatedGeoJSONFeature[];
+      }>();
       if (!feedData.features || !Array.isArray(feedData.features)) {
         return c.json(
-          { success: false, error: '相手サイトのデータ形式が不正です (features配列が見つかりません)' },
+          {
+            success: false,
+            error:
+              '相手サイトのデータ形式が不正です (features配列が見つかりません)',
+          },
           400
         );
       }

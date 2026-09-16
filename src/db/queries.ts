@@ -13,8 +13,12 @@ import type {
   ThreadType,
 } from '../types';
 
-export async function getSystemSettings(db: D1Database): Promise<Record<string, string>> {
-  const result = await db.prepare('SELECT key, value FROM system_settings').all<SystemSetting>();
+export async function getSystemSettings(
+  db: D1Database
+): Promise<Record<string, string>> {
+  const result = await db
+    .prepare('SELECT key, value FROM system_settings')
+    .all<SystemSetting>();
   const settings: Record<string, string> = {};
   for (const row of result.results || []) {
     settings[row.key] = row.value;
@@ -22,9 +26,15 @@ export async function getSystemSettings(db: D1Database): Promise<Record<string, 
   return settings;
 }
 
-export async function updateSystemSetting(db: D1Database, key: string, value: string): Promise<void> {
+export async function updateSystemSetting(
+  db: D1Database,
+  key: string,
+  value: string
+): Promise<void> {
   await db
-    .prepare('INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime("now"))')
+    .prepare(
+      'INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime("now"))'
+    )
     .bind(key, value)
     .run();
 }
@@ -76,12 +86,15 @@ export async function getPosts(
     params.push(term, term, term);
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause =
+    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   // Count
   const countQuery = `SELECT COUNT(*) as count FROM posts p ${whereClause}`;
   const countStmt = db.prepare(countQuery);
-  const countRes = await (params.length > 0 ? countStmt.bind(...params) : countStmt).first<{ count: number }>();
+  const countRes = await (
+    params.length > 0 ? countStmt.bind(...params) : countStmt
+  ).first<{ count: number }>();
   const total = countRes?.count || 0;
 
   // List
@@ -102,7 +115,10 @@ export async function getPosts(
   `;
 
   const listParams = [...params, limit, offset];
-  const listRes = await db.prepare(listQuery).bind(...listParams).all<Post>();
+  const listRes = await db
+    .prepare(listQuery)
+    .bind(...listParams)
+    .all<Post>();
 
   return {
     posts: listRes.results || [],
@@ -110,7 +126,10 @@ export async function getPosts(
   };
 }
 
-export async function getPostById(db: D1Database, id: string): Promise<Post | null> {
+export async function getPostById(
+  db: D1Database,
+  id: string
+): Promise<Post | null> {
   const query = `
     SELECT 
       p.*,
@@ -124,9 +143,14 @@ export async function getPostById(db: D1Database, id: string): Promise<Post | nu
   return await db.prepare(query).bind(id).first<Post>();
 }
 
-export async function getStatusUpdatesByPostId(db: D1Database, postId: string): Promise<StatusUpdate[]> {
+export async function getStatusUpdatesByPostId(
+  db: D1Database,
+  postId: string
+): Promise<StatusUpdate[]> {
   const result = await db
-    .prepare('SELECT * FROM status_updates WHERE post_id = ? ORDER BY created_at DESC LIMIT 20')
+    .prepare(
+      'SELECT * FROM status_updates WHERE post_id = ? ORDER BY created_at DESC LIMIT 20'
+    )
     .bind(postId)
     .all<StatusUpdate>();
   return result.results || [];
@@ -158,7 +182,8 @@ export async function createPost(
   }
 ): Promise<void> {
   const attrJson = post.attributes ? JSON.stringify(post.attributes) : '{}';
-  const tagsJson = post.tags && post.tags.length > 0 ? JSON.stringify(post.tags) : '[]';
+  const tagsJson =
+    post.tags && post.tags.length > 0 ? JSON.stringify(post.tags) : '[]';
   const imageMetaJson = post.imageMeta ? JSON.stringify(post.imageMeta) : '{}';
 
   await db
@@ -238,27 +263,43 @@ export async function updatePost(
 
   const updatedTitle = post.title !== undefined ? post.title : existing.title;
   const updatedArea = post.area !== undefined ? post.area : existing.area;
-  const updatedAddress = post.address !== undefined ? post.address : existing.address;
+  const updatedAddress =
+    post.address !== undefined ? post.address : existing.address;
   const updatedLat = post.lat !== undefined ? post.lat : existing.lat;
   const updatedLng = post.lng !== undefined ? post.lng : existing.lng;
-  const updatedStatus = post.currentStatus !== undefined ? post.currentStatus : existing.current_status;
-  const updatedStatusLabel = post.statusLabel !== undefined ? post.statusLabel : existing.status_label;
+  const updatedStatus =
+    post.currentStatus !== undefined
+      ? post.currentStatus
+      : existing.current_status;
+  const updatedStatusLabel =
+    post.statusLabel !== undefined ? post.statusLabel : existing.status_label;
   const updatedNote = post.note !== undefined ? post.note : existing.note;
   const updatedUrl = post.url !== undefined ? post.url : existing.url;
-  const updatedSourceUrl = post.sourceUrl !== undefined ? post.sourceUrl : existing.source_url;
-  const updatedImageUrl = post.imageUrl !== undefined ? post.imageUrl : existing.image_url;
+  const updatedSourceUrl =
+    post.sourceUrl !== undefined ? post.sourceUrl : existing.source_url;
+  const updatedImageUrl =
+    post.imageUrl !== undefined ? post.imageUrl : existing.image_url;
 
-  const updatedImageMeta = post.imageMeta !== undefined
-    ? (post.imageMeta ? JSON.stringify(post.imageMeta) : '{}')
-    : existing.image_meta;
+  const updatedImageMeta =
+    post.imageMeta !== undefined
+      ? post.imageMeta
+        ? JSON.stringify(post.imageMeta)
+        : '{}'
+      : existing.image_meta;
 
-  const updatedAttrs = post.attributes !== undefined
-    ? (post.attributes ? JSON.stringify(post.attributes) : '{}')
-    : existing.attributes;
+  const updatedAttrs =
+    post.attributes !== undefined
+      ? post.attributes
+        ? JSON.stringify(post.attributes)
+        : '{}'
+      : existing.attributes;
 
-  const updatedTags = post.tags !== undefined
-    ? (post.tags ? JSON.stringify(post.tags) : '[]')
-    : existing.tags;
+  const updatedTags =
+    post.tags !== undefined
+      ? post.tags
+        ? JSON.stringify(post.tags)
+        : '[]'
+      : existing.tags;
 
   await db
     .prepare(
@@ -290,13 +331,22 @@ export async function updatePost(
 }
 
 export async function deletePost(db: D1Database, id: string): Promise<void> {
-  await db.prepare('DELETE FROM status_updates WHERE post_id = ?').bind(id).run();
-  await db.prepare('DELETE FROM post_verifications WHERE post_id = ?').bind(id).run();
+  await db
+    .prepare('DELETE FROM status_updates WHERE post_id = ?')
+    .bind(id)
+    .run();
+  await db
+    .prepare('DELETE FROM post_verifications WHERE post_id = ?')
+    .bind(id)
+    .run();
   await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run();
 }
 
 // 自発的に成長するボキャブラリ（直近のアクティビティ・出現頻度順に集計）
-export async function getVocabularyTags(db: D1Database, limit = 40): Promise<TagCount[]> {
+export async function getVocabularyTags(
+  db: D1Database,
+  limit = 40
+): Promise<TagCount[]> {
   try {
     const query = `
       SELECT j.value as name, COUNT(*) as count, MAX(p.updated_at) as last_updated
@@ -308,7 +358,7 @@ export async function getVocabularyTags(db: D1Database, limit = 40): Promise<Tag
     `;
     const result = await db.prepare(query).bind(limit).all<TagCount>();
     return result.results || [];
-  } catch (err) {
+  } catch (_err) {
     // tags カラム未作成時などのフォールバック
     return [];
   }
@@ -338,7 +388,14 @@ export async function updatePostStatus(
       `INSERT INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash, created_at)
        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
     )
-    .bind(`update_${crypto.randomUUID()}`, postId, status, statusLabel, note, ipHash)
+    .bind(
+      `update_${crypto.randomUUID()}`,
+      postId,
+      status,
+      statusLabel,
+      note,
+      ipHash
+    )
     .run();
 }
 
@@ -369,7 +426,9 @@ export async function verifyPost(
     .run();
 
   const row = await db
-    .prepare('SELECT verification_count, last_verified_at FROM posts WHERE id = ?')
+    .prepare(
+      'SELECT verification_count, last_verified_at FROM posts WHERE id = ?'
+    )
     .bind(postId)
     .first<{ verification_count: number; last_verified_at: string }>();
 
@@ -379,37 +438,65 @@ export async function verifyPost(
   };
 }
 
-export async function getUserByUsername(db: D1Database, username: string): Promise<User | null> {
-  return await db.prepare('SELECT * FROM users WHERE username = ?').bind(username).first<User>();
+export async function getUserByUsername(
+  db: D1Database,
+  username: string
+): Promise<User | null> {
+  return await db
+    .prepare('SELECT * FROM users WHERE username = ?')
+    .bind(username)
+    .first<User>();
 }
 
-export async function getUserById(db: D1Database, id: string): Promise<User | null> {
-  return await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first<User>();
+export async function getUserById(
+  db: D1Database,
+  id: string
+): Promise<User | null> {
+  return await db
+    .prepare('SELECT * FROM users WHERE id = ?')
+    .bind(id)
+    .first<User>();
 }
 
-export async function getUserCredentials(db: D1Database, userId: string): Promise<Credential[]> {
-  const res = await db.prepare('SELECT * FROM credentials WHERE user_id = ?').bind(userId).all<Credential>();
+export async function getUserCredentials(
+  db: D1Database,
+  userId: string
+): Promise<Credential[]> {
+  const res = await db
+    .prepare('SELECT * FROM credentials WHERE user_id = ?')
+    .bind(userId)
+    .all<Credential>();
   return res.results || [];
 }
 
 export async function countUsers(db: D1Database): Promise<number> {
-  const row = await db.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>();
+  const row = await db
+    .prepare('SELECT COUNT(*) as count FROM users')
+    .first<{ count: number }>();
   return row?.count ?? 0;
 }
 
 export async function countAdmins(db: D1Database): Promise<number> {
-  const row = await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").first<{ count: number }>();
+  const row = await db
+    .prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'")
+    .first<{ count: number }>();
   return row?.count ?? 0;
 }
 
 export async function getAllUsers(db: D1Database): Promise<Omit<User, ''>[]> {
   const res = await db
-    .prepare('SELECT id, username, display_name, role, created_at FROM users ORDER BY created_at ASC')
+    .prepare(
+      'SELECT id, username, display_name, role, created_at FROM users ORDER BY created_at ASC'
+    )
     .all<User>();
   return res.results || [];
 }
 
-export async function updateUserRole(db: D1Database, userId: string, role: 'admin' | 'moderator' | 'user'): Promise<void> {
+export async function updateUserRole(
+  db: D1Database,
+  userId: string,
+  role: 'admin' | 'moderator' | 'user'
+): Promise<void> {
   await db
     .prepare('UPDATE users SET role = ? WHERE id = ?')
     .bind(role, userId)
@@ -553,14 +640,22 @@ export async function importFederatedPosts(
   let skipped = 0;
 
   for (const feature of features) {
-    if (!feature.id || !feature.properties?.title || !feature.properties?.area) {
+    if (
+      !feature.id ||
+      !feature.properties?.title ||
+      !feature.properties?.area
+    ) {
       skipped++;
       continue;
     }
 
     const props = feature.properties;
-    const lat = feature.geometry?.coordinates ? feature.geometry.coordinates[1] : null;
-    const lng = feature.geometry?.coordinates ? feature.geometry.coordinates[0] : null;
+    const lat = feature.geometry?.coordinates
+      ? feature.geometry.coordinates[1]
+      : null;
+    const lng = feature.geometry?.coordinates
+      ? feature.geometry.coordinates[0]
+      : null;
 
     const existing = await db
       .prepare('SELECT id, updated_at FROM posts WHERE id = ?')
@@ -568,8 +663,11 @@ export async function importFederatedPosts(
       .first<{ id: string; updated_at: string }>();
 
     const attrJson = props.attributes ? JSON.stringify(props.attributes) : '{}';
-    const tagsJson = props.tags && props.tags.length > 0 ? JSON.stringify(props.tags) : '[]';
-    const imageMetaJson = props.imageMeta ? JSON.stringify(props.imageMeta) : '{}';
+    const tagsJson =
+      props.tags && props.tags.length > 0 ? JSON.stringify(props.tags) : '[]';
+    const imageMetaJson = props.imageMeta
+      ? JSON.stringify(props.imageMeta)
+      : '{}';
 
     if (existing) {
       // 既存レコードがある場合: 相手の updatedAt の方が新しい場合のみ上書き更新
@@ -659,7 +757,9 @@ export async function importFederatedPosts(
       for (const h of props.statusHistory) {
         // 同一 post_id かつ同一日時の履歴がなければ追加
         const histExists = await db
-          .prepare('SELECT id FROM status_updates WHERE post_id = ? AND created_at = ?')
+          .prepare(
+            'SELECT id FROM status_updates WHERE post_id = ? AND created_at = ?'
+          )
           .bind(feature.id, h.createdAt)
           .first();
 
@@ -688,7 +788,11 @@ export async function importFederatedPosts(
 
 // ================= E2EE Messaging Database Layer =================
 
-export async function updateUserPublicKey(db: D1Database, userId: string, publicKey: string): Promise<void> {
+export async function updateUserPublicKey(
+  db: D1Database,
+  userId: string,
+  publicKey: string
+): Promise<void> {
   await db
     .prepare('UPDATE users SET e2ee_public_key = ? WHERE id = ?')
     .bind(publicKey, userId)
@@ -698,7 +802,11 @@ export async function updateUserPublicKey(db: D1Database, userId: string, public
 export async function getUsersPublicKeys(
   db: D1Database,
   filter?: { userIds?: string[]; role?: string }
-): Promise<Array<Pick<User, 'id' | 'username' | 'display_name' | 'role' | 'e2ee_public_key'>>> {
+): Promise<
+  Array<
+    Pick<User, 'id' | 'username' | 'display_name' | 'role' | 'e2ee_public_key'>
+  >
+> {
   const conditions: string[] = ['e2ee_public_key IS NOT NULL'];
   const params: unknown[] = [];
 
@@ -720,7 +828,10 @@ export async function getUsersPublicKeys(
     ORDER BY role ASC, display_name ASC
   `;
 
-  const res = await db.prepare(query).bind(...params).all<any>();
+  const res = await db
+    .prepare(query)
+    .bind(...params)
+    .all<any>();
   return res.results || [];
 }
 
@@ -746,7 +857,13 @@ export async function createThread(
       `INSERT INTO threads (id, title, type, post_id, created_by, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
-    .bind(thread.id, thread.title, thread.type, thread.postId || null, thread.createdBy)
+    .bind(
+      thread.id,
+      thread.title,
+      thread.type,
+      thread.postId || null,
+      thread.createdBy
+    )
     .run();
 
   // 2. メンバー & エンベロープ暗号鍵を登録
@@ -769,7 +886,10 @@ export async function createThread(
   }
 }
 
-export async function getUserThreads(db: D1Database, userId: string): Promise<Thread[]> {
+export async function getUserThreads(
+  db: D1Database,
+  userId: string
+): Promise<Thread[]> {
   const query = `
     SELECT 
       t.*,
@@ -790,7 +910,11 @@ export async function getUserThreads(db: D1Database, userId: string): Promise<Th
   return res.results || [];
 }
 
-export async function getThreadById(db: D1Database, threadId: string, userId?: string): Promise<Thread | null> {
+export async function getThreadById(
+  db: D1Database,
+  threadId: string,
+  userId?: string
+): Promise<Thread | null> {
   const query = `
     SELECT 
       t.*,
@@ -806,10 +930,17 @@ export async function getThreadById(db: D1Database, threadId: string, userId?: s
     WHERE t.id = ?
   `;
 
-  return await db.prepare(query).bind(userId || '', threadId).first<Thread>();
+  return await db
+    .prepare(query)
+    .bind(userId || '', threadId)
+    .first<Thread>();
 }
 
-export async function isThreadMember(db: D1Database, threadId: string, userId: string): Promise<boolean> {
+export async function isThreadMember(
+  db: D1Database,
+  threadId: string,
+  userId: string
+): Promise<boolean> {
   const row = await db
     .prepare('SELECT 1 FROM thread_members WHERE thread_id = ? AND user_id = ?')
     .bind(threadId, userId)
@@ -817,7 +948,10 @@ export async function isThreadMember(db: D1Database, threadId: string, userId: s
   return Boolean(row);
 }
 
-export async function getThreadMembers(db: D1Database, threadId: string): Promise<ThreadMember[]> {
+export async function getThreadMembers(
+  db: D1Database,
+  threadId: string
+): Promise<ThreadMember[]> {
   const query = `
     SELECT 
       tm.id,
@@ -884,12 +1018,18 @@ export async function createMessage(
       `INSERT INTO messages (id, thread_id, sender_id, ciphertext, iv, created_at)
        VALUES (?, ?, ?, ?, ?, datetime('now'))`
     )
-    .bind(message.id, message.threadId, message.senderId, message.ciphertext, message.iv)
+    .bind(
+      message.id,
+      message.threadId,
+      message.senderId,
+      message.ciphertext,
+      message.iv
+    )
     .run();
 
   // スレッドの updated_at を更新
   await db
-    .prepare('UPDATE threads SET updated_at = datetime("now") WHERE id = ?')
+    .prepare("UPDATE threads SET updated_at = datetime('now') WHERE id = ?")
     .bind(message.threadId)
     .run();
 }
@@ -917,7 +1057,10 @@ export async function getThreadMessages(
     LIMIT ?
   `;
 
-  const res = await db.prepare(query).bind(threadId, limit).all<EncryptedMessage>();
+  const res = await db
+    .prepare(query)
+    .bind(threadId, limit)
+    .all<EncryptedMessage>();
   return res.results || [];
 }
 
@@ -956,13 +1099,27 @@ export async function getAccessLogsByDevice(
   db: D1Database,
   deviceSessionId: string,
   limit = 200
-): Promise<{ event_type: string; ip_address: string | null; user_agent: string | null; metadata: string | null; created_at: string }[]> {
+): Promise<
+  {
+    event_type: string;
+    ip_address: string | null;
+    user_agent: string | null;
+    metadata: string | null;
+    created_at: string;
+  }[]
+> {
   const res = await db
     .prepare(
       'SELECT event_type, ip_address, user_agent, metadata, created_at FROM access_logs WHERE device_session_id = ? ORDER BY created_at DESC LIMIT ?'
     )
     .bind(deviceSessionId, limit)
-    .all<{ event_type: string; ip_address: string | null; user_agent: string | null; metadata: string | null; created_at: string }>();
+    .all<{
+      event_type: string;
+      ip_address: string | null;
+      user_agent: string | null;
+      metadata: string | null;
+      created_at: string;
+    }>();
   return res.results;
 }
 
@@ -971,12 +1128,26 @@ export async function getAccessLogsByUser(
   db: D1Database,
   userId: string,
   limit = 200
-): Promise<{ event_type: string; ip_address: string | null; device_session_id: string | null; metadata: string | null; created_at: string }[]> {
+): Promise<
+  {
+    event_type: string;
+    ip_address: string | null;
+    device_session_id: string | null;
+    metadata: string | null;
+    created_at: string;
+  }[]
+> {
   const res = await db
     .prepare(
       'SELECT event_type, ip_address, device_session_id, metadata, created_at FROM access_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?'
     )
     .bind(userId, limit)
-    .all<{ event_type: string; ip_address: string | null; device_session_id: string | null; metadata: string | null; created_at: string }>();
+    .all<{
+      event_type: string;
+      ip_address: string | null;
+      device_session_id: string | null;
+      metadata: string | null;
+      created_at: string;
+    }>();
   return res.results;
 }

@@ -31,10 +31,12 @@
     leaflet.control.zoom({ position: 'bottomright' }).addTo(map);
 
     // 国土地理院またはOpenStreetMapタイル
-    leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+    leaflet
+      .tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      })
+      .addTo(map);
 
     markersLayer = leaflet.layerGroup().addTo(map);
     updateMarkers();
@@ -43,7 +45,9 @@
     const hasAnyCoords = posts.some((p) => p.lat && p.lng);
     if (!hasAnyCoords && defaultArea) {
       try {
-        const res = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(defaultArea)}`);
+        const res = await fetch(
+          `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(defaultArea)}`
+        );
         const data = await res.json();
         if (data && data.length > 0 && data[0].geometry?.coordinates) {
           const [lng, lat] = data[0].geometry.coordinates;
@@ -82,11 +86,12 @@
         bounds.extend([post.lat, post.lng]);
 
         // アイコン生成（ステータスに応じた視認性の高いピン）
-        const pinColor = post.current_status === 'danger' || post.current_status === 'closed'
-          ? '#dc2626'
-          : post.current_status === 'crowded'
-          ? '#d97706'
-          : '#2563eb';
+        const pinColor =
+          post.current_status === 'danger' || post.current_status === 'closed'
+            ? '#dc2626'
+            : post.current_status === 'crowded'
+              ? '#d97706'
+              : '#2563eb';
 
         const customIcon = leaflet!.divIcon({
           className: 'custom-map-pin',
@@ -140,7 +145,9 @@
           ">状況を報告する</button>
         `;
 
-        const marker = leaflet!.marker([post.lat, post.lng], { icon: customIcon }).addTo(markersLayer!);
+        const marker = leaflet!
+          .marker([post.lat, post.lng], { icon: customIcon })
+          .addTo(markersLayer!);
         marker.bindPopup(popupContent);
 
         marker.on('popupopen', () => {
@@ -158,6 +165,8 @@
   }
 </script>
 
-<div class="relative w-full h-[calc(100vh-210px)] min-h-[420px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner">
+<div
+  class="relative w-full h-[calc(100vh-210px)] min-h-[420px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner"
+>
   <div bind:this={mapContainer} class="w-full h-full z-0"></div>
 </div>

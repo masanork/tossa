@@ -12,7 +12,11 @@ import type {
 } from '@simplewebauthn/server';
 import type { Bindings, User, Credential } from '../types';
 
-export async function createRegOptions(env: Bindings, user: User, existingCreds: Credential[]) {
+export async function createRegOptions(
+  env: Bindings,
+  user: User,
+  existingCreds: Credential[]
+) {
   const options = await generateRegistrationOptions({
     rpName: env.RP_NAME,
     rpID: env.RP_ID,

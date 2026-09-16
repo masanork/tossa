@@ -1,7 +1,7 @@
 // src/routes/categories.ts: Category API routes
 import { Hono } from 'hono';
 import type { Bindings } from '../types';
-import { getCategories, getSystemSettings } from '../db/queries';
+import { getCategories } from '../db/queries';
 
 export const categoriesRoute = new Hono<{ Bindings: Bindings }>();
 
