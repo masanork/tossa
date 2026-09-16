@@ -12,6 +12,7 @@
     fetchAuthStatus,
     fetchUsers,
     updateUserRole,
+    deleteUserApi,
     broadcastPushApi,
   } from './api';
   import {
@@ -32,6 +33,7 @@
     Palette,
     BellRing,
     Radio,
+    Trash2,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
@@ -269,6 +271,43 @@
       roleChangeMessage = {
         type: 'error',
         text: err.message || '権限更新エラー',
+      };
+    }
+  }
+
+  // Delete user
+  async function handleDeleteUser(
+    targetUserId: string,
+    targetUsername: string
+  ) {
+    if (!token) return;
+    if (
+      !confirm(
+        `ユーザー「${targetUsername}」を完全に削除してもよろしいですか？\nこの操作は取り消せません。`
+      )
+    ) {
+      return;
+    }
+
+    roleChangeMessage = null;
+    try {
+      const res = await deleteUserApi(targetUserId, token);
+      if (res.success) {
+        roleChangeMessage = {
+          type: 'success',
+          text: res.message || `ユーザー「${targetUsername}」を削除しました`,
+        };
+        await loadUsers();
+      } else {
+        roleChangeMessage = {
+          type: 'error',
+          text: res.error || 'ユーザー削除に失敗しました',
+        };
+      }
+    } catch (err: any) {
+      roleChangeMessage = {
+        type: 'error',
+        text: err.message || 'ユーザー削除エラー',
       };
     }
   }
@@ -905,6 +944,24 @@
                                 class="h-2.5 w-2.5 text-amber-600 dark:text-amber-400"
                               />
                               <span>管理者に昇格</span>
+                            </button>
+                          {/if}
+
+                          {#if u.id !== user.id}
+                            <button
+                              type="button"
+                              onclick={() =>
+                                handleDeleteUser(
+                                  u.id,
+                                  u.displayName || u.username
+                                )}
+                              class="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60"
+                              title="アカウントを削除"
+                            >
+                              <Trash2
+                                class="h-2.5 w-2.5 text-rose-600 dark:text-rose-400"
+                              />
+                              <span>削除</span>
                             </button>
                           {/if}
                         </div>

@@ -15,6 +15,7 @@ import {
   countAdmins,
   getAllUsers,
   updateUserRole,
+  deleteUser,
   linkDeviceToUser,
 } from '../db/queries';
 import { createSessionToken, verifySessionToken } from '../auth/session';
@@ -344,5 +345,53 @@ authRoute.patch('/users/:id/role', async (c) => {
   return c.json({
     success: true,
     message: `User ${targetUser.username} role updated to ${body.role}`,
+  });
+});
+
+// 8. Delete user (DELETE /api/auth/users/:id) - Admin only
+authRoute.delete('/users/:id', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Authorization required' }, 401);
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || session.role !== 'admin') {
+    return c.json({ success: false, error: 'Admin permission required' }, 403);
+  }
+
+  const targetUserId = c.req.param('id');
+  if (targetUserId === session.userId) {
+    return c.json(
+      { success: false, error: '自分自身のアカウントは削除できません' },
+      400
+    );
+  }
+
+  const targetUser = await getUserById(c.env.DB, targetUserId);
+  if (!targetUser) {
+    return c.json({ success: false, error: 'User not found' }, 404);
+  }
+
+  // Prevent deleting the last remaining administrator
+  if (targetUser.role === 'admin') {
+    const adminCount = await countAdmins(c.env.DB);
+    if (adminCount <= 1) {
+      return c.json(
+        {
+          success: false,
+          error: '最後の管理者は削除できません',
+        },
+        400
+      );
+    }
+  }
+
+  await deleteUser(c.env.DB, targetUserId);
+
+  return c.json({
+    success: true,
+    message: `ユーザー「${targetUser.username}」を削除しました`,
   });
 });

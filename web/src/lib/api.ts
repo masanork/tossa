@@ -455,6 +455,26 @@ export async function updateUserRole(
   }
 }
 
+export async function deleteUserApi(
+  userId: string,
+  token: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to delete user',
+    };
+  }
+}
+
 // ================= Federation & Migration Functions =================
 
 export async function importFederationFromUrl(

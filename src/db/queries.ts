@@ -503,6 +503,27 @@ export async function updateUserRole(
     .run();
 }
 
+export async function deleteUser(
+  db: D1Database,
+  userId: string
+): Promise<void> {
+  await db.batch([
+    db.prepare('DELETE FROM credentials WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM device_user_links WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM push_subscriptions WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM messages WHERE sender_id = ?').bind(userId),
+    db.prepare('DELETE FROM thread_members WHERE user_id = ?').bind(userId),
+    db.prepare('DELETE FROM threads WHERE created_by = ?').bind(userId),
+    db
+      .prepare('UPDATE posts SET author_id = NULL WHERE author_id = ?')
+      .bind(userId),
+    db
+      .prepare('UPDATE access_logs SET user_id = NULL WHERE user_id = ?')
+      .bind(userId),
+    db.prepare('DELETE FROM users WHERE id = ?').bind(userId),
+  ]);
+}
+
 // ================= Federation & Migration Functions =================
 
 export interface FederatedGeoJSONFeature {
