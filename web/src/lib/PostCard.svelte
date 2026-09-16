@@ -231,14 +231,16 @@
       case 'open':
         return 'bg-emerald-500 text-white';
       case 'crowded':
+      case 'few':
       case 'low_stock':
         return 'bg-amber-500 text-white';
       case 'closed':
       case 'danger':
       case 'out_of_stock':
         return 'bg-rose-600 text-white';
+      case 'unknown':
       default:
-        return 'bg-blue-600 text-white';
+        return 'bg-slate-500 text-white';
     }
   }
 

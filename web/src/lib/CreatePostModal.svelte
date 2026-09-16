@@ -63,6 +63,14 @@
   let sourceUrl = $state('');
   let url = $state('');
 
+  const STATUS_PRESETS = [
+    { value: 'available', label: '受付中 / 利用可能' },
+    { value: 'crowded', label: '混雑中 / 順番待ち' },
+    { value: 'few', label: '残りわずか' },
+    { value: 'closed', label: '終了 / 休止中' },
+    { value: 'unknown', label: '確認中 / 不明' },
+  ];
+
   // Photo, EXIF & C2PA state
   let fileInput = $state<HTMLInputElement | null>(null);
   let imagePreviewUrl = $state<string | null>(null);
@@ -720,6 +728,272 @@
         </div>
       {/if}
 
+      <!-- Facility / Place name -->
+      <div>
+        <label
+          for="post-title"
+          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+        >
+          施設・拠点・情報タイトル <span class="text-rose-600">*</span>
+        </label>
+        <input
+          id="post-title"
+          type="text"
+          bind:value={title}
+          placeholder="例: 中央公民館 給水所、〇〇カフェ、市民総合体育館"
+          required
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+        />
+      </div>
+
+      <!-- Area name & address -->
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div>
+          <label
+            for="post-area"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+          >
+            地区・地域名 <span class="text-rose-600">*</span>
+          </label>
+          <input
+            id="post-area"
+            type="text"
+            bind:value={area}
+            placeholder={defaultArea
+              ? `例: ${defaultArea}`
+              : '例: 中央区、本町、北地区'}
+            required
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+          {#if availableAreas.length > 0}
+            <div class="mt-1.5 flex flex-wrap gap-1">
+              <span
+                class="py-0.5 text-[10px] text-slate-400 dark:text-slate-500"
+                >候補:</span
+              >
+              {#each availableAreas.slice(0, 5) as a (a)}
+                <button
+                  type="button"
+                  onclick={() => {
+                    area = a;
+                  }}
+                  class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  {a}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+        <div class="sm:col-span-2">
+          <label
+            for="post-address"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+            >住所・場所の詳細（任意）</label
+          >
+          <input
+            id="post-address"
+            type="text"
+            bind:value={address}
+            placeholder="例: 〇〇町1-2-3 正門前、体育館入口付近"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+        </div>
+      </div>
+
+      <!-- Status selection -->
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div>
+          <label
+            for="post-status-select"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+            >現在の状況（大分類）</label
+          >
+          <select
+            id="post-status-select"
+            bind:value={currentStatus}
+            onchange={(e) => {
+              const val = (e.target as HTMLSelectElement).value;
+              const preset = STATUS_PRESETS.find((p) => p.value === val);
+              if (preset) {
+                statusLabel = preset.label;
+              }
+            }}
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          >
+            {#each STATUS_PRESETS as opt (opt.value)}
+              <option value={opt.value}>{opt.label}</option>
+            {/each}
+          </select>
+        </div>
+        <div>
+          <label
+            for="post-status-label"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+            >状況の表示名（カード表示文）</label
+          >
+          <input
+            id="post-status-label"
+            type="text"
+            bind:value={statusLabel}
+            placeholder="例: 受付中 / 利用可能、給水中、15分待ち"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+        </div>
+      </div>
+
+      <!-- Detailed notes -->
+      <div>
+        <label
+          for="post-note"
+          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+          >補足メモ・備考（任意）</label
+        >
+        <textarea
+          id="post-note"
+          bind:value={note}
+          rows="2"
+          placeholder="持参が必要な物（ポリタンク等）、営業時間、連絡先など"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+        ></textarea>
+      </div>
+
+      <!-- Voluntary vocabulary (tags) -->
+      <div
+        class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+      >
+        <div class="flex items-center justify-between">
+          <div
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+          >
+            <Sparkles class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>タグ（地域のボキャブラリ）</span>
+          </div>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400"
+            >複数追加可能</span
+          >
+        </div>
+
+        {#if selectedTags.length > 0}
+          <div class="flex flex-wrap gap-1.5">
+            {#each selectedTags as tag (tag)}
+              <span
+                class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+              >
+                <span>#{tag}</span>
+                <button
+                  type="button"
+                  onclick={() => toggleTag(tag)}
+                  class="ml-0.5 cursor-pointer text-blue-200 transition hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            {/each}
+          </div>
+        {/if}
+
+        {#if vocabularyTags.length > 0}
+          <div>
+            <span
+              class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+            >
+              地域のボキャブラリから選ぶ（タップで追加）:
+            </span>
+            <div
+              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
+            >
+              {#each vocabularyTags as vt (vt.name)}
+                <button
+                  type="button"
+                  onclick={() => toggleTag(vt.name)}
+                  class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+                    selectedTags.includes(vt.name)
+                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>#{vt.name}</span>
+                  <span class="text-[9px] text-slate-400 dark:text-slate-500"
+                    >({vt.count})</span
+                  >
+                </button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <div>
+          <span
+            class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+          >
+            新しいタグを追加する:
+          </span>
+          <div class="flex items-center gap-1.5">
+            <div class="relative flex-1">
+              <span
+                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500"
+                >#</span
+              >
+              <input
+                type="text"
+                bind:value={newTagInput}
+                onkeydown={handleTagKeydown}
+                placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
+                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+              />
+            </div>
+            <button
+              type="button"
+              onclick={addNewTag}
+              class="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700"
+            >
+              {m.btn_add()}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Source / reference link (optional) -->
+      <div
+        class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+      >
+        <div class="flex items-center justify-between">
+          <label
+            for="post-source-url"
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
+          >
+            <Link class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>情報源・参照リンク（任意）</span>
+          </label>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400"
+            >正確性検証用</span
+          >
+        </div>
+
+        <input
+          id="post-source-url"
+          type="url"
+          bind:value={sourceUrl}
+          placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+        />
+
+        {#if sourceTrustBadge}
+          <div class="flex items-center gap-2">
+            <span
+              class={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${sourceTrustBadge.color}`}
+            >
+              <span>{sourceTrustBadge.icon}</span>
+              <span>{sourceTrustBadge.label}</span>
+            </span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400"
+              >信頼できる情報源として識別されます</span
+            >
+          </div>
+        {/if}
+      </div>
+
       <!-- Photo attachment (EXIF auto location & C2PA authenticity) -->
       <div
         class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
@@ -842,79 +1116,6 @@
         {/if}
       </div>
 
-      <!-- Facility / Place name -->
-      <div>
-        <label
-          for="post-title"
-          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-        >
-          施設・拠点・情報タイトル <span class="text-rose-600">*</span>
-        </label>
-        <input
-          id="post-title"
-          type="text"
-          bind:value={title}
-          placeholder="例: 中央公民館 給水所、〇〇カフェ、市民総合体育館"
-          required
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-        />
-      </div>
-
-      <!-- Area name & address -->
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div>
-          <label
-            for="post-area"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-          >
-            地区・地域名 <span class="text-rose-600">*</span>
-          </label>
-          <input
-            id="post-area"
-            type="text"
-            bind:value={area}
-            placeholder={defaultArea
-              ? `例: ${defaultArea}`
-              : '例: 中央区、本町、北地区'}
-            required
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-          {#if availableAreas.length > 0}
-            <div class="mt-1.5 flex flex-wrap gap-1">
-              <span
-                class="py-0.5 text-[10px] text-slate-400 dark:text-slate-500"
-                >候補:</span
-              >
-              {#each availableAreas.slice(0, 5) as a (a)}
-                <button
-                  type="button"
-                  onclick={() => {
-                    area = a;
-                  }}
-                  class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  {a}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-        <div class="sm:col-span-2">
-          <label
-            for="post-address"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-            >住所・場所の詳細（任意）</label
-          >
-          <input
-            id="post-address"
-            type="text"
-            bind:value={address}
-            placeholder="例: 〇〇町1-2-3 正門前、体育館入口付近"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-        </div>
-      </div>
-
       <!-- Pin location on map (lat/lng) -->
       <div
         class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
@@ -1033,200 +1234,6 @@
               地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
             </span>
           {/if}
-        </div>
-      </div>
-
-      <!-- Source / reference link (optional) -->
-      <div
-        class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50"
-      >
-        <div class="flex items-center justify-between">
-          <label
-            for="post-source-url"
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
-          >
-            <Link class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span>情報源・参照リンク（任意）</span>
-          </label>
-          <span class="text-[10px] text-slate-500 dark:text-slate-400"
-            >正確性検証用</span
-          >
-        </div>
-
-        <input
-          id="post-source-url"
-          type="url"
-          bind:value={sourceUrl}
-          placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-        />
-
-        {#if sourceTrustBadge}
-          <div class="flex items-center gap-2">
-            <span
-              class={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${sourceTrustBadge.color}`}
-            >
-              <span>{sourceTrustBadge.icon}</span>
-              <span>{sourceTrustBadge.label}</span>
-            </span>
-            <span class="text-[10px] text-slate-500 dark:text-slate-400"
-              >信頼できる情報源として識別されます</span
-            >
-          </div>
-        {/if}
-      </div>
-
-      <!-- Status selection -->
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div>
-          <label
-            for="post-status-select"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-            >現在の状況</label
-          >
-          <select
-            id="post-status-select"
-            bind:value={currentStatus}
-            onchange={(e) => {
-              const val = (e.target as HTMLSelectElement).value;
-              if (val === 'available') statusLabel = '受付中 / 利用可能';
-              if (val === 'crowded') statusLabel = '混雑中';
-              if (val === 'out_of_stock') statusLabel = '本日分終了';
-              if (val === 'open') statusLabel = '営業中';
-            }}
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            <option value="available">利用可能 / 配布中</option>
-            <option value="open">営業中 / 開設中</option>
-            <option value="crowded">混雑中</option>
-            <option value="out_of_stock">終了 / 完売</option>
-          </select>
-        </div>
-        <div>
-          <label
-            for="post-status-label"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-            >状況の表示名</label
-          >
-          <input
-            id="post-status-label"
-            type="text"
-            bind:value={statusLabel}
-            placeholder="例: 給水中、電源開放中、時短営業中"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-        </div>
-      </div>
-
-      <!-- Detailed notes -->
-      <div>
-        <label
-          for="post-note"
-          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-          >補足メモ・備考（任意）</label
-        >
-        <textarea
-          id="post-note"
-          bind:value={note}
-          rows="2"
-          placeholder="持参が必要な物（ポリタンク等）、営業時間、連絡先など"
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-        ></textarea>
-      </div>
-
-      <!-- Voluntary vocabulary (tags) -->
-      <div
-        class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/50"
-      >
-        <div class="flex items-center justify-between">
-          <div
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
-          >
-            <Sparkles class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span>タグ（地域のボキャブラリ）</span>
-          </div>
-          <span class="text-[10px] text-slate-500 dark:text-slate-400"
-            >複数追加可能</span
-          >
-        </div>
-
-        {#if selectedTags.length > 0}
-          <div class="flex flex-wrap gap-1.5">
-            {#each selectedTags as tag (tag)}
-              <span
-                class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
-              >
-                <span>#{tag}</span>
-                <button
-                  type="button"
-                  onclick={() => toggleTag(tag)}
-                  class="ml-0.5 cursor-pointer text-blue-200 transition hover:text-white"
-                >
-                  ×
-                </button>
-              </span>
-            {/each}
-          </div>
-        {/if}
-
-        {#if vocabularyTags.length > 0}
-          <div>
-            <span
-              class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
-            >
-              地域のボキャブラリから選ぶ（タップで追加）:
-            </span>
-            <div
-              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
-            >
-              {#each vocabularyTags as vt (vt.name)}
-                <button
-                  type="button"
-                  onclick={() => toggleTag(vt.name)}
-                  class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
-                    selectedTags.includes(vt.name)
-                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <span>#{vt.name}</span>
-                  <span class="text-[9px] text-slate-400 dark:text-slate-500"
-                    >({vt.count})</span
-                  >
-                </button>
-              {/each}
-            </div>
-          </div>
-        {/if}
-
-        <div>
-          <span
-            class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
-          >
-            新しいタグを追加する:
-          </span>
-          <div class="flex items-center gap-1.5">
-            <div class="relative flex-1">
-              <span
-                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500"
-                >#</span
-              >
-              <input
-                type="text"
-                bind:value={newTagInput}
-                onkeydown={handleTagKeydown}
-                placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
-                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-              />
-            </div>
-            <button
-              type="button"
-              onclick={addNewTag}
-              class="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700"
-            >
-              {m.btn_add()}
-            </button>
-          </div>
         </div>
       </div>
 

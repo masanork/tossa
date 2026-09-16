@@ -58,23 +58,32 @@ class I18nState {
 
   /**
    * Returns localized status label for status codes (available, crowded, closed, etc.)
+   * In Japanese, respects the custom status_label if provided.
    */
   translateStatus(statusCode: string, fallbackLabel?: string): string {
     // Read reactive locale state
     const _lang = this.current;
+    const trimmed = fallbackLabel?.trim();
+    if (this.current === 'ja' && trimmed) {
+      return trimmed;
+    }
     switch (statusCode) {
       case 'available':
+      case 'open':
         return m.status_available();
       case 'crowded':
         return m.status_crowded();
       case 'few':
+      case 'low_stock':
         return m.status_few();
       case 'closed':
+      case 'danger':
+      case 'out_of_stock':
         return m.status_closed();
       case 'unknown':
         return m.status_unknown();
       default:
-        return fallbackLabel || statusCode;
+        return trimmed || statusCode;
     }
   }
 }

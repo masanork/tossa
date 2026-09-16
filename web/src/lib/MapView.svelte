@@ -306,11 +306,17 @@
 
         // Generate pin icon styled by status
         const pinColor =
-          post.current_status === 'danger' || post.current_status === 'closed'
+          post.current_status === 'danger' ||
+          post.current_status === 'closed' ||
+          post.current_status === 'out_of_stock'
             ? '#dc2626'
-            : post.current_status === 'crowded'
+            : post.current_status === 'crowded' ||
+                post.current_status === 'few' ||
+                post.current_status === 'low_stock'
               ? '#d97706'
-              : '#2563eb';
+              : post.current_status === 'unknown'
+                ? '#64748b'
+                : '#2563eb';
 
         const customIcon = leaflet!.divIcon({
           className: 'custom-map-pin',
