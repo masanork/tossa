@@ -66,6 +66,10 @@
     - Display any disaster post as a high-density, high-contrast SVG/PNG QR code containing compact post data.
     - Peer-to-peer scanning via camera (`BarcodeDetector` API with pure-JS `jsQR` fallback) or image/screenshot upload without cellular or Wi-Fi connectivity.
     - Imported posts persist immediately into local offline storage, instantly accessible in timelines, map view, and straight-line Waypoint Navigation HUD.
+15. **RFC 8291/8292 Web Push Notifications (VAPID)**
+    - Real-time browser push alerts even when the app is closed or in the background, using standards-compliant VAPID signing and AES-128-GCM encrypted payloads — 100% Cloudflare Workers compatible (no Node.js).
+    - Auto-broadcast on emergency banner updates, critical disaster posts, and shelter/water status changes; area and alert-type filtering so citizens receive only relevant local events.
+    - Privacy-preserving E2EE thread notifications (notifies without revealing message content); admin broadcast panel and animated bell button with one-tap subscribe/unsubscribe.
 
 ---
 
