@@ -60,5 +60,7 @@
   "status_few": "Low stock / Few remaining",
   "status_closed": "Closed / Ended",
   "status_unknown": "Checking",
-  "e2ee_need_auth": "Passkey authentication is required to use End-to-End Encrypted (E2EE) messaging."
+  "e2ee_need_auth": "Passkey authentication is required to use End-to-End Encrypted (E2EE) messaging.",
+  "offline_banner": "You are currently offline. Showing cached information. Posts will be sent automatically when connectivity returns.",
+  "offline_sync_success": "Sent {count} pending offline posts"
 }

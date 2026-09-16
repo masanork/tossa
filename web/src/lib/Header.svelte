@@ -3,8 +3,6 @@
   import type { SystemSettings, User } from './types';
   import {
     Shield,
-    Radio,
-    Sparkles,
     MapPin,
     KeyRound,
     AlertTriangle,
@@ -86,7 +84,7 @@
           <div
             class="absolute right-0 mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50 text-xs flex flex-col"
           >
-            {#each LANGUAGES as lang}
+            {#each LANGUAGES as lang (lang.code)}
               <button
                 type="button"
                 onclick={() => {

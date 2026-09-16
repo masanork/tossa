@@ -30,19 +30,14 @@
     X,
     Lock,
     Shield,
-    Users,
     UserPlus,
     Send,
     Plus,
     ArrowLeft,
-    RefreshCw,
     MessageSquare,
     Check,
     AlertCircle,
-    Crown,
     HelpCircle,
-    User as UserIcon,
-    Sparkles,
   } from '@lucide/svelte';
 
   interface Props {
@@ -476,11 +471,20 @@
 </script>
 
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs"
+  role="presentation"
+  onclick={(e) => {
+    if (e.target === e.currentTarget) onClose();
+  }}
+  class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
 >
   <div
-    class="bg-white rounded-2xl w-full max-w-3xl h-[88vh] max-h-[720px] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col"
+    class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-3xl h-[92vh] sm:h-[88vh] sm:max-h-[720px] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150 flex flex-col"
   >
+    <!-- Mobile drag handle -->
+    <div
+      class="w-10 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0"
+    ></div>
+
     <!-- Header -->
     <div
       class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
@@ -896,11 +900,18 @@
 <!-- Member invite submodal -->
 {#if showInviteModal}
   <div
-    class="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs"
+    role="presentation"
+    onclick={(e) => {
+      if (e.target === e.currentTarget) showInviteModal = false;
+    }}
+    class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
   >
     <div
-      class="bg-white rounded-2xl w-full max-w-sm shadow-xl p-4 flex flex-col gap-3"
+      class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-xl p-4 flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150"
     >
+      <div
+        class="w-10 h-1 bg-slate-300 rounded-full mx-auto my-1 sm:hidden shrink-0"
+      ></div>
       <div class="flex items-center justify-between">
         <h4 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
           <UserPlus class="w-4 h-4 text-blue-600" />

@@ -1,0 +1,86 @@
+// web/src/lib/modalManager.svelte.ts: Responsive Mobile Multi-Modal & Bottom Sheet Coordinator
+
+export type ModalName = 'create' | 'admin' | 'messages' | 'update_status';
+
+class ModalManager {
+  stack = $state<ModalName[]>([]);
+  private isHandlingPopstate = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', (_event) => {
+        if (this.stack.length > 0) {
+          this.isHandlingPopstate = true;
+          this.stack.pop();
+          this.updateBodyScrollLock();
+          this.isHandlingPopstate = false;
+        }
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && this.stack.length > 0) {
+          this.closeTop();
+        }
+      });
+    }
+  }
+
+  isOpen(name: ModalName): boolean {
+    return this.stack.includes(name);
+  }
+
+  isTop(name: ModalName): boolean {
+    return this.stack.length > 0 && this.stack[this.stack.length - 1] === name;
+  }
+
+  open(name: ModalName): void {
+    if (!this.stack.includes(name)) {
+      this.stack.push(name);
+      this.updateBodyScrollLock();
+
+      if (typeof window !== 'undefined') {
+        history.pushState({ tossaModal: name }, '');
+      }
+    }
+  }
+
+  close(name: ModalName): void {
+    const idx = this.stack.indexOf(name);
+    if (idx !== -1) {
+      this.stack.splice(idx, 1);
+      this.updateBodyScrollLock();
+
+      if (typeof window !== 'undefined' && !this.isHandlingPopstate) {
+        // If this was the state pushed on history, go back one step to keep history clean
+        if (history.state?.tossaModal) {
+          history.back();
+        }
+      }
+    }
+  }
+
+  closeTop(): void {
+    if (this.stack.length > 0) {
+      const top = this.stack[this.stack.length - 1];
+      this.close(top);
+    }
+  }
+
+  closeAll(): void {
+    while (this.stack.length > 0) {
+      this.closeTop();
+    }
+  }
+
+  private updateBodyScrollLock(): void {
+    if (typeof document !== 'undefined') {
+      if (this.stack.length > 0) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    }
+  }
+}
+
+export const modalManager = new ModalManager();

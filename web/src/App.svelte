@@ -1,6 +1,6 @@
 <!-- web/src/App.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { Post, SystemSettings, User, TagCount } from './lib/types';
   import {
     fetchSettings,
@@ -17,8 +17,17 @@
   import CreatePostModal from './lib/CreatePostModal.svelte';
   import AdminModal from './lib/AdminModal.svelte';
   import MessagesModal from './lib/MessagesModal.svelte';
-  import { List, Map as MapIcon, Search, Plus, RotateCw } from '@lucide/svelte';
-  import { i18n, m } from './lib/i18n.svelte';
+  import {
+    List,
+    Map as MapIcon,
+    Search,
+    Plus,
+    RotateCw,
+    WifiOff,
+    Check,
+  } from '@lucide/svelte';
+  import { m } from './lib/i18n.svelte';
+  import { getPendingQueueCount, flushOfflineQueue } from './lib/offlineQueue';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa',
@@ -49,14 +58,74 @@
   let currentUser = $state<User | null>(null);
   let authToken = $state<string | null>(localStorage.getItem('tossa_token'));
 
+  // Offline & PWA state
+  let isOnline = $state(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+  let pendingCount = $state(0);
+  let offlineNotice = $state<string | null>(null);
+
   // Candidate areas (extracted from posts)
-  let availableAreas = $derived.by(() => {
-    const set = new Set<string>();
-    posts.forEach((p) => {
-      if (p.area) set.add(p.area);
-    });
-    return Array.from(set);
+  let availableAreas = $derived(
+    Array.from(new Set(posts.map((p) => p.area).filter(Boolean)))
+  );
+
+  // Lock body scroll when any modal is open
+  $effect(() => {
+    const hasModal =
+      showAdminModal ||
+      showCreateModal ||
+      showMessagesModal ||
+      updatingPost !== null;
+    if (typeof document !== 'undefined') {
+      document.body.style.overflow = hasModal ? 'hidden' : '';
+    }
   });
+
+  function pushModalHistory() {
+    if (typeof window !== 'undefined') {
+      history.pushState({ tossaModal: true }, '');
+    }
+  }
+
+  async function syncOfflineQueue() {
+    pendingCount = getPendingQueueCount();
+    if (pendingCount === 0) return;
+
+    const res = await flushOfflineQueue(authToken);
+    pendingCount = getPendingQueueCount();
+    if (res.succeeded > 0) {
+      offlineNotice = m.offline_sync_success({ count: res.succeeded });
+      setTimeout(() => {
+        offlineNotice = null;
+      }, 4000);
+      await reloadPosts();
+    }
+  }
+
+  function handleOnline() {
+    isOnline = true;
+    syncOfflineQueue();
+  }
+
+  function handleOffline() {
+    isOnline = false;
+    pendingCount = getPendingQueueCount();
+  }
+
+  function handlePopstate() {
+    if (showAdminModal) {
+      showAdminModal = false;
+    } else if (showCreateModal) {
+      showCreateModal = false;
+      editingPost = null;
+    } else if (showMessagesModal) {
+      showMessagesModal = false;
+      messageContextPost = null;
+    } else if (updatingPost) {
+      updatingPost = null;
+    }
+  }
 
   onMount(async () => {
     // 1. Verify auth token
@@ -72,6 +141,25 @@
 
     // 2. Load initial data
     await loadInitialData();
+
+    // 3. Online/Offline & Outbox Listeners
+    pendingCount = getPendingQueueCount();
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('popstate', handlePopstate);
+
+    if (navigator.onLine && pendingCount > 0) {
+      await syncOfflineQueue();
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('popstate', handlePopstate);
+    }
   });
 
   async function loadInitialData() {
@@ -135,14 +223,21 @@
     localStorage.removeItem('tossa_token');
   }
 
+  function handleOpenUpdateStatus(post: Post) {
+    pushModalHistory();
+    updatingPost = post;
+  }
+
   // Open create post (cookie identification allows instant posting without login)
   function handleOpenCreate() {
+    pushModalHistory();
     editingPost = null;
     showCreateModal = true;
   }
 
   // Open edit post
   function handleEditPost(post: Post) {
+    pushModalHistory();
     editingPost = post;
     showCreateModal = true;
   }
@@ -168,6 +263,7 @@
 
   // Open E2EE messaging modal
   function handleOpenMessages() {
+    pushModalHistory();
     if (!currentUser || !authToken) {
       alert(m.e2ee_need_auth());
       showAdminModal = true;
@@ -179,6 +275,7 @@
 
   // Contact about post (open messages modal with post context)
   function handleContactPost(post: Post) {
+    pushModalHistory();
     if (!currentUser || !authToken) {
       alert(m.e2ee_need_auth());
       showAdminModal = true;
@@ -198,11 +295,36 @@
     {settings}
     user={currentUser}
     onOpenAdmin={() => {
+      pushModalHistory();
       showAdminModal = true;
     }}
     onOpenCreate={handleOpenCreate}
     onOpenMessages={handleOpenMessages}
   />
+
+  <!-- Offline status & Sync notification banners -->
+  {#if !isOnline}
+    <div
+      class="bg-amber-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition"
+    >
+      <WifiOff class="w-4 h-4 shrink-0" />
+      <span>{m.offline_banner()}</span>
+      {#if pendingCount > 0}
+        <span
+          class="bg-amber-800 px-2 py-0.5 rounded-full text-[11px] font-mono shrink-0"
+        >
+          未送信: {pendingCount}件
+        </span>
+      {/if}
+    </div>
+  {:else if offlineNotice}
+    <div
+      class="bg-emerald-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-center gap-2 shadow-xs animate-in fade-in duration-200"
+    >
+      <Check class="w-4 h-4 shrink-0" />
+      <span>{offlineNotice}</span>
+    </div>
+  {/if}
 
   <!-- Organic vocabulary tag filter bar -->
   <VocabularyFilter
@@ -285,7 +407,7 @@
           class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 shadow-2xs focus:outline-none"
         >
           <option value="">{m.all_areas()}</option>
-          {#each availableAreas as a}
+          {#each availableAreas as a (a)}
             <option value={a}>{a}</option>
           {/each}
         </select>
@@ -373,9 +495,7 @@
         <MapView
           {posts}
           defaultArea={settings.default_area || ''}
-          onOpenUpdateStatus={(p) => {
-            updatingPost = p;
-          }}
+          onOpenUpdateStatus={handleOpenUpdateStatus}
         />
       {/if}
     {:else}
@@ -464,9 +584,7 @@
             <PostCard
               {post}
               {currentUser}
-              onOpenUpdateStatus={(p) => {
-                updatingPost = p;
-              }}
+              onOpenUpdateStatus={handleOpenUpdateStatus}
               onSelectTag={handleSelectTag}
               onEditPost={handleEditPost}
               onDeletePost={handleDeletePost}

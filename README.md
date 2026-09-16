@@ -44,6 +44,14 @@
    - Unified Cloudflare Workers + D1 (SQLite) + Workers Static Assets architecture.
    - Aggressive edge caching withstands extreme traffic spikes during large-scale emergencies at near-zero operating costs.
 
+9. **Progressive Web App (PWA) & Offline Disaster Resilience**
+   - Built-in Service Worker caches the SPA shell and latest community updates.
+   - Offline Outbox automatically queues local posts and status reports when connectivity drops, auto-syncing when signal returns.
+
+10. **Mobile-First Multi-Modal Architecture & Native Bottom Sheets**
+    - Seamless layered modal management (non-destructive Passkey auth layering while retaining draft post content).
+    - Touch-optimized bottom sheets with drag handles and native browser back button (`popstate`) dismissal.
+
 ---
 
 ## 🛠 Tech Stack

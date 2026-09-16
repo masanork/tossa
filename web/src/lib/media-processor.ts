@@ -217,7 +217,7 @@ async function resizeAndCompressImage(
           resolve(webpData);
           return;
         }
-      } catch (_e) {
+      } catch {
         // Fallback
       }
 

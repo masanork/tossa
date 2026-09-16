@@ -2,12 +2,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { createPost, updatePost } from './api';
+  import { enqueuePost } from './offlineQueue';
   import type { Post, TagCount, ImageMeta } from './types';
   import { processImageFile } from './media-processor';
   import type * as L from 'leaflet';
   import {
     X,
-    Plus,
     Edit3,
     AlertCircle,
     Sparkles,
@@ -18,12 +18,11 @@
     RotateCcw,
     Camera,
     ShieldCheck,
-    Globe,
     Link,
     Clock,
     Trash2,
   } from '@lucide/svelte';
-  import { i18n, m } from './i18n.svelte';
+  import { m } from './i18n.svelte';
 
   interface Props {
     vocabularyTags: TagCount[];
@@ -229,26 +228,10 @@
     }
   });
 
-  let attrKey = $state('');
-  let attrVal = $state('');
   let attributes = $state<Record<string, string>>({});
 
   let isSubmitting = $state(false);
   let errorMessage = $state('');
-
-  function addAttribute() {
-    if (attrKey.trim() && attrVal.trim()) {
-      attributes = { ...attributes, [attrKey.trim()]: attrVal.trim() };
-      attrKey = '';
-      attrVal = '';
-    }
-  }
-
-  function removeAttribute(key: string) {
-    const next = { ...attributes };
-    delete next[key];
-    attributes = next;
-  }
 
   onMount(async () => {
     // Set initial values if editing existing post
@@ -342,7 +325,7 @@
           const [cLng, cLat] = data[0].geometry.coordinates;
           pickerMap.setView([cLat, cLng], 12);
         }
-      } catch (e) {
+      } catch {
         // Fallback
       }
     }
@@ -504,7 +487,7 @@
           };
         }
       }
-    } catch (err: any) {
+    } catch {
       geoStatusMessage = {
         type: 'error',
         text: '住所検索中にエラーが発生しました。地図上をタップしてピンを指定してください。',
@@ -554,6 +537,27 @@
           errorMessage = res.error || '更新に失敗しました';
         }
       } else {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          enqueuePost({
+            title: title.trim(),
+            area: area.trim(),
+            address: address.trim() || undefined,
+            lat: lat !== null ? lat : undefined,
+            lng: lng !== null ? lng : undefined,
+            currentStatus,
+            statusLabel,
+            note: note.trim() || undefined,
+            url: url.trim() || undefined,
+            sourceUrl: sourceUrl.trim() || undefined,
+            imageUrl: imagePreviewUrl || undefined,
+            imageMeta: imageMeta ? (imageMeta as any) : undefined,
+            tags: selectedTags.length > 0 ? selectedTags : undefined,
+          });
+          onCreated();
+          onClose();
+          return;
+        }
+
         const res = await createPost(
           {
             title: title.trim(),
@@ -583,6 +587,26 @@
         }
       }
     } catch (err: any) {
+      if (!editingPost) {
+        enqueuePost({
+          title: title.trim(),
+          area: area.trim(),
+          address: address.trim() || undefined,
+          lat: lat !== null ? lat : undefined,
+          lng: lng !== null ? lng : undefined,
+          currentStatus,
+          statusLabel,
+          note: note.trim() || undefined,
+          url: url.trim() || undefined,
+          sourceUrl: sourceUrl.trim() || undefined,
+          imageUrl: imagePreviewUrl || undefined,
+          imageMeta: imageMeta ? (imageMeta as any) : undefined,
+          tags: selectedTags.length > 0 ? selectedTags : undefined,
+        });
+        onCreated();
+        onClose();
+        return;
+      }
       errorMessage = err.message || '通信エラーが発生しました';
     } finally {
       isSubmitting = false;
@@ -591,11 +615,20 @@
 </script>
 
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs"
+  role="presentation"
+  onclick={(e) => {
+    if (e.target === e.currentTarget) onClose();
+  }}
+  class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
 >
   <div
-    class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[94vh] flex flex-col"
+    class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150 max-h-[94vh] flex flex-col"
   >
+    <!-- Mobile drag handle -->
+    <div
+      class="w-10 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0"
+    ></div>
+
     <!-- Header -->
     <div
       class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
@@ -822,7 +855,7 @@
           {#if availableAreas.length > 0}
             <div class="flex flex-wrap gap-1 mt-1.5">
               <span class="text-[10px] text-slate-400 py-0.5">候補:</span>
-              {#each availableAreas.slice(0, 5) as a}
+              {#each availableAreas.slice(0, 5) as a (a)}
                 <button
                   type="button"
                   onclick={() => {
@@ -1083,7 +1116,7 @@
 
         {#if selectedTags.length > 0}
           <div class="flex flex-wrap gap-1.5">
-            {#each selectedTags as tag}
+            {#each selectedTags as tag (tag)}
               <span
                 class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-2xs"
               >
@@ -1108,7 +1141,7 @@
             <div
               class="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1.5 bg-white rounded-lg border border-slate-200"
             >
-              {#each vocabularyTags as vt}
+              {#each vocabularyTags as vt (vt.name)}
                 <button
                   type="button"
                   onclick={() => toggleTag(vt.name)}

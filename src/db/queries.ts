@@ -33,7 +33,7 @@ export async function updateSystemSetting(
 ): Promise<void> {
   await db
     .prepare(
-      'INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime("now"))'
+      "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))"
     )
     .bind(key, value)
     .run();
@@ -358,7 +358,7 @@ export async function getVocabularyTags(
     `;
     const result = await db.prepare(query).bind(limit).all<TagCount>();
     return result.results || [];
-  } catch (_err) {
+  } catch {
     // Fallback if tags column is unavailable
     return [];
   }

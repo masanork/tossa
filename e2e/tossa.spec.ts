@@ -104,4 +104,44 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
       await expect(usernameInput).toBeVisible();
     }
   });
+
+  test('5. Mobile multi-modal bottom sheet and history back dismissal', async ({
+    page,
+  }) => {
+    // Set mobile viewport
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    // Verify PWA manifest is linked
+    const manifestLink = page.locator('link[rel="manifest"]');
+    await expect(manifestLink).toHaveAttribute('href', '/manifest.webmanifest');
+
+    // Open Create Post modal
+    const createBtn = page.locator('header button:has-text("＋")');
+    await createBtn.click();
+
+    // Verify Create modal is visible
+    const createModal = page.locator('div.fixed.inset-0');
+    await expect(createModal.first()).toBeVisible();
+
+    // Click passkey login link inside CreatePostModal
+    const passkeyLink = page.locator('button:has-text("Passkeyでログイン")');
+    if (await passkeyLink.isVisible()) {
+      await passkeyLink.click();
+
+      // Verify AdminModal opened as stacked modal
+      const adminModal = page.locator('h2:has-text("Passkey 認証・設定")');
+      await expect(adminModal).toBeVisible();
+
+      // Press browser back button -> should dismiss AdminModal and keep CreateModal
+      await page.goBack();
+      await expect(adminModal).not.toBeVisible();
+    }
+
+    // Press browser back button -> should dismiss CreateModal
+    await page.goBack();
+    await expect(
+      page.locator('h2:has-text("情報を投稿"), h2:has-text("Post Information")')
+    ).not.toBeVisible();
+  });
 });

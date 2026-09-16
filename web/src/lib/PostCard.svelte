@@ -9,11 +9,8 @@
     CheckCircle,
     RefreshCw,
     ShieldCheck,
-    Camera,
     ThumbsUp,
-    Link,
     Check,
-    Image as ImageIcon,
     Edit3,
     Trash2,
     MessageSquareLock,
@@ -392,7 +389,7 @@
   <!-- Dynamic attribute tags (water type, business hours, etc.) -->
   {#if Object.keys(parsedAttrs).length > 0}
     <div class="flex items-center gap-1.5 flex-wrap">
-      {#each Object.entries(parsedAttrs) as [key, val]}
+      {#each Object.entries(parsedAttrs) as [key, val] (key)}
         {#if typeof val === 'string' || typeof val === 'number'}
           <span
             class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium"
@@ -401,7 +398,7 @@
             {val}
           </span>
         {:else if Array.isArray(val)}
-          {#each val as item}
+          {#each val as item, i (i)}
             <span
               class="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium"
             >
@@ -416,7 +413,7 @@
   <!-- Voluntary vocabulary tags -->
   {#if parsedTags.length > 0}
     <div class="flex items-center gap-1.5 flex-wrap">
-      {#each parsedTags as t}
+      {#each parsedTags as t (t)}
         {#if onSelectTag}
           <button
             type="button"

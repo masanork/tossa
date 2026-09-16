@@ -60,5 +60,7 @@
   "status_few": "残りわずか",
   "status_closed": "終了 / 休止中",
   "status_unknown": "確認中",
-  "e2ee_need_auth": "暗号化メッセージ（E2EE）を利用するにはPasskey認証（登録またはログイン）が必要です。"
+  "e2ee_need_auth": "暗号化メッセージ（E2EE）を利用するにはPasskey認証（登録またはログイン）が必要です。",
+  "offline_banner": "現在オフラインです。直近に取得した情報を表示しています（投稿は電波復旧時に自動送信されます）",
+  "offline_sync_success": "{count}件のオフライン投稿を送信しました"
 }

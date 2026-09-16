@@ -2,10 +2,11 @@
 <script lang="ts">
   import type { Post } from './types';
   import { updatePostStatus } from './api';
-  import { X, CheckCircle2, AlertCircle, Clock, Ban } from '@lucide/svelte';
+  import { enqueueStatusUpdate } from './offlineQueue';
+  import { X, Check, Clock, Coffee, XCircle, HelpCircle } from '@lucide/svelte';
 
   interface Props {
-    post: Post | null;
+    post: Post;
     onClose: () => void;
     onUpdated: () => void;
   }
@@ -13,41 +14,54 @@
   let { post, onClose, onUpdated }: Props = $props();
 
   let selectedStatus = $state('available');
-  let selectedLabel = $state('受付中 / 在庫あり');
+  let selectedLabel = $state('受付中');
   let note = $state('');
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
-  // Preset status options
+  $effect(() => {
+    if (post) {
+      selectedStatus = post.current_status || 'available';
+      selectedLabel = post.status_label || '受付中';
+    }
+  });
+
+  // Status preset options
   const statusOptions = [
     {
       status: 'available',
       label: '受付中 / 利用可能',
-      desc: '問題なく利用・給水・配布が行われています',
-      color:
-        'bg-emerald-50 border-emerald-300 text-emerald-800 ring-emerald-500',
-      icon: CheckCircle2,
+      desc: '現在利用・利用受付が可能です',
+      color: 'bg-emerald-50 text-emerald-700 border-emerald-300',
+      icon: Check,
     },
     {
       status: 'crowded',
-      label: '混雑中 / 残りわずか',
-      desc: '待機列が発生している、または在庫が少なくなっています',
-      color: 'bg-amber-50 border-amber-300 text-amber-800 ring-amber-500',
+      label: '混雑中 / 順番待ち',
+      desc: '利用可能ですが、待ち時間が発生しています',
+      color: 'bg-amber-50 text-amber-700 border-amber-300',
       icon: Clock,
     },
     {
-      status: 'out_of_stock',
-      label: '配布終了 / 完売',
-      desc: '本日の配分が終了したか、売り切れました',
-      color: 'bg-rose-50 border-rose-300 text-rose-800 ring-rose-500',
-      icon: Ban,
+      status: 'few',
+      label: '残りわずか',
+      desc: '物資や定員が残り少なくなっています',
+      color: 'bg-orange-50 text-orange-700 border-orange-300',
+      icon: Coffee,
     },
     {
       status: 'closed',
-      label: '一時休止 / 閉鎖中',
-      desc: '現在は受付を中断または終了しています',
-      color: 'bg-slate-100 border-slate-300 text-slate-800 ring-slate-500',
-      icon: AlertCircle,
+      label: '終了 / 休止中',
+      desc: '本日の受付終了、または一時休止中です',
+      color: 'bg-rose-50 text-rose-700 border-rose-300',
+      icon: XCircle,
+    },
+    {
+      status: 'unknown',
+      label: '確認中 / 不明',
+      desc: '状況を確認中、または詳細不明です',
+      color: 'bg-slate-50 text-slate-700 border-slate-300',
+      icon: HelpCircle,
     },
   ];
 
@@ -64,6 +78,18 @@
     errorMessage = '';
 
     try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        enqueueStatusUpdate({
+          postId: post.id,
+          status: selectedStatus,
+          statusLabel: selectedLabel,
+          note: note.trim() || undefined,
+        });
+        onUpdated();
+        onClose();
+        return;
+      }
+
       const res = await updatePostStatus(
         post.id,
         selectedStatus,
@@ -76,8 +102,16 @@
       } else {
         errorMessage = res.error || '更新に失敗しました';
       }
-    } catch (err: any) {
-      errorMessage = err.message || '通信エラーが発生しました';
+    } catch {
+      // Offline fallback: save to local outbox
+      enqueueStatusUpdate({
+        postId: post.id,
+        status: selectedStatus,
+        statusLabel: selectedLabel,
+        note: note.trim() || undefined,
+      });
+      onUpdated();
+      onClose();
     } finally {
       isSubmitting = false;
     }
@@ -86,14 +120,23 @@
 
 {#if post}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+    role="presentation"
+    onclick={(e) => {
+      if (e.target === e.currentTarget) onClose();
+    }}
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
   >
     <div
-      class="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+      class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150 max-h-[92vh] flex flex-col"
     >
+      <!-- Mobile drag handle -->
+      <div
+        class="w-10 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0"
+      ></div>
+
       <!-- Modal header -->
       <div
-        class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50"
+        class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
       >
         <div>
           <span class="text-xs font-bold text-blue-600 tracking-wide uppercase"
@@ -129,7 +172,7 @@
             >現在の状況を選択（1タップ）</span
           >
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {#each statusOptions as opt}
+            {#each statusOptions as opt (opt.status)}
               {@const Icon = opt.icon}
               <button
                 type="button"

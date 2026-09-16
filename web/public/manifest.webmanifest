@@ -1,0 +1,19 @@
+{
+  "name": "tossa (咄嗟) - リアルタイム地域情報",
+  "short_name": "tossa",
+  "description": "地域の状況を迅速に共有・確認できる超軽量情報プラットフォーム",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -31,19 +31,25 @@ federationRoute.get('/feed.json', async (c) => {
   const settings = await getSystemSettings(c.env.DB);
   const features = await exportAllPostsForFederation(c.env.DB);
 
-  c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
-  c.header('Content-Type', 'application/geo+json; charset=utf-8');
-
-  return c.json({
-    '@context': GEOJSON_LD_CONTEXT,
-    type: 'FeatureCollection',
-    generator: 'tossa-federation-v1',
-    siteTitle: settings.site_title || 'tossa',
-    defaultArea: settings.default_area || '',
-    exportedAt: new Date().toISOString(),
-    totalFeatures: features.length,
-    features,
-  });
+  return new Response(
+    JSON.stringify({
+      '@context': GEOJSON_LD_CONTEXT,
+      type: 'FeatureCollection',
+      generator: 'tossa-federation-v1',
+      siteTitle: settings.site_title || 'tossa',
+      defaultArea: settings.default_area || '',
+      exportedAt: new Date().toISOString(),
+      totalFeatures: features.length,
+      features,
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/geo+json; charset=utf-8',
+        'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
+      },
+    }
+  );
 });
 
 // GET /api/federation/export (Archive & Migration export)
@@ -54,19 +60,25 @@ federationRoute.get('/export', async (c) => {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const filename = `tossa-backup-${dateStr}.geojson`;
 
-  c.header('Content-Disposition', `attachment; filename="${filename}"`);
-  c.header('Content-Type', 'application/geo+json; charset=utf-8');
-
-  return c.json({
-    '@context': GEOJSON_LD_CONTEXT,
-    type: 'FeatureCollection',
-    generator: 'tossa-federation-v1',
-    siteTitle: settings.site_title || 'tossa',
-    defaultArea: settings.default_area || '',
-    exportedAt: new Date().toISOString(),
-    totalFeatures: features.length,
-    features,
-  });
+  return new Response(
+    JSON.stringify({
+      '@context': GEOJSON_LD_CONTEXT,
+      type: 'FeatureCollection',
+      generator: 'tossa-federation-v1',
+      siteTitle: settings.site_title || 'tossa',
+      defaultArea: settings.default_area || '',
+      exportedAt: new Date().toISOString(),
+      totalFeatures: features.length,
+      features,
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Type': 'application/geo+json; charset=utf-8',
+      },
+    }
+  );
 });
 
 // POST /api/federation/import (Federate and synchronize with external sites)
