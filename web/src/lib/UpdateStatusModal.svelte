@@ -41,35 +41,40 @@
       status: 'available',
       label: '受付中 / 利用可能',
       desc: '現在利用・利用受付が可能です',
-      color: 'bg-emerald-50 text-emerald-700 border-emerald-300',
+      color:
+        'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-700',
       icon: Check,
     },
     {
       status: 'crowded',
       label: '混雑中 / 順番待ち',
       desc: '利用可能ですが、待ち時間が発生しています',
-      color: 'bg-amber-50 text-amber-700 border-amber-300',
+      color:
+        'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700',
       icon: Clock,
     },
     {
       status: 'few',
       label: '残りわずか',
       desc: '物資や定員が残り少なくなっています',
-      color: 'bg-orange-50 text-orange-700 border-orange-300',
+      color:
+        'bg-orange-50 text-orange-700 border-orange-300 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-700',
       icon: Coffee,
     },
     {
       status: 'closed',
       label: '終了 / 休止中',
       desc: '本日の受付終了、または一時休止中です',
-      color: 'bg-rose-50 text-rose-700 border-rose-300',
+      color:
+        'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-700',
       icon: XCircle,
     },
     {
       status: 'unknown',
       label: '確認中 / 不明',
       desc: '状況を確認中、または詳細不明です',
-      color: 'bg-slate-50 text-slate-700 border-slate-300',
+      color:
+        'bg-slate-50 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
       icon: HelpCircle,
     },
   ];
@@ -141,25 +146,26 @@
   >
     <div
       use:swipeDown={onClose}
-      class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl {isTop
+      class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900 {isTop
         ? 'scale-100 opacity-100'
         : 'pointer-events-none scale-[0.97] opacity-85'}"
     >
       <!-- Mobile drag handle -->
       <div
-        class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
+        class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700"
       ></div>
 
       <!-- Modal header -->
       <div
-        class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4"
+        class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/80"
       >
         <div>
-          <span class="text-xs font-bold tracking-wide text-blue-600 uppercase"
+          <span
+            class="text-xs font-bold tracking-wide text-blue-600 uppercase dark:text-blue-400"
             >状況の報告・更新</span
           >
           <h2
-            class="max-w-xs truncate text-base font-black text-slate-900 sm:max-w-md"
+            class="max-w-xs truncate text-base font-black text-slate-900 sm:max-w-md dark:text-slate-100"
           >
             {post.title}
           </h2>
@@ -167,7 +173,7 @@
         <button
           type="button"
           onclick={onClose}
-          class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+          class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
         >
           <X class="h-5 w-5" />
         </button>
@@ -177,14 +183,15 @@
       <form onsubmit={handleSubmit} class="flex flex-col gap-4 p-5">
         {#if errorMessage}
           <div
-            class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700"
+            class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
           >
             {errorMessage}
           </div>
         {/if}
 
         <div>
-          <span class="mb-2 block text-xs font-bold text-slate-700"
+          <span
+            class="mb-2 block text-xs font-bold text-slate-700 dark:text-slate-300"
             >現在の状況を選択（1タップ）</span
           >
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -195,8 +202,8 @@
                 onclick={() => selectPreset(opt.status, opt.label)}
                 class={`flex cursor-pointer flex-col gap-1 rounded-xl border p-3 text-left transition-all ${
                   selectedStatus === opt.status
-                    ? `${opt.color} font-bold shadow-xs ring-2 ring-offset-1`
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    ? `${opt.color} font-bold shadow-xs ring-2 ring-offset-1 dark:ring-offset-slate-900`
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-800'
                 }`}
               >
                 <div class="flex items-center gap-1.5 text-xs">
@@ -204,7 +211,7 @@
                   <span class="font-bold">{opt.label}</span>
                 </div>
                 <span
-                  class="line-clamp-2 text-[11px] leading-tight text-slate-500"
+                  class="line-clamp-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400"
                 >
                   {opt.desc}
                 </span>
@@ -217,7 +224,7 @@
         <div>
           <label
             for="update-note"
-            class="mb-1 block text-xs font-bold text-slate-700"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
           >
             補足・現場メモ（任意）
           </label>
@@ -226,24 +233,24 @@
             type="text"
             bind:value={note}
             placeholder="例: 現在待機列10名程度、ポリタンク持参必須、パン入荷など"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
         </div>
 
         <div
-          class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900"
+          class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
         >
           💡 現場の善意による情報提供です。正確な情報の維持にご協力ください。
         </div>
 
         <!-- Action buttons -->
         <div
-          class="flex items-center justify-end gap-2 border-t border-slate-100 pt-2"
+          class="flex items-center justify-end gap-2 border-t border-slate-100 pt-2 dark:border-slate-800"
         >
           <button
             type="button"
             onclick={onClose}
-            class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+            class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             キャンセル
           </button>

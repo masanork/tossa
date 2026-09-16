@@ -310,7 +310,9 @@
   let hidePasskeyNudge = $state(false);
 </script>
 
-<div class="flex min-h-screen flex-col bg-slate-50">
+<div
+  class="flex min-h-screen flex-col bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100"
+>
   <!-- Header -->
   <Header
     {settings}
@@ -406,7 +408,7 @@
   {#if !currentUser && !hidePasskeyNudge}
     <div class="mx-auto mb-3 w-full max-w-4xl px-4">
       <div
-        class="flex items-center justify-between gap-3 rounded-2xl border border-blue-200/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-white p-3 shadow-2xs sm:p-3.5"
+        class="flex items-center justify-between gap-3 rounded-2xl border border-blue-200/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-white p-3 shadow-2xs sm:p-3.5 dark:border-blue-900/50 dark:from-slate-900 dark:via-blue-950/40 dark:to-slate-900"
       >
         <div class="flex min-w-0 items-center gap-2.5">
           <div
@@ -415,10 +417,10 @@
             🔑
           </div>
           <div class="text-xs leading-tight">
-            <span class="font-bold text-slate-800"
+            <span class="font-bold text-slate-800 dark:text-slate-200"
               >{m.nudge_cookie_title()}</span
             >
-            <p class="mt-0.5 text-[11px] text-slate-500">
+            <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
               {m.nudge_cookie_desc()}
             </p>
           </div>
@@ -436,7 +438,7 @@
             onclick={() => {
               hidePasskeyNudge = true;
             }}
-            class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200/50 hover:text-slate-600"
+            class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200/50 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
             title="閉じる"
           >
             ✕
@@ -454,14 +456,14 @@
       <!-- Search input -->
       <div class="relative flex-1">
         <Search
-          class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+          class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 dark:text-slate-500"
         />
         <input
           type="text"
           value={searchQuery}
           oninput={handleSearchInput}
           placeholder={m.search_placeholder()}
-          class="w-full rounded-lg border border-slate-200 bg-white py-1.5 pr-3 pl-8 text-xs shadow-2xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          class="w-full rounded-lg border border-slate-200 bg-white py-1.5 pr-3 pl-8 text-xs shadow-2xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500"
         />
       </div>
 
@@ -470,7 +472,7 @@
         <select
           bind:value={selectedArea}
           onchange={() => reloadPosts()}
-          class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs focus:outline-none"
+          class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
         >
           <option value="">{m.all_areas()}</option>
           {#each availableAreas as a (a)}
@@ -482,7 +484,7 @@
 
     <!-- List / Map view toggle -->
     <div
-      class="flex shrink-0 items-center self-end rounded-lg bg-slate-200/80 p-0.5 sm:self-auto"
+      class="flex shrink-0 items-center self-end rounded-lg bg-slate-200/80 p-0.5 sm:self-auto dark:bg-slate-800"
     >
       <button
         type="button"
@@ -491,8 +493,8 @@
         }}
         class={`flex cursor-pointer items-center gap-1 rounded-md px-3 py-1 text-xs font-bold transition-all ${
           viewMode === 'list'
-            ? 'bg-white text-slate-900 shadow-xs'
-            : 'text-slate-600 hover:text-slate-900'
+            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
+            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
         }`}
       >
         <List class="h-3.5 w-3.5" />
@@ -506,8 +508,8 @@
         }}
         class={`flex cursor-pointer items-center gap-1 rounded-md px-3 py-1 text-xs font-bold transition-all ${
           viewMode === 'map'
-            ? 'bg-white text-slate-900 shadow-xs'
-            : 'text-slate-600 hover:text-slate-900'
+            ? 'bg-white text-slate-900 shadow-xs dark:bg-slate-700 dark:text-white'
+            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'
         }`}
       >
         <MapIcon class="h-3.5 w-3.5" />
@@ -517,7 +519,7 @@
       <button
         type="button"
         onclick={() => reloadPosts()}
-        class="ml-1 cursor-pointer rounded-md p-1 text-slate-500 transition hover:text-slate-800"
+        class="ml-1 cursor-pointer rounded-md p-1 text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
         title={m.btn_refresh()}
       >
         <RotateCw class="h-3.5 w-3.5" />

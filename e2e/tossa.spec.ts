@@ -187,4 +187,48 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await page.keyboard.press('Escape');
     await expect(offlineModalTitle).not.toBeVisible();
   });
+
+  test('7. Theme switching (Dark mode & High-contrast emergency mode)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    const themeBtn = page.locator(
+      'header button[aria-label="テーマ切替"], header button[title*="テーマ切替"]'
+    );
+    await expect(themeBtn).toBeVisible();
+
+    // 1. Switch to Dark mode
+    await themeBtn.click();
+    const darkOption = page.locator('button:has-text("ダーク")');
+    await expect(darkOption).toBeVisible();
+    await darkOption.click();
+
+    // HTML root should have 'dark' class
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    const metaThemeColor = page.locator('meta[name="theme-color"]');
+    await expect(metaThemeColor).toHaveAttribute('content', '#090d16');
+
+    // 2. Switch to High-Contrast mode
+    await themeBtn.click();
+    const contrastOption = page.locator('button:has-text("ハイコントラスト")');
+    await expect(contrastOption).toBeVisible();
+    await contrastOption.click();
+
+    // HTML root should have both 'dark' and 'contrast' classes
+    await expect(page.locator('html')).toHaveClass(/contrast/);
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect(metaThemeColor).toHaveAttribute('content', '#000000');
+
+    // 3. Switch back to Light mode
+    await themeBtn.click();
+    const lightOption = page.locator('button:has-text("ライト")');
+    await expect(lightOption).toBeVisible();
+    await lightOption.click();
+
+    // HTML root should not have 'dark' or 'contrast'
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    await expect(page.locator('html')).not.toHaveClass(/contrast/);
+    await expect(metaThemeColor).toHaveAttribute('content', '#2563eb');
+  });
 });

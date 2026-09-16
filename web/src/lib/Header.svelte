@@ -10,6 +10,7 @@
     Globe,
   } from '@lucide/svelte';
   import { i18n, m, LANGUAGES } from './i18n.svelte';
+  import { themeManager, THEME_OPTIONS } from './theme.svelte';
 
   interface Props {
     settings: SystemSettings;
@@ -23,10 +24,11 @@
     $props();
 
   let showLangMenu = $state(false);
+  let showThemeMenu = $state(false);
 </script>
 
 <header
-  class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-xs backdrop-blur-md"
+  class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95"
 >
   <!-- Emergency announcement banner (shown when set by administrator) -->
   {#if settings.emergency_banner}
@@ -46,14 +48,16 @@
     <!-- Title -->
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-2.5">
-        <span class="text-xl font-black tracking-tight text-slate-900">
+        <span
+          class="text-xl font-black tracking-tight text-slate-900 dark:text-white"
+        >
           {m.app_title()}
         </span>
         {#if settings.default_area}
           <div
-            class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50/80 px-2.5 py-0.5 text-xs font-semibold text-blue-700"
+            class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50/80 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
           >
-            <MapPin class="h-3 w-3 text-blue-600" />
+            <MapPin class="h-3 w-3 text-blue-600 dark:text-blue-400" />
             <span>{settings.default_area}</span>
           </div>
         {/if}
@@ -62,17 +66,73 @@
 
     <!-- Action buttons -->
     <div class="flex items-center gap-1.5 sm:gap-2">
+      <!-- Theme selector -->
+      <div class="relative">
+        <button
+          type="button"
+          onclick={() => {
+            showThemeMenu = !showThemeMenu;
+            showLangMenu = false;
+          }}
+          class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          title="テーマ切替 / 省電力・夜間モード"
+          aria-label="テーマ切替"
+        >
+          <span>
+            {THEME_OPTIONS.find((t) => t.mode === themeManager.mode)?.icon ||
+              '☀️'}
+          </span>
+          <span class="hidden text-xs sm:inline">
+            {THEME_OPTIONS.find((t) => t.mode === themeManager.mode)
+              ?.shortLabel || 'テーマ'}
+          </span>
+        </button>
+
+        {#if showThemeMenu}
+          <!-- Dropdown menu -->
+          <div
+            class="absolute right-0 z-50 mt-1.5 flex w-48 flex-col rounded-xl border border-slate-200 bg-white py-1 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-800"
+          >
+            {#each THEME_OPTIONS as opt (opt.mode)}
+              <button
+                type="button"
+                onclick={() => {
+                  themeManager.setTheme(opt.mode);
+                  showThemeMenu = false;
+                }}
+                class={`flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/60 ${
+                  themeManager.mode === opt.mode
+                    ? 'bg-blue-50/60 font-bold text-blue-600 dark:bg-blue-950/50 dark:text-blue-400'
+                    : 'text-slate-700 dark:text-slate-300'
+                }`}
+              >
+                <div class="flex items-center gap-2">
+                  <span>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </div>
+                {#if themeManager.mode === opt.mode}
+                  <span class="font-bold text-blue-600 dark:text-blue-400"
+                    >✓</span
+                  >
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
       <!-- Language selector -->
       <div class="relative">
         <button
           type="button"
           onclick={() => {
             showLangMenu = !showLangMenu;
+            showThemeMenu = false;
           }}
-          class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-blue-700"
+          class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           title="言語切替 / Change language / ことばを えらぶ"
         >
-          <Globe class="h-3.5 w-3.5 text-slate-500" />
+          <Globe class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
           <span class="text-xs">
             {LANGUAGES.find((l) => l.code === i18n.current)?.shortLabel ||
               'Language'}
@@ -82,7 +142,7 @@
         {#if showLangMenu}
           <!-- Dropdown menu -->
           <div
-            class="absolute right-0 z-50 mt-1.5 flex w-44 flex-col rounded-xl border border-slate-200 bg-white py-1 text-xs shadow-lg"
+            class="absolute right-0 z-50 mt-1.5 flex w-44 flex-col rounded-xl border border-slate-200 bg-white py-1 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-800"
           >
             {#each LANGUAGES as lang (lang.code)}
               <button
@@ -91,10 +151,10 @@
                   i18n.setLanguage(lang.code);
                   showLangMenu = false;
                 }}
-                class={`flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left transition hover:bg-slate-50 ${
+                class={`flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/60 ${
                   i18n.current === lang.code
-                    ? 'bg-blue-50/60 font-bold text-blue-600'
-                    : 'text-slate-700'
+                    ? 'bg-blue-50/60 font-bold text-blue-600 dark:bg-blue-950/50 dark:text-blue-400'
+                    : 'text-slate-700 dark:text-slate-300'
                 }`}
               >
                 <div class="flex items-center gap-2">
@@ -102,7 +162,9 @@
                   <span>{lang.label}</span>
                 </div>
                 {#if i18n.current === lang.code}
-                  <span class="font-bold text-blue-600">✓</span>
+                  <span class="font-bold text-blue-600 dark:text-blue-400"
+                    >✓</span
+                  >
                 {/if}
               </button>
             {/each}
@@ -114,10 +176,12 @@
       <button
         type="button"
         onclick={onOpenMessages}
-        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-blue-50/60 hover:text-blue-700"
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-blue-50/60 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         title="管理者や他利用者とのE2EE暗号化連絡"
       >
-        <MessageSquareLock class="h-3.5 w-3.5 text-blue-600" />
+        <MessageSquareLock
+          class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+        />
         <span class="hidden sm:inline">{m.btn_messages()}</span>
       </button>
 
@@ -125,7 +189,7 @@
       <button
         type="button"
         onclick={onOpenAdmin}
-        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-xs text-slate-600 shadow-2xs transition hover:bg-slate-100 hover:text-slate-900"
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-xs text-slate-600 shadow-2xs transition hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         title={user
           ? `${user.displayName}（クリックでメニュー表示）`
           : 'Passkey 認証・登録'}
@@ -134,14 +198,17 @@
           {#if user.role === 'admin'}
             <span class="text-xs">👑</span>
           {:else}
-            <Shield class="h-3.5 w-3.5 text-blue-600" />
+            <Shield class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           {/if}
-          <span class="max-w-[120px] truncate font-semibold text-slate-800"
+          <span
+            class="max-w-[120px] truncate font-semibold text-slate-800 dark:text-slate-200"
             >{user.displayName}</span
           >
         {:else}
-          <KeyRound class="h-3.5 w-3.5 text-slate-500" />
-          <span class="font-bold text-slate-700">{m.btn_auth()}</span>
+          <KeyRound class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+          <span class="font-bold text-slate-700 dark:text-slate-300"
+            >{m.btn_auth()}</span
+          >
         {/if}
       </button>
 

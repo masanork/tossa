@@ -75,5 +75,10 @@
   "map_offline_success": "Map tiles saved successfully.",
   "map_offline_clear_btn": "Clear Map Cache",
   "map_offline_clear_confirm": "Are you sure you want to delete all saved map tiles?",
-  "map_offline_cancel": "Cancel"
+  "map_offline_cancel": "Cancel",
+  "theme_title": "Theme & Power Saving",
+  "theme_system": "Follow System",
+  "theme_light": "Light (Standard)",
+  "theme_dark": "Dark (Night & Power Saving)",
+  "theme_contrast": "High Contrast (Outdoor & Monochrome)"
 }

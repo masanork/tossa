@@ -28,7 +28,10 @@
     Sliders,
     Crown,
     UserCheck,
+    Palette,
   } from '@lucide/svelte';
+  import { themeManager, THEME_OPTIONS } from './theme.svelte';
+  import * as m from '../paraglide/messages.js';
 
   interface Props {
     settings: SystemSettings;
@@ -345,27 +348,29 @@
 >
   <div
     use:swipeDown={onClose}
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl {isTop
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {isTop
       ? 'scale-100 opacity-100'
       : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
-      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
+      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700"
     ></div>
 
     <!-- Header -->
     <div
-      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/80"
     >
       <div class="flex items-center gap-2">
-        <KeyRound class="h-4 w-4 text-blue-600" />
-        <h2 class="text-base font-black text-slate-900">Passkey 認証・設定</h2>
+        <KeyRound class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <h2 class="text-base font-black text-slate-900 dark:text-white">
+          Passkey 認証・設定
+        </h2>
       </div>
       <button
         type="button"
         onclick={onClose}
-        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
       >
         <X class="h-5 w-5" />
       </button>
@@ -860,6 +865,39 @@
           {/if}
         </div>
       {/if}
+
+      <!-- Theme & Power Saving Setting -->
+      <div
+        class="mt-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/60"
+      >
+        <div class="mb-2 flex items-center justify-between">
+          <div
+            class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200"
+          >
+            <Palette class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>{m.theme_title()}</span>
+          </div>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">
+            {THEME_OPTIONS.find((t) => t.mode === themeManager.mode)?.label}
+          </span>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          {#each THEME_OPTIONS as opt (opt.mode)}
+            <button
+              type="button"
+              onclick={() => themeManager.setTheme(opt.mode)}
+              class={`flex cursor-pointer flex-col items-center justify-center rounded-lg border p-2 text-center transition ${
+                themeManager.mode === opt.mode
+                  ? 'border-blue-500 bg-blue-50/80 font-bold text-blue-700 ring-2 ring-blue-500/20 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+              }`}
+            >
+              <span class="text-sm">{opt.icon}</span>
+              <span class="mt-0.5 text-[11px]">{opt.shortLabel}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
     </div>
   </div>
 </div>

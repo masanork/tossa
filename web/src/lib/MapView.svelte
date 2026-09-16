@@ -229,7 +229,7 @@
 </script>
 
 <div
-  class="relative h-[calc(100vh-210px)] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-inner"
+  class="relative h-[calc(100vh-210px)] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-inner dark:border-slate-800"
 >
   <!-- Offline status badge on map -->
   {#if !isOnline}
@@ -246,7 +246,7 @@
     <button
       type="button"
       onclick={handleOpenOfflineMap}
-      class="absolute top-3 right-3 z-[400] flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md backdrop-blur-xs transition hover:bg-slate-50 hover:text-blue-600 active:scale-95"
+      class="absolute top-3 right-3 z-[400] flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md backdrop-blur-xs transition hover:bg-slate-50 hover:text-blue-600 active:scale-95 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-100 dark:hover:bg-slate-800"
     >
       <Download class="h-3.5 w-3.5 text-blue-600" />
       <span>{m.map_offline_btn()}</span>

@@ -75,5 +75,10 @@
   "map_offline_success": "地図タイルの保存が完了しました。",
   "map_offline_clear_btn": "キャッシュを全消去",
   "map_offline_clear_confirm": "保存した地図タイルをすべて消去しますか？",
-  "map_offline_cancel": "中止"
+  "map_offline_cancel": "中止",
+  "theme_title": "画面テーマ / 省電力",
+  "theme_system": "端末の自動設定に従う",
+  "theme_light": "ライト（標準）",
+  "theme_dark": "ダーク（夜間・停電時の省電力）",
+  "theme_contrast": "ハイコントラスト（屋外強光・白黒）"
 }

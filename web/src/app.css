@@ -1,6 +1,21 @@
 @import 'tailwindcss';
 
+@variant dark (&:where(.dark, .dark *));
+@variant contrast (&:where(.contrast, .contrast *));
+
 @layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  :root.contrast {
+    color-scheme: dark;
+  }
+
   body {
     background-color: #f8fafc;
     color: #0f172a;
@@ -8,6 +23,21 @@
       -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
       Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .dark body {
+    background-color: #090d16;
+    color: #f8fafc;
+  }
+
+  .contrast body {
+    background-color: #000000;
+    color: #ffffff;
+  }
+
+  /* In high contrast mode, ensure cards and controls have prominent borders */
+  .contrast * {
+    border-color: #ffffff !important;
   }
 }
 

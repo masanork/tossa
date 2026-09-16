@@ -493,38 +493,38 @@
 >
   <div
     use:swipeDown={onClose}
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:h-[88vh] sm:max-h-[720px] sm:rounded-2xl {isTop
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-200 sm:h-[88vh] sm:max-h-[720px] sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900 {isTop
       ? 'scale-100 opacity-100'
       : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
-      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
+      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700"
     ></div>
 
     <!-- Header -->
     <div
-      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-800/80"
     >
       <div class="flex items-center gap-2">
         <div
-          class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700"
+          class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300"
         >
           <Lock class="h-4 w-4" />
         </div>
         <div>
           <h2
-            class="flex items-center gap-1.5 text-sm font-black text-slate-900 sm:text-base"
+            class="flex items-center gap-1.5 text-sm font-black text-slate-900 sm:text-base dark:text-slate-100"
           >
             <span>セキュア連絡（E2EE）</span>
             <span
-              class="flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800"
+              class="flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
             >
               <Check class="h-2.5 w-2.5" />
               <span>Passkey PRF 暗号化</span>
             </span>
           </h2>
-          <p class="text-[10px] text-slate-500">
+          <p class="text-[10px] text-slate-500 dark:text-slate-400">
             {identityKey?.isPrfDerived
               ? '生体認証（PRF）によるゼロ知識暗号化で通信中'
               : '端末内暗号鍵により保護されています'}
@@ -534,7 +534,7 @@
       <button
         type="button"
         onclick={onClose}
-        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
       >
         <X class="h-5 w-5" />
       </button>
@@ -551,18 +551,18 @@
               onclick={() => {
                 isCreatingThread = false;
               }}
-              class="cursor-pointer rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100"
+              class="cursor-pointer rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <ArrowLeft class="h-4 w-4" />
             </button>
-            <h3 class="text-sm font-bold text-slate-800">
+            <h3 class="text-sm font-bold text-slate-800 dark:text-slate-200">
               新しいセキュア連絡を作成
             </h3>
           </div>
 
           {#if createError}
             <div
-              class="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700"
+              class="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
             >
               <AlertCircle class="h-4 w-4 shrink-0" />
               <span>{createError}</span>
@@ -571,7 +571,9 @@
 
           <!-- Type selection -->
           <div class="flex flex-col gap-1.5">
-            <div class="text-xs font-bold text-slate-700">連絡の種別</div>
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">
+              連絡の種別
+            </div>
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
@@ -580,15 +582,19 @@
                 }}
                 class={`flex cursor-pointer flex-col gap-1 rounded-xl border p-3 text-left transition ${
                   newThreadType === 'inquiry'
-                    ? 'border-blue-500 bg-blue-50/80 text-blue-900 ring-2 ring-blue-500/20'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    ? 'border-blue-500 bg-blue-50/80 text-blue-900 ring-2 ring-blue-500/20 dark:border-blue-400 dark:bg-blue-950/40 dark:text-blue-200'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-800'
                 }`}
               >
                 <div class="flex items-center gap-1.5 text-xs font-bold">
-                  <HelpCircle class="h-4 w-4 text-blue-600" />
+                  <HelpCircle
+                    class="h-4 w-4 text-blue-600 dark:text-blue-400"
+                  />
                   <span>管理者への相談・問い合わせ</span>
                 </div>
-                <p class="text-[11px] leading-tight text-slate-500">
+                <p
+                  class="text-[11px] leading-tight text-slate-500 dark:text-slate-400"
+                >
                   すべての管理者が参加でき、個別にサポートや確認を受けられます。
                 </p>
               </button>
@@ -601,15 +607,19 @@
                   }}
                   class={`flex cursor-pointer flex-col gap-1 rounded-xl border p-3 text-left transition ${
                     newThreadType === 'admin_chat'
-                      ? 'border-amber-500 bg-amber-50/80 text-amber-900 ring-2 ring-amber-500/20'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      ? 'border-amber-500 bg-amber-50/80 text-amber-900 ring-2 ring-amber-500/20 dark:border-amber-400 dark:bg-amber-950/40 dark:text-amber-200'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-800'
                   }`}
                 >
                   <div class="flex items-center gap-1.5 text-xs font-bold">
-                    <Shield class="h-4 w-4 text-amber-600" />
+                    <Shield
+                      class="h-4 w-4 text-amber-600 dark:text-amber-400"
+                    />
                     <span>管理者同士の打ち合わせ</span>
                   </div>
-                  <p class="text-[11px] leading-tight text-slate-500">
+                  <p
+                    class="text-[11px] leading-tight text-slate-500 dark:text-slate-400"
+                  >
                     管理者のみが参加・閲覧できる非公開スレッドです。
                   </p>
                 </button>
@@ -619,7 +629,9 @@
 
           <!-- Title -->
           <div class="flex flex-col gap-1">
-            <label for="thread-title" class="text-xs font-bold text-slate-700"
+            <label
+              for="thread-title"
+              class="text-xs font-bold text-slate-700 dark:text-slate-300"
               >件名・タイトル <span class="text-rose-600">*</span></label
             >
             <input
@@ -627,13 +639,15 @@
               type="text"
               bind:value={newThreadTitle}
               placeholder="例: 給水所の開設時間について、物資の受取相談"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
             />
           </div>
 
           <!-- Initial message -->
           <div class="flex flex-col gap-1">
-            <label for="first-msg" class="text-xs font-bold text-slate-700"
+            <label
+              for="first-msg"
+              class="text-xs font-bold text-slate-700 dark:text-slate-300"
               >最初のメッセージ（任意）</label
             >
             <textarea
@@ -641,19 +655,19 @@
               bind:value={firstMessageText}
               rows="4"
               placeholder="相談内容や要件を具体的に入力してください（E2EEで暗号化されて送信されます）"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
             ></textarea>
           </div>
 
           <div
-            class="mt-auto flex items-center justify-end gap-2 border-t border-slate-100 pt-3"
+            class="mt-auto flex items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
           >
             <button
               type="button"
               onclick={() => {
                 isCreatingThread = false;
               }}
-              class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+              class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               キャンセル
             </button>
@@ -678,7 +692,7 @@
         <div class="flex h-full flex-1 flex-col overflow-hidden">
           <!-- Thread header -->
           <div
-            class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-2.5"
+            class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50/80 px-4 py-2.5 dark:border-slate-800 dark:bg-slate-800/80"
           >
             <div class="flex min-w-0 items-center gap-2">
               <button
@@ -686,30 +700,32 @@
                 onclick={() => {
                   activeThread = null;
                 }}
-                class="shrink-0 cursor-pointer rounded-lg p-1 text-slate-500 transition hover:bg-slate-200"
+                class="shrink-0 cursor-pointer rounded-lg p-1 text-slate-500 transition hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-800"
               >
                 <ArrowLeft class="h-4 w-4" />
               </button>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
                   <h3
-                    class="truncate text-xs font-bold text-slate-900 sm:text-sm"
+                    class="truncate text-xs font-bold text-slate-900 sm:text-sm dark:text-slate-100"
                   >
                     {activeThread.title}
                   </h3>
                   {#if activeThread.type === 'inquiry'}
                     <span
-                      class="py-0.2 shrink-0 rounded bg-blue-100 px-1.5 text-[10px] font-bold text-blue-800"
+                      class="py-0.2 shrink-0 rounded bg-blue-100 px-1.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
                       >問い合わせ</span
                     >
                   {:else if activeThread.type === 'admin_chat'}
                     <span
-                      class="py-0.2 shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"
+                      class="py-0.2 shrink-0 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                       >管理者会議</span
                     >
                   {/if}
                 </div>
-                <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                <div
+                  class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500"
+                >
                   <span>参加メンバー ({activeThreadMembers.length}名)</span>
                   <span>•</span>
                   <span>E2EE 暗号化保護</span>
@@ -721,7 +737,7 @@
             <button
               type="button"
               onclick={handleOpenInviteModal}
-              class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-bold text-blue-600 transition hover:bg-blue-50"
+              class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-blue-200 px-2.5 py-1 text-xs font-bold text-blue-600 transition hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/40"
               title="このスレッドに管理者やメンバーを招待"
             >
               <UserPlus class="h-3.5 w-3.5" />
@@ -731,11 +747,11 @@
 
           <!-- Message list -->
           <div
-            class="flex flex-1 flex-col gap-3 overflow-y-auto bg-slate-50/30 p-4"
+            class="flex flex-1 flex-col gap-3 overflow-y-auto bg-slate-50/30 p-4 dark:bg-slate-950/40"
           >
             {#if isLoadingDetail}
               <div
-                class="flex flex-col items-center gap-2 py-12 text-center text-xs text-slate-400"
+                class="flex flex-col items-center gap-2 py-12 text-center text-xs text-slate-400 dark:text-slate-500"
               >
                 <div
                   class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
@@ -744,9 +760,9 @@
               </div>
             {:else if decryptedMessages.length === 0}
               <div
-                class="flex flex-col items-center gap-1.5 py-12 text-center text-xs text-slate-400"
+                class="flex flex-col items-center gap-1.5 py-12 text-center text-xs text-slate-400 dark:text-slate-500"
               >
-                <Lock class="h-6 w-6 text-slate-300" />
+                <Lock class="h-6 w-6 text-slate-300 dark:text-slate-600" />
                 <span
                   >まだメッセージがありません。最初のメッセージを暗号化送信してください。</span
                 >
@@ -758,18 +774,18 @@
                 >
                   <!-- Sender name & timestamp -->
                   <div
-                    class="mb-1 flex items-center gap-1.5 px-1 text-[11px] text-slate-500"
+                    class="mb-1 flex items-center gap-1.5 px-1 text-[11px] text-slate-500 dark:text-slate-400"
                   >
-                    <span class="font-bold text-slate-700"
+                    <span class="font-bold text-slate-700 dark:text-slate-300"
                       >{msg.sender_display_name || msg.sender_username}</span
                     >
                     {#if msg.sender_role === 'admin'}
                       <span
-                        class="rounded bg-amber-100 px-1 text-[9px] font-semibold text-amber-800"
+                        class="rounded bg-amber-100 px-1 text-[9px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                         >管理者</span
                       >
                     {/if}
-                    <span class="text-[10px] text-slate-400"
+                    <span class="text-[10px] text-slate-400 dark:text-slate-500"
                       >{formatTime(msg.created_at)}</span
                     >
                   </div>
@@ -779,7 +795,7 @@
                     class={`max-w-[80%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed break-words whitespace-pre-wrap shadow-2xs sm:max-w-md ${
                       msg.isMine
                         ? 'rounded-tr-xs bg-blue-600 text-white'
-                        : 'rounded-tl-xs border border-slate-200/80 bg-white text-slate-800'
+                        : 'rounded-tl-xs border border-slate-200/80 bg-white text-slate-800 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-100'
                     }`}
                   >
                     {msg.text}
@@ -792,13 +808,13 @@
           <!-- Message input bar -->
           <form
             onsubmit={handleSendMessage}
-            class="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-white p-2.5"
+            class="flex shrink-0 items-center gap-2 border-t border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900"
           >
             <input
               type="text"
               bind:value={newMessageText}
               placeholder="メッセージを入力（E2EE暗号化して送信）..."
-              class="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              class="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
             />
             <button
               type="submit"
@@ -814,7 +830,7 @@
       {:else}
         <div class="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
           <div class="flex items-center justify-between">
-            <div class="text-xs font-bold text-slate-700">
+            <div class="text-xs font-bold text-slate-700 dark:text-slate-300">
               参加中の連絡スレッド ({threads.length}件)
             </div>
             <button
@@ -830,18 +846,24 @@
           </div>
 
           {#if isLoadingThreads}
-            <div class="py-12 text-center text-xs text-slate-400">
+            <div
+              class="py-12 text-center text-xs text-slate-400 dark:text-slate-500"
+            >
               スレッドを読み込み中...
             </div>
           {:else if threads.length === 0}
             <div
-              class="rounded-2xl border border-slate-200 bg-slate-50 p-8 py-16 text-center"
+              class="rounded-2xl border border-slate-200 bg-slate-50 p-8 py-16 text-center dark:border-slate-800 dark:bg-slate-800/40"
             >
-              <MessageSquare class="mx-auto mb-2 h-8 w-8 text-slate-300" />
-              <div class="mb-1 text-sm font-bold text-slate-700">
+              <MessageSquare
+                class="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-600"
+              />
+              <div
+                class="mb-1 text-sm font-bold text-slate-700 dark:text-slate-300"
+              >
                 連絡スレッドがありません
               </div>
-              <p class="mb-4 text-xs text-slate-500">
+              <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
                 「＋
                 新しい連絡・問い合わせ」から管理者への相談や利用者同士の連絡を開始できます。<br
                 />
@@ -863,11 +885,11 @@
                 <button
                   type="button"
                   onclick={() => handleSelectThread(t)}
-                  class="group flex cursor-pointer flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-2xs transition hover:border-blue-400 hover:bg-slate-50/80"
+                  class="group flex cursor-pointer flex-col gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-2xs transition hover:border-blue-400 hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-800/70 dark:hover:border-blue-500 dark:hover:bg-slate-800"
                 >
                   <div class="flex items-center justify-between gap-2">
                     <div
-                      class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-900 transition group-hover:text-blue-600"
+                      class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-900 transition group-hover:text-blue-600 dark:text-slate-100 dark:group-hover:text-blue-400"
                     >
                       <span>{t.title}</span>
                     </div>
@@ -875,17 +897,17 @@
                     <div class="flex shrink-0 items-center gap-1">
                       {#if t.type === 'inquiry'}
                         <span
-                          class="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700"
+                          class="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
                           >問い合わせ</span
                         >
                       {:else if t.type === 'admin_chat'}
                         <span
-                          class="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800"
+                          class="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                           >管理者会議</span
                         >
                       {:else}
                         <span
-                          class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600"
+                          class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300"
                           >連絡</span
                         >
                       {/if}
@@ -893,7 +915,7 @@
                   </div>
 
                   <div
-                    class="flex items-center justify-between text-[11px] text-slate-400"
+                    class="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500"
                   >
                     <div class="flex items-center gap-2">
                       <span>作成: {t.creator_name || 'ユーザー'}</span>
@@ -924,14 +946,16 @@
     class="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
   >
     <div
-      class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex w-full max-w-sm flex-col gap-3 rounded-t-2xl bg-white p-4 shadow-xl duration-150 sm:rounded-2xl"
+      class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex w-full max-w-sm flex-col gap-3 rounded-t-2xl border-t border-slate-200 bg-white p-4 shadow-xl duration-150 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900"
     >
       <div
-        class="mx-auto my-1 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden"
+        class="mx-auto my-1 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700"
       ></div>
       <div class="flex items-center justify-between">
-        <h4 class="flex items-center gap-1.5 text-xs font-bold text-slate-900">
-          <UserPlus class="h-4 w-4 text-blue-600" />
+        <h4
+          class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100"
+        >
+          <UserPlus class="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <span>スレッドにメンバーを招待</span>
         </h4>
         <button
@@ -939,49 +963,53 @@
           onclick={() => {
             showInviteModal = false;
           }}
-          class="p-1 text-slate-400 hover:text-slate-600"
+          class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
         >
           <X class="h-4 w-4" />
         </button>
       </div>
 
-      <p class="text-[11px] leading-tight text-slate-500">
+      <p class="text-[11px] leading-tight text-slate-500 dark:text-slate-400">
         招待されたメンバーは、あなたの手元にある暗号鍵が相手の公開鍵で安全に共有され、このスレッドの閲覧・発言が可能になります。
       </p>
 
       {#if inviteError}
         <div
-          class="rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700"
+          class="rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
         >
           {inviteError}
         </div>
       {/if}
 
       <div
-        class="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200"
+        class="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800"
       >
         {#if availableUsersToInvite.length === 0}
-          <div class="p-4 text-center text-xs text-slate-400">
+          <div
+            class="p-4 text-center text-xs text-slate-400 dark:text-slate-500"
+          >
             招待可能なユーザーがいません
           </div>
         {:else}
           {#each availableUsersToInvite as u (u.id)}
             <div
-              class="flex items-center justify-between gap-2 p-2.5 hover:bg-slate-50"
+              class="flex items-center justify-between gap-2 p-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <div class="min-w-0">
                 <div
-                  class="flex items-center gap-1 truncate text-xs font-bold text-slate-800"
+                  class="flex items-center gap-1 truncate text-xs font-bold text-slate-800 dark:text-slate-200"
                 >
                   <span>{u.displayName}</span>
                   {#if u.role === 'admin'}
                     <span
-                      class="rounded bg-amber-100 px-1 text-[9px] font-semibold text-amber-800"
+                      class="rounded bg-amber-100 px-1 text-[9px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
                       >管理者</span
                     >
                   {/if}
                 </div>
-                <div class="text-[10px] text-slate-400">@{u.username}</div>
+                <div class="text-[10px] text-slate-400 dark:text-slate-500">
+                  @{u.username}
+                </div>
               </div>
 
               <button

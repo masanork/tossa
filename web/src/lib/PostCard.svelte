@@ -227,7 +227,7 @@
 </script>
 
 <article
-  class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300"
+  class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 dark:hover:border-slate-700"
 >
   <!-- Top: Area, tags, official badge, last updated -->
   <div class="flex items-center justify-between gap-2 text-xs">
@@ -247,7 +247,7 @@
       {/if}
 
       <span
-        class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700"
+        class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300"
       >
         {post.area}
       </span>
@@ -339,7 +339,7 @@
 
   <!-- Title & status badge -->
   <div class="flex items-start justify-between gap-3">
-    <h3 class="text-base leading-snug font-bold text-slate-900">
+    <h3 class="text-base leading-snug font-bold text-slate-900 dark:text-white">
       {post.title}
     </h3>
 
@@ -352,8 +352,10 @@
 
   <!-- Address -->
   {#if post.address}
-    <div class="flex items-center gap-1.5 text-xs text-slate-600">
-      <MapPin class="h-3.5 w-3.5 shrink-0 text-slate-400" />
+    <div
+      class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"
+    >
+      <MapPin class="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
       <span class="truncate">{post.address}</span>
     </div>
   {/if}
@@ -361,7 +363,7 @@
   <!-- Notes & Details -->
   {#if post.note}
     <p
-      class="rounded-lg bg-slate-50 p-2.5 text-xs leading-relaxed whitespace-pre-wrap text-slate-700"
+      class="rounded-lg bg-slate-50 p-2.5 text-xs leading-relaxed whitespace-pre-wrap text-slate-700 dark:bg-slate-800/80 dark:text-slate-200"
     >
       {post.note}
     </p>
@@ -370,7 +372,7 @@
   <!-- Source URL and reference links with trust badge -->
   {#if post.source_url && sourceTrustBadge}
     <div
-      class="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50 p-2 text-xs"
+      class="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50 p-2 text-xs dark:border-slate-800 dark:bg-slate-800/80"
     >
       <span class="shrink-0 text-slate-400">情報源:</span>
       <a
@@ -395,7 +397,7 @@
       {#each Object.entries(parsedAttrs) as [key, val] (key)}
         {#if typeof val === 'string' || typeof val === 'number'}
           <span
-            class="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+            class="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
           >
             <span class="mr-1 text-slate-400">{key}:</span>
             {val}
@@ -403,7 +405,7 @@
         {:else if Array.isArray(val)}
           {#each val as item, i (i)}
             <span
-              class="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800"
+              class="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300"
             >
               🏷️ {item}
             </span>
@@ -421,13 +423,13 @@
           <button
             type="button"
             onclick={() => onSelectTag?.(t)}
-            class="inline-flex cursor-pointer items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100"
+            class="inline-flex cursor-pointer items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
           >
             #{t}
           </button>
         {:else}
           <span
-            class="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700"
+            class="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
           >
             #{t}
           </span>
@@ -438,7 +440,7 @@
 
   <!-- Bottom: Verification & status report action bar -->
   <div
-    class="mt-auto flex flex-col items-stretch justify-between gap-2 border-t border-slate-100 pt-2.5 sm:flex-row sm:items-center"
+    class="mt-auto flex flex-col items-stretch justify-between gap-2 border-t border-slate-100 pt-2.5 sm:flex-row sm:items-center dark:border-slate-800"
   >
     <!-- Accuracy & local verification button -->
     <div class="flex items-center gap-2">
@@ -448,16 +450,16 @@
         disabled={isVerifiedByMe || isVerifying}
         class={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-2xs transition ${
           isVerifiedByMe
-            ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
-            : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95'
+            ? 'border border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+            : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
         }`}
         title="この情報が現在も有効であることを支持します"
       >
         {#if isVerifiedByMe}
-          <Check class="h-3.5 w-3.5 text-emerald-600" />
+          <Check class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           <span>{m.btn_verified()} ({verificationCount})</span>
         {:else}
-          <ThumbsUp class="h-3.5 w-3.5 text-blue-600" />
+          <ThumbsUp class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           <span>{m.btn_verify()} ({verificationCount})</span>
         {/if}
       </button>
@@ -475,10 +477,10 @@
         <button
           type="button"
           onclick={() => onEditPost?.(post)}
-          class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-100"
+          class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           title="この投稿を編集"
         >
-          <Edit3 class="h-3.5 w-3.5 text-blue-600" />
+          <Edit3 class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           <span>{m.btn_edit()}</span>
         </button>
 
@@ -489,10 +491,10 @@
               onDeletePost?.(post.id);
             }
           }}
-          class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 shadow-2xs transition hover:border-rose-300 hover:bg-rose-50"
+          class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 shadow-2xs transition hover:border-rose-300 hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
           title="この投稿を削除"
         >
-          <Trash2 class="h-3.5 w-3.5 text-rose-600" />
+          <Trash2 class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
           <span>{m.btn_delete()}</span>
         </button>
       {/if}
@@ -501,10 +503,12 @@
       <button
         type="button"
         onclick={() => onContactPost?.(post)}
-        class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50"
+        class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         title="この投稿について管理者や投稿者にセキュア連絡"
       >
-        <MessageSquareLock class="h-3.5 w-3.5 text-blue-600" />
+        <MessageSquareLock
+          class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+        />
         <span>{m.btn_contact()}</span>
       </button>
 
@@ -512,9 +516,9 @@
       <button
         type="button"
         onclick={() => onOpenUpdateStatus(post)}
-        class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-200 active:scale-95"
+        class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
       >
-        <RefreshCw class="h-3.5 w-3.5 text-slate-500" />
+        <RefreshCw class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
         <span>{m.btn_report_status()}</span>
       </button>
     </div>

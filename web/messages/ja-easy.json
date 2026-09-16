@@ -75,5 +75,10 @@
   "map_offline_success": "ちずを のこしました。",
   "map_offline_clear_btn": "ちずを ぜんぶ けす",
   "map_offline_clear_confirm": "のこした ちずを ぜんぶ けしますか？",
-  "map_offline_cancel": "やめる"
+  "map_offline_cancel": "やめる",
+  "theme_title": "がめんの いろ / バッテリーせつやく",
+  "theme_system": "スマホの せっていと おなじ",
+  "theme_light": "ひるま（あかるい）",
+  "theme_dark": "よる・ていでん（くらい・でんち長持ち）",
+  "theme_contrast": "はっきり（くろ・しろ）"
 }

@@ -633,29 +633,29 @@
 >
   <div
     use:swipeDown={onClose}
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl {isTop
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900 {isTop
       ? 'scale-100 opacity-100'
       : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
-      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
+      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700"
     ></div>
 
     <!-- Header -->
     <div
-      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-800/80"
     >
       <div class="flex items-center gap-2">
         {#if editingPost}
-          <Edit3 class="h-4 w-4 text-blue-600" />
-          <h2 class="text-base font-black text-slate-900">
+          <Edit3 class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <h2 class="text-base font-black text-slate-900 dark:text-slate-100">
             {m.modal_edit_title()}
           </h2>
         {:else}
           <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-600"
           ></span>
-          <h2 class="text-base font-black text-slate-900">
+          <h2 class="text-base font-black text-slate-900 dark:text-slate-100">
             {m.modal_create_title()}
           </h2>
         {/if}
@@ -663,7 +663,7 @@
       <button
         type="button"
         onclick={onClose}
-        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
+        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
       >
         <X class="h-5 w-5" />
       </button>
@@ -676,15 +676,19 @@
     >
       {#if !token}
         <div
-          class="flex flex-col items-start justify-between gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/80 p-3 text-xs shadow-2xs sm:flex-row sm:items-center"
+          class="flex flex-col items-start justify-between gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/80 p-3 text-xs shadow-2xs sm:flex-row sm:items-center dark:border-blue-900/50 dark:bg-blue-950/30"
         >
-          <div class="flex items-start gap-2 text-slate-700">
-            <ShieldCheck class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+          <div
+            class="flex items-start gap-2 text-slate-700 dark:text-slate-300"
+          >
+            <ShieldCheck
+              class="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400"
+            />
             <div class="leading-relaxed">
-              <span class="font-bold text-slate-900"
+              <span class="font-bold text-slate-900 dark:text-slate-100"
                 >{m.modal_cookie_info_title()}</span
               ><br />
-              <span class="text-[11px] text-slate-600"
+              <span class="text-[11px] text-slate-600 dark:text-slate-400"
                 >{m.modal_cookie_info_desc()}</span
               >
             </div>
@@ -705,7 +709,7 @@
 
       {#if errorMessage}
         <div
-          class="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700"
+          class="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
         >
           <AlertCircle class="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
@@ -714,22 +718,24 @@
 
       <!-- Photo attachment (EXIF auto location & C2PA authenticity) -->
       <div
-        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5"
+        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
       >
         <div class="flex items-center justify-between">
           <div
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
           >
-            <Camera class="h-4 w-4 text-blue-600" />
+            <Camera class="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <span>{m.photo_attach()}</span>
           </div>
-          <span class="text-[10px] text-slate-500">{m.photo_subtext()}</span>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400"
+            >{m.photo_subtext()}</span
+          >
         </div>
 
         {#if imagePreviewUrl}
           <!-- Photo preview and metadata badge -->
           <div
-            class="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-900"
+            class="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-900 dark:border-slate-700"
           >
             <div
               class="relative flex max-h-56 items-center justify-center overflow-hidden bg-black/40"
@@ -751,14 +757,16 @@
 
             <!-- EXIF & C2PA verification status bar -->
             <div
-              class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white p-2.5 text-[11px]"
+              class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white p-2.5 text-[11px] dark:border-slate-700 dark:bg-slate-900"
             >
               <div class="flex flex-wrap items-center gap-1.5">
                 {#if c2paVerified}
                   <span
-                    class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 font-bold text-emerald-800"
+                    class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 font-bold text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
                   >
-                    <ShieldCheck class="h-3.5 w-3.5 text-emerald-600" />
+                    <ShieldCheck
+                      class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                    />
                     <span
                       >C2PA 真正性確認済 ({c2paInfo?.generator ||
                         '認証カメラ'})</span
@@ -766,7 +774,7 @@
                   </span>
                 {:else}
                   <span
-                    class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-slate-600"
+                    class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
                     <span>標準画像</span>
                   </span>
@@ -774,9 +782,9 @@
 
                 {#if photoTakenTime}
                   <span
-                    class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-medium text-blue-700"
+                    class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
                   >
-                    <Clock class="h-3 w-3 text-blue-500" />
+                    <Clock class="h-3 w-3 text-blue-500 dark:text-blue-400" />
                     <span>撮影: {photoTakenTime}</span>
                   </span>
                 {/if}
@@ -784,7 +792,7 @@
 
               {#if imageMeta?.exif?.latitude && imageMeta?.exif?.longitude}
                 <span
-                  class="flex items-center gap-1 text-[10px] font-semibold text-emerald-700"
+                  class="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400"
                 >
                   ✓ EXIF座標連動済
                 </span>
@@ -794,7 +802,7 @@
         {:else}
           <!-- Upload dropzone area -->
           <label
-            class="group flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 transition hover:border-blue-500 hover:bg-blue-50/20"
+            class="group dark:bg-slate-850 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 transition hover:border-blue-500 hover:bg-blue-50/20 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-blue-400 dark:hover:bg-blue-950/20"
           >
             <input
               type="file"
@@ -807,18 +815,21 @@
               <div
                 class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
               ></div>
-              <span class="text-xs text-slate-500">EXIF解析・C2PA検証中...</span
+              <span class="text-xs text-slate-500 dark:text-slate-400"
+                >EXIF解析・C2PA検証中...</span
               >
             {:else}
               <div
-                class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition group-hover:scale-110"
+                class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition group-hover:scale-110 dark:bg-blue-950/50 dark:text-blue-400"
               >
                 <Camera class="h-4 w-4" />
               </div>
-              <div class="text-xs font-bold text-slate-700">
+              <div class="text-xs font-bold text-slate-700 dark:text-slate-200">
                 写真を撮影または選択
               </div>
-              <p class="text-center text-[10px] leading-tight text-slate-400">
+              <p
+                class="text-center text-[10px] leading-tight text-slate-400 dark:text-slate-500"
+              >
                 写真の位置情報（EXIF GPS）からピンが自動配置されます。<br />
                 C2PA来歴署名も自動検知し真正性を担保します。
               </p>
@@ -831,7 +842,7 @@
       <div>
         <label
           for="post-title"
-          class="mb-1 block text-xs font-bold text-slate-700"
+          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
         >
           施設・拠点・情報タイトル <span class="text-rose-600">*</span>
         </label>
@@ -841,7 +852,7 @@
           bind:value={title}
           placeholder="例: 中央公民館 給水所、〇〇カフェ、市民総合体育館"
           required
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
         />
       </div>
 
@@ -850,7 +861,7 @@
         <div>
           <label
             for="post-area"
-            class="mb-1 block text-xs font-bold text-slate-700"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
           >
             地区・地域名 <span class="text-rose-600">*</span>
           </label>
@@ -862,18 +873,21 @@
               ? `例: ${defaultArea}`
               : '例: 中央区、本町、北地区'}
             required
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
           {#if availableAreas.length > 0}
             <div class="mt-1.5 flex flex-wrap gap-1">
-              <span class="py-0.5 text-[10px] text-slate-400">候補:</span>
+              <span
+                class="py-0.5 text-[10px] text-slate-400 dark:text-slate-500"
+                >候補:</span
+              >
               {#each availableAreas.slice(0, 5) as a (a)}
                 <button
                   type="button"
                   onclick={() => {
                     area = a;
                   }}
-                  class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200"
+                  class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   {a}
                 </button>
@@ -884,7 +898,7 @@
         <div class="sm:col-span-2">
           <label
             for="post-address"
-            class="mb-1 block text-xs font-bold text-slate-700"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
             >住所・場所の詳細（任意）</label
           >
           <input
@@ -892,31 +906,31 @@
             type="text"
             bind:value={address}
             placeholder="例: 〇〇町1-2-3 正門前、体育館入口付近"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
         </div>
       </div>
 
       <!-- Pin location on map (lat/lng) -->
       <div
-        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5"
+        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
       >
         <div class="flex items-center justify-between">
           <div
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
           >
-            <MapPin class="h-4 w-4 text-blue-600" />
+            <MapPin class="h-4 w-4 text-blue-600 dark:text-blue-400" />
             <span>地図上の位置（ピン設定）</span>
           </div>
           {#if lat !== null && lng !== null}
             <span
-              class="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700"
+              class="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
             >
               <Check class="h-3 w-3" />
               <span>ピン設定済み</span>
             </span>
           {:else}
-            <span class="text-[10px] text-slate-500"
+            <span class="text-[10px] text-slate-500 dark:text-slate-400"
               >写真EXIF、GPS、住所または地図タップで設定</span
             >
           {/if}
@@ -928,10 +942,10 @@
             type="button"
             onclick={handleGetCurrentLocation}
             disabled={isLocating}
-            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50"
+            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             <Navigation
-              class={`h-3.5 w-3.5 text-blue-600 ${isLocating ? 'animate-spin' : ''}`}
+              class={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400 ${isLocating ? 'animate-spin' : ''}`}
             />
             <span
               >{isLocating ? '現在地を取得中...' : '📍 現在地からセット'}</span
@@ -943,11 +957,11 @@
             onclick={handleGeocodeAddress}
             disabled={isGeocoding ||
               (!address.trim() && !title.trim() && !area.trim())}
-            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50"
+            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             title="入力した住所や拠点名から地図位置を自動検索します"
           >
             <Search
-              class={`h-3.5 w-3.5 text-indigo-600 ${isGeocoding ? 'animate-spin' : ''}`}
+              class={`h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 ${isGeocoding ? 'animate-spin' : ''}`}
             />
             <span>{isGeocoding ? '住所検索中...' : '🔍 住所からピン配置'}</span>
           </button>
@@ -957,8 +971,8 @@
           <div
             class={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] ${
               geoStatusMessage.type === 'success'
-                ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border border-rose-200 bg-rose-50 text-rose-800'
+                ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
             }`}
           >
             <span>{geoStatusMessage.text}</span>
@@ -967,7 +981,7 @@
               onclick={() => {
                 geoStatusMessage = null;
               }}
-              class="ml-1 cursor-pointer font-bold text-slate-400 hover:text-slate-700"
+              class="ml-1 cursor-pointer font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             >
               ×
             </button>
@@ -976,7 +990,7 @@
 
         <!-- Interactive minimap -->
         <div
-          class="relative h-44 w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner"
+          class="relative h-44 w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner dark:border-slate-700 dark:bg-slate-800"
         >
           <div bind:this={pickerMapContainer} class="z-0 h-full w-full"></div>
 
@@ -993,22 +1007,24 @@
 
         <!-- Numeric coordinate display & clear button -->
         <div
-          class="flex items-center justify-between pt-0.5 text-[11px] text-slate-600"
+          class="flex items-center justify-between pt-0.5 text-[11px] text-slate-600 dark:text-slate-400"
         >
           {#if lat !== null && lng !== null}
-            <div class="font-mono text-[11px] font-semibold text-slate-800">
+            <div
+              class="font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200"
+            >
               緯度: {lat.toFixed(5)}, 経度: {lng.toFixed(5)}
             </div>
             <button
               type="button"
               onclick={clearLocation}
-              class="flex cursor-pointer items-center gap-1 font-bold text-rose-600 hover:text-rose-800 hover:underline"
+              class="flex cursor-pointer items-center gap-1 font-bold text-rose-600 hover:text-rose-800 hover:underline dark:text-rose-400 dark:hover:text-rose-300"
             >
               <RotateCcw class="h-3 w-3" />
               <span>ピンを解除</span>
             </button>
           {:else}
-            <span class="text-[10px] text-slate-400">
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">
               ※
               地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
             </span>
@@ -1018,17 +1034,19 @@
 
       <!-- Source / reference link (optional) -->
       <div
-        class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3"
+        class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50"
       >
         <div class="flex items-center justify-between">
           <label
             for="post-source-url"
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-700"
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
           >
-            <Link class="h-3.5 w-3.5 text-blue-600" />
+            <Link class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
             <span>情報源・参照リンク（任意）</span>
           </label>
-          <span class="text-[10px] text-slate-500">正確性検証用</span>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400"
+            >正確性検証用</span
+          >
         </div>
 
         <input
@@ -1036,7 +1054,7 @@
           type="url"
           bind:value={sourceUrl}
           placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
         />
 
         {#if sourceTrustBadge}
@@ -1047,7 +1065,7 @@
               <span>{sourceTrustBadge.icon}</span>
               <span>{sourceTrustBadge.label}</span>
             </span>
-            <span class="text-[10px] text-slate-500"
+            <span class="text-[10px] text-slate-500 dark:text-slate-400"
               >信頼できる情報源として識別されます</span
             >
           </div>
@@ -1059,7 +1077,7 @@
         <div>
           <label
             for="post-status-select"
-            class="mb-1 block text-xs font-bold text-slate-700"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
             >現在の状況</label
           >
           <select
@@ -1072,7 +1090,7 @@
               if (val === 'out_of_stock') statusLabel = '本日分終了';
               if (val === 'open') statusLabel = '営業中';
             }}
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           >
             <option value="available">利用可能 / 配布中</option>
             <option value="open">営業中 / 開設中</option>
@@ -1083,7 +1101,7 @@
         <div>
           <label
             for="post-status-label"
-            class="mb-1 block text-xs font-bold text-slate-700"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
             >状況の表示名</label
           >
           <input
@@ -1091,7 +1109,7 @@
             type="text"
             bind:value={statusLabel}
             placeholder="例: 給水中、電源開放中、時短営業中"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
         </div>
       </div>
@@ -1100,7 +1118,7 @@
       <div>
         <label
           for="post-note"
-          class="mb-1 block text-xs font-bold text-slate-700"
+          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
           >補足メモ・備考（任意）</label
         >
         <textarea
@@ -1108,22 +1126,24 @@
           bind:value={note}
           rows="2"
           placeholder="持参が必要な物（ポリタンク等）、営業時間、連絡先など"
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
         ></textarea>
       </div>
 
       <!-- Voluntary vocabulary (tags) -->
       <div
-        class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3"
+        class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/50"
       >
         <div class="flex items-center justify-between">
           <div
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
           >
-            <Sparkles class="h-3.5 w-3.5 text-blue-600" />
+            <Sparkles class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
             <span>タグ（地域のボキャブラリ）</span>
           </div>
-          <span class="text-[10px] text-slate-500">複数追加可能</span>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400"
+            >複数追加可能</span
+          >
         </div>
 
         {#if selectedTags.length > 0}
@@ -1147,11 +1167,13 @@
 
         {#if vocabularyTags.length > 0}
           <div>
-            <span class="mb-1 block text-[11px] font-semibold text-slate-500">
+            <span
+              class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+            >
               地域のボキャブラリから選ぶ（タップで追加）:
             </span>
             <div
-              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5"
+              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
             >
               {#each vocabularyTags as vt (vt.name)}
                 <button
@@ -1159,8 +1181,8 @@
                   onclick={() => toggleTag(vt.name)}
                   class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
                     selectedTags.includes(vt.name)
-                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800'
-                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
                   }`}
                 >
                   <span>#{vt.name}</span>
@@ -1172,13 +1194,15 @@
         {/if}
 
         <div>
-          <span class="mb-1 block text-[11px] font-semibold text-slate-500">
+          <span
+            class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+          >
             新しいタグを追加する:
           </span>
           <div class="flex items-center gap-1.5">
             <div class="relative flex-1">
               <span
-                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-400"
+                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500"
                 >#</span
               >
               <input
@@ -1186,7 +1210,7 @@
                 bind:value={newTagInput}
                 onkeydown={handleTagKeydown}
                 placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
-                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
             <button
@@ -1202,12 +1226,12 @@
 
       <!-- Footer -->
       <div
-        class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-3"
+        class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800"
       >
         <button
           type="button"
           onclick={onClose}
-          class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
+          class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           {m.btn_cancel()}
         </button>

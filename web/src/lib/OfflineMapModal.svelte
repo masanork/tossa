@@ -159,28 +159,30 @@
     use:swipeDown={() => {
       if (!isDownloading) onClose();
     }}
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl {isTop
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {isTop
       ? 'scale-100 opacity-100'
       : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
-      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden"
+      class="mx-auto my-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700"
     ></div>
 
     <!-- Modal Header -->
     <div
-      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/80"
     >
       <div class="flex items-center gap-2">
-        <div class="rounded-lg bg-blue-100 p-2 text-blue-600">
+        <div
+          class="rounded-lg bg-blue-100 p-2 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+        >
           <Download class="h-5 w-5" />
         </div>
         <div>
-          <h2 class="text-base font-black text-slate-900">
+          <h2 class="text-base font-black text-slate-900 dark:text-white">
             {m.map_offline_title()}
           </h2>
-          <p class="text-[11px] text-slate-500">
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">
             {m.map_offline_desc()}
           </p>
         </div>
@@ -189,7 +191,7 @@
         type="button"
         onclick={onClose}
         disabled={isDownloading}
-        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 disabled:opacity-40"
+        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 disabled:opacity-40 dark:hover:bg-slate-700 dark:hover:text-slate-300"
         aria-label="閉じる"
       >
         <X class="h-5 w-5" />
@@ -197,21 +199,23 @@
     </div>
 
     <!-- Modal Body -->
-    <div class="flex-1 space-y-4 overflow-y-auto p-5 text-xs text-slate-700">
+    <div
+      class="flex-1 space-y-4 overflow-y-auto p-5 text-xs text-slate-700 dark:text-slate-300"
+    >
       <!-- Current Cache Status Card -->
       <div
-        class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3.5"
+        class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/60"
       >
         <div class="flex items-center gap-2.5">
-          <HardDrive class="h-4 w-4 text-slate-500" />
+          <HardDrive class="h-4 w-4 text-slate-500 dark:text-slate-400" />
           <div>
-            <div class="font-bold text-slate-800">
+            <div class="font-bold text-slate-800 dark:text-slate-100">
               {m.map_offline_stats({
                 count: stats.count,
                 size: stats.estimatedSizeMB,
               })}
             </div>
-            <div class="text-[11px] text-slate-500">
+            <div class="text-[11px] text-slate-500 dark:text-slate-400">
               端末ストレージに保管中（通信遮断時も即時表示）
             </div>
           </div>
@@ -221,7 +225,7 @@
             type="button"
             onclick={handleClearCache}
             disabled={isDownloading}
-            class="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50"
+            class="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600 transition hover:bg-rose-100 disabled:opacity-50 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-400"
           >
             <Trash2 class="h-3.5 w-3.5" />
             <span>{m.map_offline_clear_btn()}</span>
@@ -231,7 +235,7 @@
 
       <!-- Area Preset Selection -->
       <div class="space-y-2">
-        <div class="block font-bold text-slate-800">
+        <div class="block font-bold text-slate-800 dark:text-slate-200">
           保存する地図エリアを選択:
         </div>
         <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -243,15 +247,17 @@
             disabled={isDownloading}
             class={`flex cursor-pointer flex-col rounded-xl border p-3 text-left transition ${
               targetMode === 'current'
-                ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20'
-                : 'border-slate-200 bg-white hover:border-slate-300'
+                ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20 dark:border-blue-500 dark:bg-blue-950/60 dark:ring-blue-500/30'
+                : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
             }`}
           >
-            <div class="flex items-center gap-1.5 font-bold text-slate-900">
-              <MapPin class="h-3.5 w-3.5 text-blue-600" />
+            <div
+              class="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white"
+            >
+              <MapPin class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               <span>表示中のエリア</span>
             </div>
-            <span class="mt-1 text-[11px] text-slate-500">
+            <span class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
               ズーム {minZoom}〜{maxZoom}
             </span>
           </button>
@@ -264,15 +270,19 @@
             disabled={isDownloading || !postsBounds}
             class={`flex cursor-pointer flex-col rounded-xl border p-3 text-left transition ${
               targetMode === 'posts'
-                ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20'
-                : 'border-slate-200 bg-white hover:border-slate-300'
+                ? 'border-blue-500 bg-blue-50/70 ring-2 ring-blue-500/20 dark:border-blue-500 dark:bg-blue-950/60 dark:ring-blue-500/30'
+                : 'border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600'
             } ${!postsBounds ? 'cursor-not-allowed opacity-50' : ''}`}
           >
-            <div class="flex items-center gap-1.5 font-bold text-slate-900">
-              <Layers class="h-3.5 w-3.5 text-indigo-600" />
+            <div
+              class="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white"
+            >
+              <Layers
+                class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"
+              />
               <span>{m.map_offline_target_posts()}</span>
             </div>
-            <span class="mt-1 text-[11px] text-slate-500">
+            <span class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
               投稿・避難所のある全地点（ズーム 10〜15）
             </span>
           </button>
@@ -281,7 +291,7 @@
 
       <!-- Estimated Download Info -->
       <div
-        class="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50/40 p-3 text-[11px] text-slate-600"
+        class="flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50/40 p-3 text-[11px] text-slate-600 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200"
       >
         <span>予定タイル数: <strong>{plannedTiles.length} 枚</strong></span>
         <span>予想データ量: <strong>約 {estimatedDownloadMB} MB</strong></span>
@@ -335,7 +345,7 @@
       {/if}
 
       <div
-        class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900"
+        class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200"
       >
         💡 <strong>安心機能</strong>:
         事前に地図を保存しておくと、電波が寸断された停電時や避難中でも現在地や避難所の位置関係をスムーズに確認できます。
@@ -344,13 +354,13 @@
 
     <!-- Modal Footer -->
     <div
-      class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3"
+      class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3 dark:border-slate-800 dark:bg-slate-800/80"
     >
       <button
         type="button"
         onclick={onClose}
         disabled={isDownloading}
-        class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+        class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-700"
       >
         閉じる
       </button>
