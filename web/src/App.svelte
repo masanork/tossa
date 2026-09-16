@@ -28,10 +28,13 @@
     WifiOff,
     Check,
     Smartphone,
+    Navigation,
   } from '@lucide/svelte';
   import { m } from './lib/i18n.svelte';
   import { getPendingQueueCount, flushOfflineQueue } from './lib/offlineQueue';
   import { modalManager, type ModalName } from './lib/modalManager.svelte';
+  import { geolocationManager } from './lib/geolocation.svelte';
+  import { calculateDistance } from './lib/geoDistance';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa',
@@ -73,6 +76,39 @@
   const availableAreas = $derived(
     Array.from(new Set(posts.map((p) => p.area).filter(Boolean)))
   );
+
+  // Sorted posts (newest vs closest by GPS straight-line distance)
+  const displayPosts = $derived.by(() => {
+    if (
+      !geolocationManager.sortByDistance ||
+      !geolocationManager.currentLocation
+    ) {
+      return posts;
+    }
+    const userLat = geolocationManager.currentLocation.lat;
+    const userLng = geolocationManager.currentLocation.lng;
+
+    return [...posts].sort((a, b) => {
+      const hasA =
+        a.lat !== null &&
+        a.lat !== undefined &&
+        a.lng !== null &&
+        a.lng !== undefined;
+      const hasB =
+        b.lat !== null &&
+        b.lat !== undefined &&
+        b.lng !== null &&
+        b.lng !== undefined;
+
+      if (!hasA && !hasB) return 0;
+      if (!hasA) return 1;
+      if (!hasB) return -1;
+
+      const distA = calculateDistance(userLat, userLng, a.lat!, a.lng!);
+      const distB = calculateDistance(userLat, userLng, b.lat!, b.lng!);
+      return distA - distB;
+    });
+  });
 
   function handleCloseModal(name: ModalName) {
     modalManager.close(name);
@@ -480,6 +516,36 @@
           {/each}
         </select>
       {/if}
+
+      <!-- Distance / GPS sort toggle button -->
+      <button
+        type="button"
+        onclick={() => geolocationManager.toggleSortByDistance()}
+        disabled={geolocationManager.isLocating}
+        class={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold shadow-2xs transition-all ${
+          geolocationManager.sortByDistance
+            ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950/60 dark:text-blue-300'
+            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+        }`}
+        title={geolocationManager.sortByDistance
+          ? m.sort_newest()
+          : m.geo_prompt_enable()}
+      >
+        <Navigation
+          class={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400 ${
+            geolocationManager.isLocating ? 'animate-spin' : ''
+          }`}
+        />
+        <span>
+          {#if geolocationManager.isLocating}
+            {m.geo_locating()}
+          {:else if geolocationManager.sortByDistance}
+            {m.sort_distance()}
+          {:else}
+            {m.sort_newest()}
+          {/if}
+        </span>
+      </button>
     </div>
 
     <!-- List / Map view toggle -->
@@ -561,7 +627,7 @@
         </div>
       {:else}
         <MapView
-          {posts}
+          posts={displayPosts}
           defaultArea={settings.default_area || ''}
           onOpenUpdateStatus={handleOpenUpdateStatus}
           onOpenOfflineMap={handleOpenOfflineMap}
@@ -629,9 +695,22 @@
         {/if}
       {:else}
         <div
-          class="mb-2 flex items-center justify-between px-1 text-xs text-slate-500"
+          class="mb-2 flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-slate-500"
         >
-          <span>{m.posts_count({ count: totalPosts })}</span>
+          <div class="flex items-center gap-2">
+            <span>{m.posts_count({ count: totalPosts })}</span>
+            {#if geolocationManager.sortByDistance && geolocationManager.currentLocation}
+              <span
+                class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
+              >
+                <span>📍</span>
+                <span
+                  >{m.sort_distance()} (±{geolocationManager.currentLocation
+                    .accuracy}m)</span
+                >
+              </span>
+            {/if}
+          </div>
           {#if selectedTag}
             <span
               class="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 font-bold text-blue-600"
@@ -649,7 +728,7 @@
         </div>
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {#each posts as post (post.id)}
+          {#each displayPosts as post (post.id)}
             <PostCard
               {post}
               {currentUser}

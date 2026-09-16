@@ -80,5 +80,14 @@
   "theme_system": "スマホの せっていと おなじ",
   "theme_light": "ひるま（あかるい）",
   "theme_dark": "よる・ていでん（くらい・でんち長持ち）",
-  "theme_contrast": "はっきり（くろ・しろ）"
+  "theme_contrast": "はっきり（くろ・しろ）",
+  "sort_newest": "あたらしい じゅん",
+  "sort_distance": "ちかい じゅん（いま いる ばしょ）",
+  "geo_btn_on": "ばしょOK (±{accuracy}m)",
+  "geo_btn_off": "いま いる ばしょを つかう",
+  "geo_locating": "ばしょを さがしています...",
+  "geo_straight_line": "まっすぐ {dist}",
+  "geo_direction": "{cardinal}の ほうこう",
+  "geo_direction_arrow": "むき: {cardinal} ({deg}°)",
+  "geo_prompt_enable": "いま いる ばしょから ちかい じゅんに ならべる"
 }

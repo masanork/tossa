@@ -15,8 +15,15 @@
     Trash2,
     MessageSquareLock,
     X,
+    Navigation,
   } from '@lucide/svelte';
   import { i18n, m } from './i18n.svelte';
+  import { geolocationManager } from './geolocation.svelte';
+  import {
+    formatDistance,
+    getCardinalDirection,
+    getRelativeAngle,
+  } from './geoDistance';
 
   interface Props {
     post: Post;
@@ -105,6 +112,37 @@
     } catch {
       return {};
     }
+  });
+
+  // Geolocation straight-line distance & compass direction
+  const distanceInfo = $derived.by(() => {
+    if (
+      post.lat === null ||
+      post.lat === undefined ||
+      post.lng === null ||
+      post.lng === undefined ||
+      !geolocationManager.currentLocation
+    ) {
+      return null;
+    }
+    const dist = geolocationManager.getDistanceTo(post.lat, post.lng);
+    const bearing = geolocationManager.getBearingTo(post.lat, post.lng);
+    if (dist === null || bearing === null) return null;
+
+    const relativeAngle = getRelativeAngle(
+      bearing,
+      geolocationManager.deviceHeading
+    );
+    const cardinal = getCardinalDirection(bearing, i18n.current);
+    const formattedDistance = formatDistance(dist);
+
+    return {
+      distanceMeters: dist,
+      formattedDistance,
+      bearing,
+      relativeAngle,
+      cardinal,
+    };
   });
 
   // Source URL trust badge
@@ -350,15 +388,41 @@
     </span>
   </div>
 
-  <!-- Address -->
-  {#if post.address}
-    <div
-      class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"
-    >
-      <MapPin class="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
-      <span class="truncate">{post.address}</span>
-    </div>
-  {/if}
+  <!-- Address & Distance / Compass direction -->
+  <div class="flex flex-wrap items-center gap-2">
+    {#if post.address}
+      <div
+        class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400"
+      >
+        <MapPin
+          class="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500"
+        />
+        <span class="truncate">{post.address}</span>
+      </div>
+    {/if}
+
+    {#if distanceInfo}
+      <div
+        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/80 bg-blue-50/80 px-2 py-0.5 text-xs font-bold text-blue-700 shadow-2xs dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
+        title={m.geo_direction_arrow({
+          cardinal: distanceInfo.cardinal,
+          deg: distanceInfo.bearing,
+        })}
+      >
+        <Navigation
+          class="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-200 dark:text-blue-400"
+          style="transform: rotate({distanceInfo.relativeAngle}deg);"
+        />
+        <span
+          >{m.geo_straight_line({ dist: distanceInfo.formattedDistance })}</span
+        >
+        <span
+          class="text-[10px] font-normal text-blue-600/80 dark:text-blue-400/80"
+          >({m.geo_direction({ cardinal: distanceInfo.cardinal })})</span
+        >
+      </div>
+    {/if}
+  </div>
 
   <!-- Notes & Details -->
   {#if post.note}

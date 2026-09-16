@@ -51,6 +51,13 @@
 10. **Mobile-First Multi-Modal Architecture & Native Bottom Sheets**
     - Seamless layered modal management (non-destructive Passkey auth layering while retaining draft post content).
     - Touch-optimized bottom sheets with drag handles and native browser back button (`popstate`) dismissal.
+11. **Dark Mode & High-Contrast Emergency Modes**
+    - Dark theme designed for night-time comfort and OLED power-saving during blackouts.
+    - High-contrast monochrome mode tailored for readability under harsh outdoor sunlight.
+12. **Offline Distance & Compass Direction Indicator with GPS Sorting**
+    - 100% offline client-side Haversine straight-line distance (m/km) and forward azimuth bearing calculation.
+    - Real-time rotating compass needle tracking device heading (DeviceOrientation API / geomagnetic sensor).
+    - Distance-based timeline sorting and interactive user location pin & centering on Leaflet map view.
 
 ---
 

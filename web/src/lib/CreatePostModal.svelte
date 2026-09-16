@@ -24,6 +24,7 @@
     Trash2,
   } from '@lucide/svelte';
   import { m } from './i18n.svelte';
+  import { geolocationManager } from './geolocation.svelte';
 
   interface Props {
     vocabularyTags: TagCount[];
@@ -345,10 +346,10 @@
   });
 
   function setCoordinates(newLat: number, newLng: number, zoomLevel?: number) {
-    if (!pickerMap || !leaflet) return;
-
     lat = Math.round(newLat * 1000000) / 1000000;
     lng = Math.round(newLng * 1000000) / 1000000;
+
+    if (!pickerMap || !leaflet) return;
 
     const customIcon = leaflet.divIcon({
       className: 'picker-map-pin',
@@ -411,11 +412,16 @@
     geoStatusMessage = null;
   }
 
-  function handleGetCurrentLocation() {
-    if (!navigator.geolocation) {
+  async function handleGetCurrentLocation() {
+    if (geolocationManager.currentLocation) {
+      setCoordinates(
+        geolocationManager.currentLocation.lat,
+        geolocationManager.currentLocation.lng,
+        16
+      );
       geoStatusMessage = {
-        type: 'error',
-        text: 'お使いのブラウザは現在地取得に対応していません',
+        type: 'success',
+        text: '現在地の位置情報をセットしました',
       };
       return;
     }
@@ -423,24 +429,22 @@
     isLocating = true;
     geoStatusMessage = null;
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        isLocating = false;
-        setCoordinates(pos.coords.latitude, pos.coords.longitude, 16);
-        geoStatusMessage = {
-          type: 'success',
-          text: '現在地の位置情報をセットしました',
-        };
-      },
-      (err) => {
-        isLocating = false;
-        geoStatusMessage = {
-          type: 'error',
-          text: `現在地を取得できませんでした (${err.message})。地図上をタップして指定してください。`,
-        };
-      },
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+    const loc = await geolocationManager.requestLocation();
+    isLocating = false;
+    if (loc) {
+      setCoordinates(loc.lat, loc.lng, 16);
+      geoStatusMessage = {
+        type: 'success',
+        text: '現在地の位置情報をセットしました',
+      };
+    } else {
+      geoStatusMessage = {
+        type: 'error',
+        text:
+          geolocationManager.error ||
+          '現在地を取得できませんでした。地図上をタップして指定してください。',
+      };
+    }
   }
 
   async function handleGeocodeAddress() {

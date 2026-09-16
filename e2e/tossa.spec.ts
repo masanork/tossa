@@ -231,4 +231,76 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(page.locator('html')).not.toHaveClass(/contrast/);
     await expect(metaThemeColor).toHaveAttribute('content', '#2563eb');
   });
+
+  test('8. Emergency evacuation straight-line distance, compass bearing & GPS sorting', async ({
+    page,
+    context,
+  }) => {
+    // 1. Grant geolocation permissions and set initial location near Tokyo Station
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({
+      latitude: 35.6812,
+      longitude: 139.7671,
+    });
+
+    await page.goto('/');
+
+    // Ensure Japanese locale
+    const langBtn = page.locator(
+      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
+    );
+    if (await langBtn.isVisible()) {
+      await langBtn.click();
+      await page.locator('button:has-text("日本語 (標準)")').click();
+    }
+
+    // 2. Toggle distance sorting to activate geolocationManager
+    const sortBtn = page.locator(
+      'button:has-text("新しい順"), button:has-text("近い順"), button:has-text("Newest"), button:has-text("Closest")'
+    );
+    await expect(sortBtn).toBeVisible();
+    await sortBtn.click();
+    await expect(
+      page.locator(
+        'button:has-text("近い順"), button:has-text("Closest (GPS)")'
+      )
+    ).toBeVisible();
+
+    // 3. Create a post with coordinates using UI modal
+    const createBtn = page.locator(
+      'header button:has-text("＋"), header button:has-text("Post")'
+    );
+    await createBtn.click();
+
+    const postTitle = `避難所（直線距離テスト） ${Date.now()}`;
+    await page.fill('#post-title', postTitle);
+    await page.fill('#post-area', '丸の内地区');
+
+    const geoBtn = page.locator('button:has-text("現在地からセット")');
+    await expect(geoBtn).toBeVisible();
+    await geoBtn.click();
+    await expect(page.getByText('ピン設定済み')).toBeVisible();
+
+    const submitBtn = page.locator('button[type="submit"]');
+    await submitBtn.click();
+
+    // 4. Verify post card appears and shows distance badge
+    const postCard = page.locator(`article:has-text("${postTitle}")`);
+    await expect(postCard).toBeVisible({ timeout: 10000 });
+
+    const distanceBadge = postCard.locator(
+      'span:has-text("直線"), span:has-text("Direct")'
+    );
+    await expect(distanceBadge).toBeVisible();
+
+    // 5. Test Map View center on location button
+    const mapTabBtn = page.locator(
+      'button:has-text("地図"), button:has-text("Map")'
+    );
+    await mapTabBtn.click();
+
+    const locateBtn = page.locator('button[aria-label="現在地に移動"]');
+    await expect(locateBtn).toBeVisible();
+    await locateBtn.click();
+  });
 });

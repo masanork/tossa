@@ -5,7 +5,9 @@
   import type { MapBounds } from './mapTileCache';
   import type * as L from 'leaflet';
   import * as m from '../paraglide/messages.js';
-  import { Download, WifiOff } from '@lucide/svelte';
+  import { Download, WifiOff, Navigation } from '@lucide/svelte';
+  import { geolocationManager } from './geolocation.svelte';
+  import { formatDistance, getCardinalDirection } from './geoDistance';
 
   interface Props {
     posts: Post[];
@@ -24,7 +26,9 @@
   let mapContainer: HTMLDivElement;
   let map: L.Map | null = null;
   let markersLayer: L.LayerGroup | null = null;
+  let userLocationLayer: L.LayerGroup | null = null;
   let leaflet: typeof L | null = null;
+  let initialBoundsFitted = false;
   let isOnline = $state(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -63,7 +67,9 @@
       .addTo(map);
 
     markersLayer = leaflet.layerGroup().addTo(map);
+    userLocationLayer = leaflet.layerGroup().addTo(map);
     updateMarkers();
+    updateUserLocationOnMap();
 
     // If no posts have coordinates, pan to defaultArea if specified
     const hasAnyCoords = posts.some((p) => p.lat && p.lng);
@@ -136,6 +142,73 @@
     }
   });
 
+  // Update user location marker & circle when location changes
+  $effect(() => {
+    const loc = geolocationManager.currentLocation;
+    if (loc && userLocationLayer && leaflet) {
+      updateUserLocationOnMap();
+      updateMarkers();
+    }
+  });
+
+  function updateUserLocationOnMap() {
+    if (!map || !userLocationLayer || !leaflet) return;
+    userLocationLayer.clearLayers();
+
+    const loc = geolocationManager.currentLocation;
+    if (!loc) return;
+
+    // Accuracy circle (up to 5000m to avoid covering whole country)
+    if (loc.accuracy && loc.accuracy > 0 && loc.accuracy < 5000) {
+      leaflet
+        .circle([loc.lat, loc.lng], {
+          radius: loc.accuracy,
+          color: '#2563eb',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.15,
+          weight: 1,
+        })
+        .addTo(userLocationLayer);
+    }
+
+    // Pulsing user location marker
+    const userIcon = leaflet.divIcon({
+      className: 'custom-user-location-marker',
+      html: `
+        <div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; width: 24px; height: 24px; background: rgba(37, 99, 235, 0.4); border-radius: 50%; animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;"></div>
+          <div style="width: 14px; height: 14px; background: #2563eb; border: 2.5px solid white; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.4); position: relative; z-index: 2;"></div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+
+    leaflet
+      .marker([loc.lat, loc.lng], { icon: userIcon, zIndexOffset: 1000 })
+      .bindPopup(
+        `<div style="font-weight: bold; font-size: 12px; color: #1e293b;">📍 現在地 (誤差 ±${loc.accuracy}m)</div>`
+      )
+      .addTo(userLocationLayer);
+  }
+
+  async function handleCenterOnLocation() {
+    if (!geolocationManager.currentLocation) {
+      const loc = await geolocationManager.requestLocation();
+      if (loc && map) {
+        map.setView([loc.lat, loc.lng], 15);
+      }
+    } else if (map) {
+      map.setView(
+        [
+          geolocationManager.currentLocation.lat,
+          geolocationManager.currentLocation.lng,
+        ],
+        15
+      );
+    }
+  }
+
   function updateMarkers() {
     if (!map || !markersLayer || !leaflet) return;
 
@@ -179,6 +252,22 @@
           popupAnchor: [0, -16],
         });
 
+        // calculate distance and direction if user location is available
+        let distBadgeHtml = '';
+        if (geolocationManager.currentLocation) {
+          const dist = geolocationManager.getDistanceTo(post.lat, post.lng);
+          const bearing = geolocationManager.getBearingTo(post.lat, post.lng);
+          if (dist !== null && bearing !== null) {
+            const formatted = formatDistance(dist);
+            const cardinal = getCardinalDirection(bearing);
+            distBadgeHtml = `
+              <div style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid #bfdbfe;">
+                <span>📍 現在地から ${formatted} (${cardinal}方向)</span>
+              </div>
+            `;
+          }
+        }
+
         const popupContent = document.createElement('div');
         popupContent.className = 'p-1';
         popupContent.innerHTML = `
@@ -193,6 +282,7 @@
               ${post.status_label}
             </span>
           </div>
+          ${distBadgeHtml}
           ${post.address ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">${post.address}</div>` : ''}
           ${post.note ? `<div style="font-size: 11px; color: #334155; margin-bottom: 8px;">${post.note}</div>` : ''}
           <button id="btn-update-${post.id}" style="
@@ -222,7 +312,8 @@
       }
     });
 
-    if (hasCoords) {
+    if (hasCoords && !initialBoundsFitted) {
+      initialBoundsFitted = true;
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
   }
@@ -253,5 +344,38 @@
     </button>
   {/if}
 
+  <!-- Center on current location floating button -->
+  <button
+    type="button"
+    onclick={handleCenterOnLocation}
+    title={geolocationManager.currentLocation
+      ? m.geo_btn_on({ accuracy: geolocationManager.currentLocation.accuracy })
+      : m.geo_btn_off()}
+    aria-label="現在地に移動"
+    class="absolute right-3 bottom-24 z-[400] flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-700 shadow-md backdrop-blur-xs transition hover:bg-slate-50 hover:text-blue-600 active:scale-95 dark:border-slate-700 dark:bg-slate-900/95 dark:text-slate-200 dark:hover:bg-slate-800"
+  >
+    <Navigation
+      class="h-5 w-5 {geolocationManager.isLocating
+        ? 'animate-spin text-blue-600'
+        : geolocationManager.currentLocation
+          ? 'fill-blue-600/20 text-blue-600'
+          : 'text-slate-600'}"
+    />
+  </button>
+
   <div bind:this={mapContainer} class="z-0 h-full w-full"></div>
 </div>
+
+<style>
+  @keyframes pulse-ring {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.8;
+    }
+    80%,
+    100% {
+      transform: scale(2.2);
+      opacity: 0;
+    }
+  }
+</style>

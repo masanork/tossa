@@ -80,5 +80,14 @@
   "theme_system": "Follow System",
   "theme_light": "Light (Standard)",
   "theme_dark": "Dark (Night & Power Saving)",
-  "theme_contrast": "High Contrast (Outdoor & Monochrome)"
+  "theme_contrast": "High Contrast (Outdoor & Monochrome)",
+  "sort_newest": "Newest",
+  "sort_distance": "Closest (GPS)",
+  "geo_btn_on": "Location ON (±{accuracy}m)",
+  "geo_btn_off": "Get Location",
+  "geo_locating": "Locating...",
+  "geo_straight_line": "Direct {dist}",
+  "geo_direction": "Heading {cardinal}",
+  "geo_direction_arrow": "Bearing: {cardinal} ({deg}°)",
+  "geo_prompt_enable": "Enable location to sort by distance"
 }
