@@ -10,7 +10,7 @@
     onOpenUpdateStatus: (post: Post) => void;
   }
 
-  let { posts, defaultArea, onOpenUpdateStatus }: Props = $props();
+  const { posts, defaultArea, onOpenUpdateStatus }: Props = $props();
 
   let mapContainer: HTMLDivElement;
   let map: L.Map | null = null;

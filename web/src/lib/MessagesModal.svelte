@@ -48,8 +48,13 @@
     onClose: () => void;
   }
 
-  let { currentUser, token, initialPostId, initialPostTitle, onClose }: Props =
-    $props();
+  const {
+    currentUser,
+    token,
+    initialPostId,
+    initialPostTitle,
+    onClose,
+  }: Props = $props();
 
   // State management
   let threads = $state<Thread[]>([]);

@@ -28,7 +28,7 @@
     onContactPost?: (post: Post) => void;
   }
 
-  let {
+  const {
     post,
     currentUser,
     onOpenUpdateStatus,
@@ -38,7 +38,7 @@
     onContactPost,
   }: Props = $props();
 
-  let isAuthorOrAdmin = $derived.by(() => {
+  const isAuthorOrAdmin = $derived.by(() => {
     // Passkey admin
     if (currentUser?.role === 'admin') return true;
     // Original author with Passkey
@@ -61,7 +61,7 @@
   });
 
   // Parse image metadata (EXIF & C2PA)
-  let parsedImageMeta = $derived.by<ImageMeta | null>(() => {
+  const parsedImageMeta = $derived.by<ImageMeta | null>(() => {
     if (!post.image_meta) return null;
     try {
       return typeof post.image_meta === 'string'
@@ -72,7 +72,7 @@
     }
   });
 
-  let photoTakenTime = $derived.by(() => {
+  const photoTakenTime = $derived.by(() => {
     if (!parsedImageMeta?.exif?.dateTimeOriginal) return null;
     try {
       return new Date(parsedImageMeta.exif.dateTimeOriginal).toLocaleString(
@@ -90,7 +90,7 @@
   });
 
   // Parse tags
-  let parsedTags = $derived.by(() => {
+  const parsedTags = $derived.by(() => {
     try {
       return post.tags ? (JSON.parse(post.tags) as string[]) : [];
     } catch {
@@ -99,7 +99,7 @@
   });
 
   // Parse JSON attributes
-  let parsedAttrs = $derived.by(() => {
+  const parsedAttrs = $derived.by(() => {
     try {
       return post.attributes ? JSON.parse(post.attributes) : {};
     } catch {
@@ -108,7 +108,7 @@
   });
 
   // Source URL trust badge
-  let sourceTrustBadge = $derived.by(() => {
+  const sourceTrustBadge = $derived.by(() => {
     if (!post.source_url) return null;
     try {
       const parsed = new URL(

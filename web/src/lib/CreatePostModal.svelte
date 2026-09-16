@@ -36,7 +36,7 @@
     onOpenAuth?: () => void;
   }
 
-  let {
+  const {
     vocabularyTags,
     defaultArea = '',
     availableAreas = [],
@@ -176,7 +176,7 @@
   }
 
   // Source URL trust determination
-  let sourceTrustBadge = $derived.by(() => {
+  const sourceTrustBadge = $derived.by(() => {
     if (!sourceUrl.trim()) return null;
     try {
       const parsed = new URL(

@@ -10,7 +10,7 @@
     onSelectTag: (tag: string | null) => void;
   }
 
-  let { tags, selectedTag, totalCount, onSelectTag }: Props = $props();
+  const { tags, selectedTag, totalCount, onSelectTag }: Props = $props();
 </script>
 
 <div class="w-full overflow-x-auto no-scrollbar py-2.5 px-4">

@@ -19,7 +19,7 @@
     onOpenMessages: () => void;
   }
 
-  let { settings, user, onOpenAdmin, onOpenCreate, onOpenMessages }: Props =
+  const { settings, user, onOpenAdmin, onOpenCreate, onOpenMessages }: Props =
     $props();
 
   let showLangMenu = $state(false);

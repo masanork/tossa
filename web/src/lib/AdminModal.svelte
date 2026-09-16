@@ -39,7 +39,7 @@
     onSettingsUpdated: (newSettings: SystemSettings) => void;
   }
 
-  let {
+  const {
     settings,
     user,
     token,

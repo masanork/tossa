@@ -11,7 +11,7 @@
     onUpdated: () => void;
   }
 
-  let { post, onClose, onUpdated }: Props = $props();
+  const { post, onClose, onUpdated }: Props = $props();
 
   let selectedStatus = $state('available');
   let selectedLabel = $state('受付中');

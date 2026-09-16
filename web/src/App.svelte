@@ -66,7 +66,7 @@
   let offlineNotice = $state<string | null>(null);
 
   // Candidate areas (extracted from posts)
-  let availableAreas = $derived(
+  const availableAreas = $derived(
     Array.from(new Set(posts.map((p) => p.area).filter(Boolean)))
   );
 
