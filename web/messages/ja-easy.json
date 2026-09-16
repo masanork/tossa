@@ -39,7 +39,7 @@
   "map_empty_desc": "「＋ じょうほうを かく」から ばしょの じょうほうを おくると、ちずに ピンが つきます。",
   "nudge_cookie_title": "この スマホ / パソコンから すぐに じょうほうを かけます",
   "nudge_cookie_desc": "パスキー（Passkey）を とうろくすると、あんぜんな メッセージで そうだんしたり、ほかの スマホからも なおせます。",
-  "nudge_register_btn": "パスキーを つくる",
+  "nudge_register_btn": "パスキーで ログイン / とうろく",
   "modal_create_title": "＋ じょうほうを かく",
   "modal_edit_title": "じょうほうを なおす",
   "modal_cookie_info_title": "この スマホ / パソコンのまま すぐに おくれます。",
@@ -62,5 +62,18 @@
   "status_unknown": "しらべています",
   "e2ee_need_auth": "あんぜんな メッセージをつかうには、パスキー（Passkey）の とうろくが ひつようです。",
   "offline_banner": "いま インターネットが つながりません。まえに よみこんだ じょうほうを ひょうじ しています（とうこうは つながったときに じどうで おくられます）",
-  "offline_sync_success": "{count}けんの とうこうを おくりました"
+  "offline_sync_success": "{count}けんの とうこうを おくりました",
+  "map_offline_btn": "ちずを のこす",
+  "map_offline_title": "オフライン ちずの ほぞん",
+  "map_offline_desc": "でんぱが つながらない ときでも ちずを みられるように、この スマホに ちずを のこします。",
+  "map_offline_badge": "オフライン（のこした ちず）",
+  "map_offline_target_view": "いま みている ところ（ズーム {minZ}〜{maxZ}）",
+  "map_offline_target_posts": "すべての ばしょ・ひなんじょ",
+  "map_offline_stats": "いま のこしてある ちず: {count} まい（やく {size} MB）",
+  "map_offline_start_download": "ダウンロードを はじめる",
+  "map_offline_downloading": "ちずを とっています... {loaded} / {total}（{percent}%）",
+  "map_offline_success": "ちずを のこしました。",
+  "map_offline_clear_btn": "ちずを ぜんぶ けす",
+  "map_offline_clear_confirm": "のこした ちずを ぜんぶ けしますか？",
+  "map_offline_cancel": "やめる"
 }
