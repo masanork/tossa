@@ -14,16 +14,10 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "tossa-db"
-database_id = "local-db" # 本番環境では `wrangler d1 create tossa-db` で生成されたIDを設定してください
+database_id = "5c2c9eea-b0f2-428c-843f-fbd5e2ecf0d0"
 
-# Environment Variables (WebAuthn Passkey 設定等)
+# Environment Variables
 [vars]
 RP_NAME = "tossa"
-RP_ID = "localhost"
-EXPECTED_ORIGIN = "http://localhost:8787"
-
-# 本番環境オーバーライド例
-# [env.production.vars]
-# RP_NAME = "tossa"
-# RP_ID = "your-domain.workers.dev"
-# EXPECTED_ORIGIN = "https://your-domain.workers.dev"
+RP_ID = "tossa.sorane.dev"
+EXPECTED_ORIGIN = "https://tossa.sorane.dev"
