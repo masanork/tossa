@@ -35,7 +35,9 @@ export interface Post {
   author_id?: string | null;
   author_cookie_id?: string | null; // Cookie-identified user (without Passkey)
   is_owner?: boolean; // Ownership verified by server via cookie matching
+  is_peer?: boolean; // Relayed via peer-to-peer QR code
   reporter_name: string | null;
+
   created_at: string;
   updated_at: string;
 }

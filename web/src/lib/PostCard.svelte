@@ -16,6 +16,7 @@
     MessageSquareLock,
     X,
     Navigation,
+    QrCode,
   } from '@lucide/svelte';
   import { i18n, m } from './i18n.svelte';
   import { geolocationManager } from './geolocation.svelte';
@@ -24,6 +25,7 @@
     getCardinalDirection,
     getRelativeAngle,
   } from './geoDistance';
+  import { isPeerPostId } from './peerPosts';
 
   interface Props {
     post: Post;
@@ -33,6 +35,7 @@
     onEditPost?: (post: Post) => void;
     onDeletePost?: (postId: string) => void;
     onContactPost?: (post: Post) => void;
+    onOpenQrShare?: (post: Post) => void;
   }
 
   const {
@@ -43,6 +46,7 @@
     onEditPost,
     onDeletePost,
     onContactPost,
+    onOpenQrShare,
   }: Props = $props();
 
   const isAuthorOrAdmin = $derived.by(() => {
@@ -144,6 +148,8 @@
       cardinal,
     };
   });
+
+  const isPeer = $derived(!!post.is_peer || isPeerPostId(post.id));
 
   // Source URL trust badge
   const sourceTrustBadge = $derived.by(() => {
@@ -325,6 +331,14 @@
         >
           <CheckCircle class="h-3 w-3 text-blue-600" />
           {m.official_verified()}
+        </span>
+      {/if}
+
+      {#if isPeer}
+        <span
+          class="inline-flex items-center gap-0.5 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-300"
+        >
+          📡 {m.peer_badge()}
         </span>
       {/if}
     </div>
@@ -641,6 +655,18 @@
         <span>{m.btn_contact()}</span>
       </button>
 
+      <!-- QR Share button -->
+      <button
+        type="button"
+        onclick={() => onOpenQrShare?.(post)}
+        class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        title={m.qr_share_title()}
+        aria-label={m.qr_share_title()}
+      >
+        <QrCode class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+        <span>{m.qr_share_btn()}</span>
+      </button>
+
       <!-- Report status button -->
       <button
         type="button"
@@ -648,6 +674,7 @@
         class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-200 active:scale-95 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
       >
         <RefreshCw class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+
         <span>{m.btn_report_status()}</span>
       </button>
     </div>

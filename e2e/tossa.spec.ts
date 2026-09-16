@@ -365,4 +365,83 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     // HUD should be dismissed
     await expect(hud).not.toBeVisible();
   });
+
+  test('10. Offline Post QR Code Display & Peer-to-Peer Import Relay', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // 1. Open QR Share modal on an existing post
+    const qrShareBtn = page
+      .locator('button:has-text("QR共有"), button:has-text("QR Share")')
+      .first();
+    await expect(qrShareBtn).toBeVisible({ timeout: 10000 });
+    await qrShareBtn.click();
+
+    // Verify QR modal opens with SVG code and copy link button
+    const qrModal = page.locator(
+      'h2:has-text("オフラインQR共有"), h2:has-text("Offline QR Share")'
+    );
+    await expect(qrModal).toBeVisible();
+
+    const qrSvg = page.locator('div:has(> svg)');
+    await expect(qrSvg.first()).toBeVisible();
+
+    // Close QR modal
+    const closeBtn = page.locator('button[aria-label="閉じる"]').first();
+    await closeBtn.click();
+    await expect(qrModal).not.toBeVisible();
+
+    // 2. Open QR Scanner modal from Header
+    const scanHeaderBtn = page.locator(
+      'header button[title*="QR"], header button[aria-label*="QR"]'
+    );
+    await expect(scanHeaderBtn).toBeVisible();
+    await scanHeaderBtn.click();
+
+    // Verify Scanner modal opens
+    const scannerTitle = page.locator(
+      'h2:has-text("QRコード読取"), h2:has-text("Scan QR Code")'
+    );
+    await expect(scannerTitle).toBeVisible();
+
+    // File upload fallback button should be present
+    const uploadBtn = page.locator(
+      'button:has-text("画像・スクショから読取"), button:has-text("Scan from Image")'
+    );
+    await expect(uploadBtn).toBeVisible();
+
+    // Close scanner modal
+    await page.locator('button[aria-label="閉じる"]').first().click();
+    await expect(scannerTitle).not.toBeVisible();
+
+    // 3. Test URL hash auto-import (simulates scanning a peer QR code with camera app)
+    const peerPayload = {
+      _t: 'tossa',
+      v: 1,
+      id: `peer-test-${Date.now()}`,
+      title: '避難所直結 給水ステーション',
+      area: '港町埠頭',
+      status: 'open',
+      label: '稼働中',
+      lat: 35.65,
+      lng: 139.75,
+      note: 'ポリタンク持参推奨',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const hashUrl = `/#post-data=${encodeURIComponent(JSON.stringify(peerPayload))}`;
+
+    await page.goto(hashUrl);
+
+    // Timeline should now contain the peer-imported post
+    const peerCard = page.locator(
+      'article:has-text("避難所直結 給水ステーション")'
+    );
+    await expect(peerCard).toBeVisible({ timeout: 10000 });
+
+    // Peer relay badge should be visible on the card
+    const peerBadge = peerCard.locator('span:has-text("📡")');
+    await expect(peerBadge).toBeVisible();
+  });
 });

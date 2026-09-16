@@ -1,7 +1,13 @@
 // web/src/lib/modalManager.svelte.ts: Responsive Mobile Multi-Modal & Bottom Sheet Coordinator
 
 export type ModalName =
-  'create' | 'admin' | 'messages' | 'update_status' | 'offline_map';
+  | 'create'
+  | 'admin'
+  | 'messages'
+  | 'update_status'
+  | 'offline_map'
+  | 'qr_code'
+  | 'qr_scanner';
 
 class ModalManager {
   stack = $state<ModalName[]>([]);

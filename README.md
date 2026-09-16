@@ -62,6 +62,10 @@
     - Instant straight-line HUD guidance to selected shelters and water distribution stations.
     - Persistent heads-up display showing live remaining distance countdown, target compass orientation, and 30m proximity arrival alert.
     - Expandable high-contrast compass dial and automatic vector route polyline & waypoint centering on the interactive map.
+14. **Offline Post QR Code Display & Peer-to-Peer Import Relay**
+    - Display any disaster post as a high-density, high-contrast SVG/PNG QR code containing compact post data.
+    - Peer-to-peer scanning via camera (`BarcodeDetector` API with pure-JS `jsQR` fallback) or image/screenshot upload without cellular or Wi-Fi connectivity.
+    - Imported posts persist immediately into local offline storage, instantly accessible in timelines, map view, and straight-line Waypoint Navigation HUD.
 
 ---
 

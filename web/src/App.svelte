@@ -19,6 +19,14 @@
   import MessagesModal from './lib/MessagesModal.svelte';
   import OfflineMapModal from './lib/OfflineMapModal.svelte';
   import WaypointNavHUD from './lib/WaypointNavHUD.svelte';
+  import QrCodeModal from './lib/QrCodeModal.svelte';
+  import QrScannerModal from './lib/QrScannerModal.svelte';
+  import { decodePostFromQrString } from './lib/qrCodec';
+  import {
+    getPeerPosts,
+    savePeerPost,
+    mergePostsWithPeer,
+  } from './lib/peerPosts';
   import type { MapBounds } from './lib/mapTileCache';
   import {
     List,
@@ -58,6 +66,39 @@
   let updatingPost = $state<Post | null>(null);
   let editingPost = $state<Post | null>(null);
   let messageContextPost = $state<Post | null>(null);
+  let activeQrPost = $state<Post | null>(null);
+
+  function handleOpenQrShare(post: Post) {
+    activeQrPost = post;
+    modalManager.open('qr_code');
+  }
+
+  function handleOpenQrScanner() {
+    modalManager.open('qr_scanner');
+  }
+
+  async function handleImportPost(importedPost: Post, andNavigate = false) {
+    const { saved } = savePeerPost(importedPost);
+    if (saved) {
+      offlineNotice = m.qr_import_success({ title: importedPost.title });
+      setTimeout(() => {
+        offlineNotice = null;
+      }, 4000);
+    }
+    await reloadPosts();
+    if (andNavigate && importedPost.lat !== null && importedPost.lng !== null) {
+      geolocationManager.startNavigation({
+        id: importedPost.id,
+        title: importedPost.title,
+        area: importedPost.area,
+        lat: importedPost.lat,
+        lng: importedPost.lng,
+        statusLabel: importedPost.status_label,
+        address: importedPost.address,
+      });
+      handleViewWaypointOnMap();
+    }
+  }
 
   // Auth state
   let currentUser = $state<User | null>(null);
@@ -124,6 +165,7 @@
     if (name === 'create') editingPost = null;
     if (name === 'update_status') updatingPost = null;
     if (name === 'messages') messageContextPost = null;
+    if (name === 'qr_code') activeQrPost = null;
   }
 
   async function syncOfflineQueue() {
@@ -205,6 +247,10 @@
     if (navigator.onLine && pendingCount > 0) {
       await syncOfflineQueue();
     }
+
+    // 4. URL Hash QR Code Auto-Import check & listener
+    await checkHashForQrImport();
+    window.addEventListener('hashchange', checkHashForQrImport);
   });
 
   onDestroy(() => {
@@ -215,8 +261,35 @@
         'beforeinstallprompt',
         handleBeforeInstallPrompt
       );
+      window.removeEventListener('hashchange', checkHashForQrImport);
     }
   });
+
+  async function checkHashForQrImport() {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.hash &&
+      (window.location.hash.includes('post-data=') ||
+        window.location.hash.includes('qr-import='))
+    ) {
+      const imported = decodePostFromQrString(window.location.hash);
+      if (imported) {
+        const { saved } = savePeerPost(imported);
+        if (saved) {
+          offlineNotice = m.qr_import_success({ title: imported.title });
+          setTimeout(() => {
+            offlineNotice = null;
+          }, 4000);
+          history.replaceState(
+            null,
+            '',
+            window.location.pathname + window.location.search
+          );
+          await reloadPosts();
+        }
+      }
+    }
+  }
 
   async function loadInitialData() {
     isLoading = true;
@@ -242,8 +315,10 @@
         }),
         fetchVocabularyTags(),
       ]);
-      posts = postRes.posts || [];
-      totalPosts = postRes.total || 0;
+      const serverPosts = postRes.posts || [];
+      const peerPosts = getPeerPosts();
+      posts = mergePostsWithPeer(serverPosts, peerPosts);
+      totalPosts = posts.length;
       vocabularyTags = tags;
     } catch (err) {
       console.error('Failed to reload posts:', err);
@@ -365,6 +440,7 @@
     onOpenAdmin={handleOpenAdmin}
     onOpenCreate={handleOpenCreate}
     onOpenMessages={() => handleOpenMessages()}
+    onOpenQrScanner={handleOpenQrScanner}
   />
 
   <!-- PWA Install Banner -->
@@ -747,6 +823,7 @@
               onEditPost={handleEditPost}
               onDeletePost={handleDeletePost}
               onContactPost={handleContactPost}
+              onOpenQrShare={handleOpenQrShare}
             />
           {/each}
         </div>
@@ -837,6 +914,24 @@
       isTop={modalManager.isTop('offline_map')}
       zIndex={modalManager.getZIndex('offline_map')}
       onClose={() => handleCloseModal('offline_map')}
+    />
+  {/if}
+
+  {#if modalManager.isOpen('qr_code') && activeQrPost}
+    <QrCodeModal
+      isTop={modalManager.isTop('qr_code')}
+      zIndex={modalManager.getZIndex('qr_code')}
+      post={activeQrPost}
+      onClose={() => handleCloseModal('qr_code')}
+    />
+  {/if}
+
+  {#if modalManager.isOpen('qr_scanner')}
+    <QrScannerModal
+      isTop={modalManager.isTop('qr_scanner')}
+      zIndex={modalManager.getZIndex('qr_scanner')}
+      onImportPost={handleImportPost}
+      onClose={() => handleCloseModal('qr_scanner')}
     />
   {/if}
 

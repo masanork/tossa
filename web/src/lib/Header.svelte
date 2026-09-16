@@ -8,6 +8,7 @@
     AlertTriangle,
     MessageSquareLock,
     Globe,
+    ScanQrCode,
   } from '@lucide/svelte';
   import { i18n, m, LANGUAGES } from './i18n.svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
@@ -18,10 +19,17 @@
     onOpenAdmin: () => void;
     onOpenCreate: () => void;
     onOpenMessages: () => void;
+    onOpenQrScanner?: () => void;
   }
 
-  const { settings, user, onOpenAdmin, onOpenCreate, onOpenMessages }: Props =
-    $props();
+  const {
+    settings,
+    user,
+    onOpenAdmin,
+    onOpenCreate,
+    onOpenMessages,
+    onOpenQrScanner,
+  }: Props = $props();
 
   let showLangMenu = $state(false);
   let showThemeMenu = $state(false);
@@ -171,6 +179,18 @@
           </div>
         {/if}
       </div>
+
+      <!-- QR Scanner button -->
+      <button
+        type="button"
+        onclick={onOpenQrScanner}
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-blue-50/60 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        title={m.qr_scanner_title()}
+        aria-label={m.qr_scanner_title()}
+      >
+        <ScanQrCode class="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
+        <span class="hidden md:inline">{m.qr_scan_btn()}</span>
+      </button>
 
       <!-- Secure messaging (E2EE) button -->
       <button
