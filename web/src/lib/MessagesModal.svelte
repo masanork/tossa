@@ -56,7 +56,7 @@
   let { currentUser, token, initialPostId, initialPostTitle, onClose }: Props =
     $props();
 
-  // 状態管理
+  // State management
   let threads = $state<Thread[]>([]);
   let activeThread = $state<Thread | null>(null);
   let activeThreadMembers = $state<ThreadMember[]>([]);
@@ -69,14 +69,14 @@
   let isSending = $state(false);
   let newMessageText = $state('');
 
-  // 新規スレッド作成ステート
+  // New thread creation state
   let isCreatingThread = $state(false);
   let newThreadTitle = $state('');
   let newThreadType = $state<ThreadType>('inquiry');
   let firstMessageText = $state('');
   let createError = $state<string | null>(null);
 
-  // メンバー招待ステート
+  // Member invite state
   let showInviteModal = $state(false);
   let availableUsersToInvite = $state<
     Array<
@@ -86,27 +86,27 @@
   let isInviting = $state(false);
   let inviteError = $state<string | null>(null);
 
-  // E2EE アイデンティティ
+  // E2EE Identity
   let identityKey = $state<UserIdentityKey | null>(getCurrentIdentityKey());
   let pollingTimer: any = null;
 
   onMount(async () => {
-    // 1. E2EE 鍵の確認・初期化
+    // 1. Verify and initialize E2EE key
     if (!identityKey) {
       identityKey = await initializeE2eeKeys(undefined, token);
     }
 
-    // 2. スレッド一覧取得
+    // 2. Fetch thread list
     await loadThreads();
 
-    // initialPost があれば新規スレッド作成画面をあらかじめセット
+    // Pre-fill thread creation form if initialPost is present
     if (initialPostId && initialPostTitle) {
       isCreatingThread = true;
       newThreadTitle = `「${initialPostTitle}」に関するお問い合わせ`;
       newThreadType = 'inquiry';
     }
 
-    // 3. 定期ポーリング（10秒おきにアクティブスレッドを更新）
+    // 3. Periodic polling (updates active thread every 8s)
     pollingTimer = setInterval(() => {
       if (activeThread && activeThreadKey) {
         pollMessages();
@@ -118,7 +118,7 @@
     if (pollingTimer) clearInterval(pollingTimer);
   });
 
-  // スレッド一覧取得
+  // Fetch thread list
   async function loadThreads() {
     isLoadingThreads = true;
     try {
@@ -133,7 +133,7 @@
     }
   }
 
-  // スレッド選択 & 復号
+  // Select thread & decrypt
   async function handleSelectThread(thread: Thread) {
     activeThread = thread;
     activeThreadKey = null;
@@ -151,7 +151,7 @@
       activeThread = detail.thread;
       activeThreadMembers = detail.members || [];
 
-      // スレッド共通鍵の復号
+      // Decrypt shared thread key
       if (!identityKey) {
         identityKey = await initializeE2eeKeys(undefined, token);
       }
@@ -169,7 +169,7 @@
         activeThreadKey = decrypted.key;
         activeThreadRawKey = decrypted.raw;
 
-        // メッセージの復号
+        // Decrypt messages
         if (detail.messages) {
           const decryptedList: DecryptedMessage[] = [];
           for (const msg of detail.messages) {
@@ -200,7 +200,7 @@
     }
   }
 
-  // メッセージの差分ポーリング
+  // Poll new messages
   async function pollMessages() {
     if (!activeThread || !activeThreadKey) return;
     try {
@@ -232,7 +232,7 @@
     }
   }
 
-  // メッセージ送信
+  // Send message
   async function handleSendMessage(e?: Event) {
     if (e) e.preventDefault();
     if (
@@ -280,7 +280,7 @@
     }
   }
 
-  // 新規スレッド作成
+  // Create new thread
   async function handleCreateThread() {
     if (!newThreadTitle.trim()) {
       createError = 'タイトルを入力してください';
@@ -298,11 +298,11 @@
         throw new Error('E2EE暗号化鍵の取得に失敗しました');
       }
 
-      // 1. スレッド共通鍵を生成
+      // 1. Generate shared thread key
       const threadKeyObj = await generateThreadKey();
 
-      // 2. 初期メンバーの公開鍵を取得
-      // inquiry / admin_chat の場合は管理者全員の公開鍵を取得
+      // 2. Fetch initial members' public keys
+      // For inquiry / admin_chat, fetch public keys of all admins
       let recipientUsers: Array<{ id: string; e2ee_public_key: string }> = [];
 
       if (newThreadType === 'inquiry' || newThreadType === 'admin_chat') {
@@ -314,7 +314,7 @@
         }
       }
 
-      // 自身を追加（自身宛てのエンベロープ暗号鍵も作成）
+      // Add self (generate enveloped key for self)
       const membersToRegister: Array<{
         userId: string;
         encryptedThreadKey: string;
@@ -322,7 +322,7 @@
         role: 'owner' | 'member';
       }> = [];
 
-      // 自身用の暗号化スレッドキー
+      // Encrypted thread key for self
       const myWrappedKey = await encryptThreadKeyForUser(
         threadKeyObj.raw,
         identityKey.publicKeyJwk
@@ -334,7 +334,7 @@
         role: 'owner',
       });
 
-      // 他のメンバー（管理者等）用の暗号化スレッドキー
+      // Encrypted thread key for other members (admins, etc.)
       for (const rec of recipientUsers) {
         if (rec.id === currentUser.id) continue;
         try {
@@ -354,7 +354,7 @@
         }
       }
 
-      // 3. スレッド作成 API 呼び出し
+      // 3. Call thread creation API
       const res = await createThreadApi(
         {
           title: newThreadTitle.trim(),
@@ -366,7 +366,7 @@
       );
 
       if (res.success && res.id) {
-        // 最初のメッセージがあれば暗号化送信
+        // Send initial message encrypted if provided
         if (firstMessageText.trim()) {
           const encrypted = await encryptMessage(
             firstMessageText.trim(),
@@ -385,7 +385,7 @@
         newThreadTitle = '';
         await loadThreads();
 
-        // 作成したスレッドを開く
+        // Open the newly created thread
         const createdThread = threads.find((t) => t.id === res.id);
         if (createdThread) {
           handleSelectThread(createdThread);
@@ -400,7 +400,7 @@
     }
   }
 
-  // 招待モーダルを開く
+  // Open invite modal
   async function handleOpenInviteModal() {
     if (!activeThread) return;
     inviteError = null;
@@ -419,7 +419,7 @@
     }
   }
 
-  // メンバーを招待（復号済みスレッド鍵を相手の公開鍵で暗号化して追加）
+  // Invite member (encrypt decrypted thread key with recipient's public key)
   async function handleInviteUser(
     targetUser: Pick<
       User,
@@ -449,7 +449,7 @@
 
       if (res.success) {
         showInviteModal = false;
-        // メンバーリストを再取得
+        // Refresh member list
         const detail = await fetchThreadDetail(activeThread.id, token);
         if (detail.members) activeThreadMembers = detail.members;
       } else {
@@ -481,7 +481,7 @@
   <div
     class="bg-white rounded-2xl w-full max-w-3xl h-[88vh] max-h-[720px] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col"
   >
-    <!-- ヘッダー -->
+    <!-- Header -->
     <div
       class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
     >
@@ -519,9 +519,9 @@
       </button>
     </div>
 
-    <!-- コンテンツボディ（一覧または詳細） -->
+    <!-- Content body (list or detail) -->
     <div class="flex-1 flex overflow-hidden">
-      <!-- 1. 新規スレッド作成画面 -->
+      <!-- 1. New thread creation view -->
       {#if isCreatingThread}
         <div class="flex-1 p-5 overflow-y-auto flex flex-col gap-4">
           <div class="flex items-center gap-2">
@@ -548,7 +548,7 @@
             </div>
           {/if}
 
-          <!-- 種別選択 -->
+          <!-- Type selection -->
           <div class="flex flex-col gap-1.5">
             <div class="text-xs font-bold text-slate-700">連絡の種別</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -596,7 +596,7 @@
             </div>
           </div>
 
-          <!-- タイトル -->
+          <!-- Title -->
           <div class="flex flex-col gap-1">
             <label for="thread-title" class="text-xs font-bold text-slate-700"
               >件名・タイトル <span class="text-rose-600">*</span></label
@@ -610,7 +610,7 @@
             />
           </div>
 
-          <!-- 最初のメッセージ -->
+          <!-- Initial message -->
           <div class="flex flex-col gap-1">
             <label for="first-msg" class="text-xs font-bold text-slate-700"
               >最初のメッセージ（任意）</label
@@ -652,10 +652,10 @@
           </div>
         </div>
 
-        <!-- 2. スレッド詳細 & チャットビュー -->
+        <!-- 2. Thread detail & chat view -->
       {:else if activeThread}
         <div class="flex-1 flex flex-col h-full overflow-hidden">
-          <!-- スレッドヘッダー -->
+          <!-- Thread header -->
           <div
             class="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 shrink-0"
           >
@@ -696,7 +696,7 @@
               </div>
             </div>
 
-            <!-- メンバー招待ボタン -->
+            <!-- Member invite button -->
             <button
               type="button"
               onclick={handleOpenInviteModal}
@@ -708,7 +708,7 @@
             </button>
           </div>
 
-          <!-- メッセージリスト -->
+          <!-- Message list -->
           <div
             class="flex-1 p-4 overflow-y-auto flex flex-col gap-3 bg-slate-50/30"
           >
@@ -735,7 +735,7 @@
                 <div
                   class={`flex flex-col ${msg.isMine ? 'items-end' : 'items-start'}`}
                 >
-                  <!-- 送信者名 & 時間 -->
+                  <!-- Sender name & timestamp -->
                   <div
                     class="flex items-center gap-1.5 mb-1 px-1 text-[11px] text-slate-500"
                   >
@@ -753,7 +753,7 @@
                     >
                   </div>
 
-                  <!-- 吹き出し -->
+                  <!-- Message bubble -->
                   <div
                     class={`max-w-[80%] sm:max-w-md px-3.5 py-2 rounded-2xl text-xs leading-relaxed break-words shadow-2xs whitespace-pre-wrap ${
                       msg.isMine
@@ -768,7 +768,7 @@
             {/if}
           </div>
 
-          <!-- メッセージ入力バー -->
+          <!-- Message input bar -->
           <form
             onsubmit={handleSendMessage}
             class="p-2.5 border-t border-slate-200 bg-white flex items-center gap-2 shrink-0"
@@ -789,7 +789,7 @@
           </form>
         </div>
 
-        <!-- 3. スレッド一覧ビュー -->
+        <!-- 3. Thread list view -->
       {:else}
         <div class="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
           <div class="flex items-center justify-between">
@@ -893,7 +893,7 @@
   </div>
 </div>
 
-<!-- メンバー招待サブモーダル -->
+<!-- Member invite submodal -->
 {#if showInviteModal}
   <div
     class="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs"

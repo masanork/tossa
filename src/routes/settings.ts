@@ -16,7 +16,7 @@ settingsRoute.get('/', async (c) => {
   });
 });
 
-// POST /api/settings - 管理者用設定更新（平時 ⇄ 災害時切り替え等）
+// POST /api/settings - Admin system settings update (dual-use mode toggle, area, banner, etc.)
 settingsRoute.post('/', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;

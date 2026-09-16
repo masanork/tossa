@@ -42,17 +42,17 @@
   }: Props = $props();
 
   let isAuthorOrAdmin = $derived.by(() => {
-    // Passkey管理者
+    // Passkey admin
     if (currentUser?.role === 'admin') return true;
-    // Passkeyで投稿した本人
+    // Original author with Passkey
     if (currentUser && post.author_id && post.author_id === currentUser.id)
       return true;
-    // Cookie識別で投稿した本人（サーバー側照合済み）
+    // Original author identified by cookie (verified on server)
     if (post.is_owner) return true;
     return false;
   });
 
-  // 現地確認ステート
+  // Verification state
   let verificationCount = $state(0);
   let lastVerifiedAt = $state<string | null>(null);
   let isVerifiedByMe = $state(false);
@@ -63,7 +63,7 @@
     lastVerifiedAt = post.last_verified_at || null;
   });
 
-  // 画像メタデータ（EXIF & C2PA）パース
+  // Parse image metadata (EXIF & C2PA)
   let parsedImageMeta = $derived.by<ImageMeta | null>(() => {
     if (!post.image_meta) return null;
     try {
@@ -92,7 +92,7 @@
     }
   });
 
-  // Tags パース
+  // Parse tags
   let parsedTags = $derived.by(() => {
     try {
       return post.tags ? (JSON.parse(post.tags) as string[]) : [];
@@ -101,7 +101,7 @@
     }
   });
 
-  // JSON attributes パース
+  // Parse JSON attributes
   let parsedAttrs = $derived.by(() => {
     try {
       return post.attributes ? JSON.parse(post.attributes) : {};
@@ -110,7 +110,7 @@
     }
   });
 
-  // 情報源URLの信頼性バッジ
+  // Source URL trust badge
   let sourceTrustBadge = $derived.by(() => {
     if (!post.source_url) return null;
     try {
@@ -170,7 +170,7 @@
     }
   });
 
-  // 相対時間フォーマット
+  // Relative time format
   function formatRelativeTime(dateStr: string): string {
     const date = new Date(dateStr + (dateStr.endsWith('Z') ? '' : 'Z'));
     const now = new Date();
@@ -183,7 +183,7 @@
     return `${Math.floor(diffSec / 86400)}日前`;
   }
 
-  // ステータスの色分け
+  // Color mapping by status
   function getStatusBadgeClass(status: string): string {
     switch (status) {
       case 'available':
@@ -201,7 +201,7 @@
     }
   }
 
-  // 現地確認アクション（コミュニティによる正確性検証）
+  // Community verification action
   async function handleVerify() {
     if (isVerifiedByMe || isVerifying) return;
     isVerifying = true;
@@ -225,14 +225,14 @@
     }
   }
 
-  // 写真モーダル拡大
+  // Image zoom modal state
   let showImageModal = $state(false);
 </script>
 
 <article
   class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-slate-300 transition-all flex flex-col gap-3"
 >
-  <!-- 上段: エリア・タグ・公式バッジ・最終更新 -->
+  <!-- Top: Area, tags, official badge, last updated -->
   <div class="flex items-center justify-between gap-2 text-xs">
     <div class="flex items-center gap-1.5 flex-wrap">
       {#if parsedTags.length > 0}
@@ -274,7 +274,7 @@
       {/if}
     </div>
 
-    <!-- 最終更新時刻 -->
+    <!-- Last updated time -->
     <div
       class="flex items-center gap-1 text-[11px] text-slate-400 font-medium shrink-0"
     >
@@ -283,7 +283,7 @@
     </div>
   </div>
 
-  <!-- 写真（添付されている場合） -->
+  <!-- Photo (if attached) -->
   {#if post.image_url}
     <div
       class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-950/5 flex flex-col"
@@ -308,7 +308,7 @@
         </div>
       </button>
 
-      <!-- 写真の信頼性メタ情報（撮影日時・位置情報・C2PA署名） -->
+      <!-- Image authenticity metadata (timestamp, GPS, C2PA signature) -->
       <div
         class="px-3 py-2 bg-slate-900/90 text-white text-[11px] flex items-center justify-between gap-2 border-t border-slate-800"
       >
@@ -337,7 +337,7 @@
     </div>
   {/if}
 
-  <!-- タイトル & ステータスバッジ -->
+  <!-- Title & status badge -->
   <div class="flex items-start justify-between gap-3">
     <h3 class="text-base font-bold text-slate-900 leading-snug">
       {post.title}
@@ -350,7 +350,7 @@
     </span>
   </div>
 
-  <!-- 住所 -->
+  <!-- Address -->
   {#if post.address}
     <div class="flex items-center gap-1.5 text-xs text-slate-600">
       <MapPin class="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -358,7 +358,7 @@
     </div>
   {/if}
 
-  <!-- 備考・詳細情報 -->
+  <!-- Notes & Details -->
   {#if post.note}
     <p
       class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap"
@@ -367,7 +367,7 @@
     </p>
   {/if}
 
-  <!-- 情報源・参照リンク（検証バッジ付き） -->
+  <!-- Source URL and reference links with trust badge -->
   {#if post.source_url && sourceTrustBadge}
     <div
       class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200/80 text-xs"
@@ -389,7 +389,7 @@
     </div>
   {/if}
 
-  <!-- 動的属性タグ（水の種類、営業時間など） -->
+  <!-- Dynamic attribute tags (water type, business hours, etc.) -->
   {#if Object.keys(parsedAttrs).length > 0}
     <div class="flex items-center gap-1.5 flex-wrap">
       {#each Object.entries(parsedAttrs) as [key, val]}
@@ -413,7 +413,7 @@
     </div>
   {/if}
 
-  <!-- 自発的ボキャブラリ・タグ -->
+  <!-- Voluntary vocabulary tags -->
   {#if parsedTags.length > 0}
     <div class="flex items-center gap-1.5 flex-wrap">
       {#each parsedTags as t}
@@ -436,11 +436,11 @@
     </div>
   {/if}
 
-  <!-- 下段: 正確性の検証 & 状況報告アクションバー -->
+  <!-- Bottom: Verification & status report action bar -->
   <div
     class="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 mt-auto"
   >
-    <!-- 情報の正確性・現地確認ボタン -->
+    <!-- Accuracy & local verification button -->
     <div class="flex items-center gap-2">
       <button
         type="button"
@@ -469,7 +469,7 @@
       {/if}
     </div>
 
-    <!-- アクションボタン群（編集・削除・状況報告） -->
+    <!-- Action buttons (Edit, Delete, Report status) -->
     <div class="flex items-center gap-1.5 self-end sm:self-auto flex-wrap">
       {#if isAuthorOrAdmin}
         <button
@@ -497,7 +497,7 @@
         </button>
       {/if}
 
-      <!-- 連絡（E2EE）ボタン -->
+      <!-- Contact (E2EE) button -->
       <button
         type="button"
         onclick={() => onContactPost?.(post)}
@@ -508,7 +508,7 @@
         <span>{m.btn_contact()}</span>
       </button>
 
-      <!-- 状況を報告するボタン -->
+      <!-- Report status button -->
       <button
         type="button"
         onclick={() => onOpenUpdateStatus(post)}
@@ -521,10 +521,10 @@
   </div>
 </article>
 
-<!-- 写真拡大モーダル -->
+<!-- Image zoom modal -->
 {#if showImageModal && post.image_url}
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <!-- 背景オーバーレイ -->
+    <!-- Backdrop overlay -->
     <button
       type="button"
       onclick={() => {
@@ -534,7 +534,7 @@
       aria-label="モーダルを閉じる"
     ></button>
 
-    <!-- モーダルコンテンツ -->
+    <!-- Modal content -->
     <div
       class="relative z-10 max-w-3xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
       role="dialog"

@@ -219,7 +219,7 @@ export async function createPost(
     )
     .run();
 
-  // 初期ステータス履歴も1件作成
+  // Create initial status update record
   await db
     .prepare(
       `INSERT INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash)
@@ -230,7 +230,7 @@ export async function createPost(
       post.id,
       post.currentStatus,
       post.statusLabel,
-      post.note || '新規登録',
+      post.note || 'Initial registration',
       'initial'
     )
     .run();
@@ -342,7 +342,7 @@ export async function deletePost(db: D1Database, id: string): Promise<void> {
   await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run();
 }
 
-// 自発的に成長するボキャブラリ（直近のアクティビティ・出現頻度順に集計）
+// Spontaneously evolving tag vocabulary (ranked by recent activity & frequency)
 export async function getVocabularyTags(
   db: D1Database,
   limit = 40
@@ -359,7 +359,7 @@ export async function getVocabularyTags(
     const result = await db.prepare(query).bind(limit).all<TagCount>();
     return result.results || [];
   } catch (_err) {
-    // tags カラム未作成時などのフォールバック
+    // Fallback if tags column is unavailable
     return [];
   }
 }
@@ -372,7 +372,7 @@ export async function updatePostStatus(
   note: string | null,
   ipHash: string | null
 ): Promise<void> {
-  // 1. posts テーブルのステータスと updated_at を更新
+  // 1. Update post current status and timestamp
   await db
     .prepare(
       `UPDATE posts 
@@ -382,7 +382,7 @@ export async function updatePostStatus(
     .bind(status, statusLabel, postId)
     .run();
 
-  // 2. status_updates に履歴追加
+  // 2. Append history record
   await db
     .prepare(
       `INSERT INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash, created_at)
@@ -399,13 +399,13 @@ export async function updatePostStatus(
     .run();
 }
 
-// 情報の正確性・現地確認（コミュニティによる信頼性検証）
+// On-site community verification (trust endorsement)
 export async function verifyPost(
   db: D1Database,
   postId: string,
   reporterIpHash?: string
 ): Promise<{ verificationCount: number; lastVerifiedAt: string }> {
-  // 1. verification ログ追加
+  // 1. Insert verification record
   await db
     .prepare(
       `INSERT INTO post_verifications (id, post_id, reporter_ip_hash, created_at)
@@ -414,7 +414,7 @@ export async function verifyPost(
     .bind(`verif_${crypto.randomUUID()}`, postId, reporterIpHash || null)
     .run();
 
-  // 2. posts のカウントと最終確認時刻を更新
+  // 2. Update post verification count and timestamp
   await db
     .prepare(
       `UPDATE posts
@@ -541,7 +541,7 @@ export interface FederatedGeoJSONFeature {
 }
 
 /**
- * 全投稿およびステータス履歴を GeoJSON-LD 互換の FeatureCollection 形式でエクスポート
+ * Export all posts and status history as GeoJSON-LD FeatureCollection
  */
 export async function exportAllPostsForFederation(
   db: D1Database
@@ -556,7 +556,7 @@ export async function exportAllPostsForFederation(
     .all<StatusUpdate>();
   const allHistory = historyRes.results || [];
 
-  // postId ごとに履歴をグループ化
+  // Group status updates by postId
   const historyMap = new Map<string, StatusUpdate[]>();
   for (const h of allHistory) {
     const list = historyMap.get(h.post_id) || [];
@@ -629,7 +629,7 @@ export async function exportAllPostsForFederation(
 }
 
 /**
- * 外部サイトの GeoJSON Feature 配列を受け取り、ローカルDBへマージ・重複排除インポート
+ * Merge and deduplicate external GeoJSON features into local database
  */
 export async function importFederatedPosts(
   db: D1Database,
@@ -670,7 +670,7 @@ export async function importFederatedPosts(
       : '{}';
 
     if (existing) {
-      // 既存レコードがある場合: 相手の updatedAt の方が新しい場合のみ上書き更新
+      // If record exists, update only if remote updatedAt is newer
       const localTime = new Date(existing.updated_at).getTime();
       const remoteTime = new Date(props.updatedAt).getTime();
 
@@ -715,7 +715,7 @@ export async function importFederatedPosts(
         skipped++;
       }
     } else {
-      // 新規レコードとして INSERT
+      // Insert as new record
       await db
         .prepare(
           `INSERT INTO posts (
@@ -752,10 +752,10 @@ export async function importFederatedPosts(
       added++;
     }
 
-    // ステータス履歴のマージ
+    // Merge status update history
     if (props.statusHistory && props.statusHistory.length > 0) {
       for (const h of props.statusHistory) {
-        // 同一 post_id かつ同一日時の履歴がなければ追加
+        // Append if not already present with same post_id and timestamp
         const histExists = await db
           .prepare(
             'SELECT id FROM status_updates WHERE post_id = ? AND created_at = ?'
@@ -851,7 +851,7 @@ export async function createThread(
     role?: 'owner' | 'member';
   }>
 ): Promise<void> {
-  // 1. スレッド作成
+  // 1. Create thread
   await db
     .prepare(
       `INSERT INTO threads (id, title, type, post_id, created_by, created_at, updated_at)
@@ -866,7 +866,7 @@ export async function createThread(
     )
     .run();
 
-  // 2. メンバー & エンベロープ暗号鍵を登録
+  // 2. Register initial members and encrypted key envelopes
   for (const m of initialMembers) {
     await db
       .prepare(
@@ -913,7 +913,7 @@ export async function getUserThreads(
 export async function getThreadById(
   db: D1Database,
   threadId: string,
-  userId?: string
+  userId: string
 ): Promise<Thread | null> {
   const query = `
     SELECT 
@@ -922,18 +922,17 @@ export async function getThreadById(
       u.display_name as creator_name,
       tm.encrypted_thread_key as my_encrypted_thread_key,
       tm.ephemeral_public_key as my_ephemeral_public_key,
-      (SELECT COUNT(*) FROM thread_members WHERE thread_id = t.id) as member_count
+      (SELECT COUNT(*) FROM thread_members WHERE thread_id = t.id) as member_count,
+      (SELECT MAX(created_at) FROM messages WHERE thread_id = t.id) as last_message_at
     FROM threads t
-    LEFT JOIN thread_members tm ON t.id = tm.thread_id AND tm.user_id = ?
+    INNER JOIN thread_members tm ON t.id = tm.thread_id AND tm.user_id = ?
     LEFT JOIN posts p ON t.post_id = p.id
     LEFT JOIN users u ON t.created_by = u.id
     WHERE t.id = ?
+    LIMIT 1
   `;
 
-  return await db
-    .prepare(query)
-    .bind(userId || '', threadId)
-    .first<Thread>();
+  return await db.prepare(query).bind(userId, threadId).first<Thread>();
 }
 
 export async function isThreadMember(
@@ -941,11 +940,13 @@ export async function isThreadMember(
   threadId: string,
   userId: string
 ): Promise<boolean> {
-  const row = await db
-    .prepare('SELECT 1 FROM thread_members WHERE thread_id = ? AND user_id = ?')
+  const res = await db
+    .prepare(
+      'SELECT id FROM thread_members WHERE thread_id = ? AND user_id = ? LIMIT 1'
+    )
     .bind(threadId, userId)
     .first();
-  return Boolean(row);
+  return !!res;
 }
 
 export async function getThreadMembers(
@@ -954,17 +955,11 @@ export async function getThreadMembers(
 ): Promise<ThreadMember[]> {
   const query = `
     SELECT 
-      tm.id,
-      tm.thread_id,
-      tm.user_id,
-      tm.encrypted_thread_key,
-      tm.ephemeral_public_key,
-      tm.key_sender_id,
-      tm.role,
-      tm.joined_at,
+      tm.*,
       u.username,
       u.display_name,
-      u.role as user_role
+      u.role as user_role,
+      u.e2ee_public_key
     FROM thread_members tm
     LEFT JOIN users u ON tm.user_id = u.id
     WHERE tm.thread_id = ?
@@ -1027,7 +1022,7 @@ export async function createMessage(
     )
     .run();
 
-  // スレッドの updated_at を更新
+  // Update thread updated_at timestamp
   await db
     .prepare("UPDATE threads SET updated_at = datetime('now') WHERE id = ?")
     .bind(message.threadId)
@@ -1066,7 +1061,7 @@ export async function getThreadMessages(
 
 // ================= Device Sessions & Access Logs =================
 
-/** 端末セッションとPasskeyユーザーを紐付け（N:N） */
+/** Link device session to Passkey user (N:N) */
 export async function linkDeviceToUser(
   db: D1Database,
   deviceSessionId: string,
@@ -1080,7 +1075,7 @@ export async function linkDeviceToUser(
     .run();
 }
 
-/** 端末セッションに紐付いたユーザー一覧 */
+/** List users linked to a device session */
 export async function getDeviceUsers(
   db: D1Database,
   deviceSessionId: string
@@ -1094,7 +1089,7 @@ export async function getDeviceUsers(
   return res.results;
 }
 
-/** 開示請求用: 端末セッションのアクセスログ取得 */
+/** Retrieve device session access logs (compliance & audit requests) */
 export async function getAccessLogsByDevice(
   db: D1Database,
   deviceSessionId: string,
@@ -1123,7 +1118,7 @@ export async function getAccessLogsByDevice(
   return res.results;
 }
 
-/** 開示請求用: ユーザーIDのアクセスログ取得 */
+/** Retrieve user access logs (compliance & audit requests) */
 export async function getAccessLogsByUser(
   db: D1Database,
   userId: string,

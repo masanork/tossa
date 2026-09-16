@@ -58,7 +58,7 @@
   let sourceUrl = $state('');
   let url = $state('');
 
-  // 写真・EXIF・C2PA用ステート
+  // Photo, EXIF & C2PA state
   let fileInput = $state<HTMLInputElement | null>(null);
   let imagePreviewUrl = $state<string | null>(null);
   let imageMeta = $state<ImageMeta | null>(null);
@@ -69,7 +69,7 @@
   );
   let photoTakenTime = $state<string | null>(null);
 
-  // 緯度経度・地図ピッカー用ステート
+  // Coordinates & map picker state
   let lat = $state<number | null>(null);
   let lng = $state<number | null>(null);
   let isLocating = $state(false);
@@ -84,7 +84,7 @@
   let pickerMarker: L.Marker | null = null;
   let leaflet: typeof L | null = null;
 
-  // 自発的ボキャブラリ（タグ）
+  // Voluntary vocabulary (tags)
   let selectedTags = $state<string[]>([]);
   let newTagInput = $state('');
 
@@ -111,7 +111,7 @@
     }
   }
 
-  // 写真選択・解析ハンドラ（EXIF & C2PA）
+  // Photo selection & analysis handler (EXIF & C2PA)
   async function handleImageSelect(e: Event) {
     const target = e.target as HTMLInputElement;
     const file = target.files?.[0];
@@ -123,7 +123,7 @@
       imagePreviewUrl = result.dataUrl;
       imageMeta = result.meta;
 
-      // EXIF 撮影日時
+      // EXIF photo taken timestamp
       if (result.dateTime) {
         photoTakenTime = result.dateTime.toLocaleString('ja-JP', {
           year: 'numeric',
@@ -136,7 +136,7 @@
         photoTakenTime = null;
       }
 
-      // C2PA 真正性情報
+      // C2PA authenticity information
       if (result.c2paDetected) {
         c2paVerified = true;
         c2paInfo = {
@@ -148,7 +148,7 @@
         c2paInfo = null;
       }
 
-      // EXIF GPS 座標があれば自動的にピンをセット！
+      // Automatically set pin if EXIF GPS coordinates are present
       if (result.gpsCoordinates) {
         setCoordinates(
           result.gpsCoordinates.lat,
@@ -176,7 +176,7 @@
     if (fileInput) fileInput.value = '';
   }
 
-  // 情報源URLの信頼性判定
+  // Source URL trust determination
   let sourceTrustBadge = $derived.by(() => {
     if (!sourceUrl.trim()) return null;
     try {
@@ -251,7 +251,7 @@
   }
 
   onMount(async () => {
-    // 編集モードの場合、既存データの初期値をセット
+    // Set initial values if editing existing post
     if (editingPost) {
       title = editingPost.title || '';
       area = editingPost.area || '';
@@ -288,7 +288,7 @@
       }
     }
 
-    // Leaflet の初期化
+    // Leaflet initialization
     leaflet = await import('leaflet');
 
     const initialLat = 36.2048;
@@ -310,7 +310,7 @@
       })
       .addTo(pickerMap);
 
-    // 地図クリックでピン設置・移動
+    // Set/move pin on map click
     pickerMap.on('click', (e: L.LeafletMouseEvent) => {
       setCoordinates(e.latlng.lat, e.latlng.lng);
       geoStatusMessage = {
@@ -323,7 +323,7 @@
       pickerMap?.invalidateSize();
     }, 250);
 
-    // 編集対象に位置情報がある場合はその位置をセット、なければ defaultArea を中心にする
+    // Center on existing post location, or fallback to defaultArea
     if (
       editingPost &&
       editingPost.lat !== null &&
@@ -343,7 +343,7 @@
           pickerMap.setView([cLat, cLng], 12);
         }
       } catch (e) {
-        // フォールバック
+        // Fallback
       }
     }
   });
@@ -596,7 +596,7 @@
   <div
     class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[94vh] flex flex-col"
   >
-    <!-- ヘッダー -->
+    <!-- Header -->
     <div
       class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
     >
@@ -623,7 +623,7 @@
       </button>
     </div>
 
-    <!-- フォーム -->
+    <!-- Form -->
     <form
       onsubmit={handleSubmit}
       class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto"
@@ -667,7 +667,7 @@
         </div>
       {/if}
 
-      <!-- 📸 写真の添付（EXIF自動位置取得 & C2PA真正性検証） -->
+      <!-- Photo attachment (EXIF auto location & C2PA authenticity) -->
       <div
         class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
       >
@@ -682,7 +682,7 @@
         </div>
 
         {#if imagePreviewUrl}
-          <!-- 写真プレビューとメタ情報バッジ -->
+          <!-- Photo preview and metadata badge -->
           <div
             class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex flex-col"
           >
@@ -704,7 +704,7 @@
               </button>
             </div>
 
-            <!-- EXIF & C2PA 検証ステータスバー -->
+            <!-- EXIF & C2PA verification status bar -->
             <div
               class="p-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]"
             >
@@ -747,7 +747,7 @@
             </div>
           </div>
         {:else}
-          <!-- アップロード選択エリア -->
+          <!-- Upload dropzone area -->
           <label
             class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 bg-white cursor-pointer transition hover:bg-blue-50/20 group"
           >
@@ -782,7 +782,7 @@
         {/if}
       </div>
 
-      <!-- 施設・拠点名 -->
+      <!-- Facility / Place name -->
       <div>
         <label
           for="post-title"
@@ -800,7 +800,7 @@
         />
       </div>
 
-      <!-- 地区名 & 住所 -->
+      <!-- Area name & address -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
           <label
@@ -852,7 +852,7 @@
         </div>
       </div>
 
-      <!-- 📍 地図上の位置（緯度経度・直感的なピン設定） -->
+      <!-- Pin location on map (lat/lng) -->
       <div
         class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
       >
@@ -877,7 +877,7 @@
           {/if}
         </div>
 
-        <!-- クイック取得ボタン群 -->
+        <!-- Quick coordinate action buttons -->
         <div class="flex items-center gap-2">
           <button
             type="button"
@@ -929,7 +929,7 @@
           </div>
         {/if}
 
-        <!-- インタラクティブミニマップ -->
+        <!-- Interactive minimap -->
         <div
           class="relative w-full h-44 rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-200"
         >
@@ -946,7 +946,7 @@
           </div>
         </div>
 
-        <!-- 座標数値表示 & 解除ボタン -->
+        <!-- Numeric coordinate display & clear button -->
         <div
           class="flex items-center justify-between text-[11px] text-slate-600 pt-0.5"
         >
@@ -971,7 +971,7 @@
         </div>
       </div>
 
-      <!-- 🔗 情報源・参照リンク（任意） -->
+      <!-- Source / reference link (optional) -->
       <div
         class="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-2"
       >
@@ -1009,7 +1009,7 @@
         {/if}
       </div>
 
-      <!-- 初期ステータス -->
+      <!-- Status selection -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label
@@ -1051,7 +1051,7 @@
         </div>
       </div>
 
-      <!-- 詳細メモ -->
+      <!-- Detailed notes -->
       <div>
         <label
           for="post-note"
@@ -1067,7 +1067,7 @@
         ></textarea>
       </div>
 
-      <!-- 自発的ボキャブラリ（タグ） -->
+      <!-- Voluntary vocabulary (tags) -->
       <div
         class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col gap-2.5"
       >
@@ -1155,7 +1155,7 @@
         </div>
       </div>
 
-      <!-- フッター -->
+      <!-- Footer -->
       <div
         class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 shrink-0"
       >

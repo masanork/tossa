@@ -22,7 +22,7 @@ export const postsRoute = new Hono<{
   Variables: PostsVariables;
 }>();
 
-/** Passkeyセッションを任意取得（未ログインでもエラーにしない） */
+/** Get optional Passkey session without rejecting anonymous requests */
 async function getOptionalSession(c: any) {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -30,7 +30,7 @@ async function getOptionalSession(c: any) {
   return await verifySessionToken(token, c.env.JWT_SECRET);
 }
 
-// GET /api/posts/tags/vocabulary (ボキャブラリ一覧)
+// GET /api/posts/tags/vocabulary (Tag vocabulary list)
 postsRoute.get('/tags/vocabulary', async (c) => {
   const tags = await getVocabularyTags(c.env.DB, 40);
   c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
@@ -63,7 +63,7 @@ postsRoute.get('/', async (c) => {
     offset,
   });
 
-  // 端末Cookieに基づいて is_owner を付与（サーバー側照合）
+  // Attach is_owner based on device cookie verification on server
   const posts = result.posts.map((post: any) => ({
     ...post,
     is_owner: !!(
@@ -73,7 +73,7 @@ postsRoute.get('/', async (c) => {
     ),
   }));
 
-  // is_owner 含むためキャッシュ不可
+  // Disallow caching because response includes request-specific is_owner flag
   c.header('Cache-Control', 'no-store');
 
   return c.json({
@@ -113,10 +113,10 @@ postsRoute.get('/:id', async (c) => {
   });
 });
 
-// POST /api/posts - 新規投稿（Cookie または Passkey 認証）
+// POST /api/posts - Create new post (Cookie or Passkey authenticated)
 postsRoute.post('/', async (c) => {
   const session = await getOptionalSession(c);
-  const deviceId = c.get('deviceSessionId'); // ミドルウェアが必ず設定
+  const deviceId = c.get('deviceSessionId'); // Set by deviceCookie middleware
 
   const body = await c.req.json();
   if (!body.title || !body.area || !body.currentStatus) {
@@ -150,11 +150,11 @@ postsRoute.post('/', async (c) => {
     imageMeta: body.imageMeta,
     attributes: body.attributes,
     tags: Array.isArray(body.tags) ? body.tags : undefined,
-    isVerified: !!session, // Passkey認証済みの投稿を公式確認扱い
+    isVerified: !!session, // Posts made with authenticated Passkey receive verified status
     reporterName: body.reporterName || session?.username || null,
   });
 
-  // アクセスログ
+  // Access log
   const ip = getClientIp(c.req.raw);
   const ua = c.req.header('User-Agent') || '';
   await logAccess(
@@ -178,7 +178,7 @@ postsRoute.post('/', async (c) => {
   );
 });
 
-// PUT /api/posts/:id - 投稿編集（Cookie所有者、Passkey投稿者、または管理者）
+// PUT /api/posts/:id - Update post (Cookie owner, Passkey author, or Admin)
 postsRoute.put('/:id', async (c) => {
   const session = await getOptionalSession(c);
   const deviceId = c.get('deviceSessionId') || null;
@@ -189,7 +189,7 @@ postsRoute.put('/:id', async (c) => {
     return c.json({ success: false, error: 'Post not found' }, 404);
   }
 
-  // 権限チェック（優先順位: 管理者 > Passkey本人 > Cookie本人）
+  // Authorization check (Priority: Admin > Passkey Author > Cookie Owner)
   const isCookieOwner = !!(
     deviceId &&
     (post as any).author_cookie_id &&
@@ -204,7 +204,7 @@ postsRoute.put('/:id', async (c) => {
 
   if (!isCookieOwner && !isPasskeyAuthor && !isAdmin) {
     return c.json(
-      { success: false, error: '自分が投稿した情報のみ編集できます' },
+      { success: false, error: 'You can only edit your own posts' },
       403
     );
   }
@@ -256,7 +256,7 @@ postsRoute.put('/:id', async (c) => {
   });
 });
 
-// DELETE /api/posts/:id - 投稿削除（Cookie所有者、Passkey投稿者、または管理者）
+// DELETE /api/posts/:id - Delete post (Cookie owner, Passkey author, or Admin)
 postsRoute.delete('/:id', async (c) => {
   const session = await getOptionalSession(c);
   const deviceId = c.get('deviceSessionId') || null;
@@ -281,7 +281,7 @@ postsRoute.delete('/:id', async (c) => {
 
   if (!isCookieOwner && !isPasskeyAuthor && !isAdmin) {
     return c.json(
-      { success: false, error: '自分が投稿した情報のみ削除できます' },
+      { success: false, error: 'You can only delete your own posts' },
       403
     );
   }
@@ -306,7 +306,7 @@ postsRoute.delete('/:id', async (c) => {
   });
 });
 
-// POST /api/posts/:id/status - マイクロアップデート（1タップ状況更新）
+// POST /api/posts/:id/status - Micro-update (One-tap status update)
 postsRoute.post('/:id/status', async (c) => {
   const postId = c.req.param('id');
   const post = await getPostById(c.env.DB, postId);
@@ -323,7 +323,7 @@ postsRoute.post('/:id/status', async (c) => {
     );
   }
 
-  // IPアドレスからハッシュ値を生成（プライバシー保護とスパム防止の最小ハッシュ）
+  // Generate anonymized hash from IP for spam rate limiting and privacy
   const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
   const enc = new TextEncoder();
   const hashBuffer = await crypto.subtle.digest(
@@ -351,7 +351,7 @@ postsRoute.post('/:id/status', async (c) => {
   });
 });
 
-// POST /api/posts/:id/verify - 情報の正確性・現地確認（コミュニティ支持）
+// POST /api/posts/:id/verify - Community on-site verification
 postsRoute.post('/:id/verify', async (c) => {
   const postId = c.req.param('id');
   const post = await getPostById(c.env.DB, postId);

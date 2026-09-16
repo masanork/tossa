@@ -242,7 +242,7 @@ export async function registerPasskey(
   isFirstAdmin?: boolean;
   error?: string;
 }> {
-  // 1. オプション取得
+  // 1. Fetch registration options
   const optRes = await fetch(`${API_BASE}/auth/register-options`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -256,7 +256,7 @@ export async function registerPasskey(
     };
   }
 
-  // 2. ブラウザの Passkey プロンプト起動（PRF Extension 要求）
+  // 2. Launch browser Passkey prompt (request PRF Extension)
   let attestationResponse;
   try {
     const regOptions = {
@@ -274,7 +274,7 @@ export async function registerPasskey(
     };
   }
 
-  // 3. サーバーでレスポンス検証
+  // 3. Verify attestation response on server
   const verifyRes = await fetch(`${API_BASE}/auth/verify-registration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -282,7 +282,7 @@ export async function registerPasskey(
   });
   const verifyData = await verifyRes.json();
 
-  // 4. E2EE 鍵の初期化 & 公開鍵のサーバー登録
+  // 4. Initialize E2EE keys & register public key on server
   if (verifyData.success && verifyData.token) {
     try {
       await initializeE2eeKeys(
@@ -303,7 +303,7 @@ export async function loginPasskey(username?: string): Promise<{
   user?: User;
   error?: string;
 }> {
-  // 1. オプション取得
+  // 1. Fetch authentication options
   const optRes = await fetch(`${API_BASE}/auth/login-options`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -317,7 +317,7 @@ export async function loginPasskey(username?: string): Promise<{
     };
   }
 
-  // 2. ブラウザの Passkey プロンプト起動（PRF Extension eval で生体鍵シードを取得）
+  // 2. Launch browser Passkey prompt (eval PRF Extension to obtain biometric key seed)
   let assertionResponse;
   try {
     const prfSaltBase64 = bufferToBase64(PRF_SALT)
@@ -340,7 +340,7 @@ export async function loginPasskey(username?: string): Promise<{
     return { success: false, error: err.message || 'Passkey login cancelled' };
   }
 
-  // 3. サーバーで検証
+  // 3. Verify assertion response on server
   const verifyRes = await fetch(`${API_BASE}/auth/verify-authentication`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -348,7 +348,7 @@ export async function loginPasskey(username?: string): Promise<{
   });
   const verifyData = await verifyRes.json();
 
-  // 4. PRF シードから E2EE 鍵を復元・初期化
+  // 4. Derive E2EE keys from PRF seed and update public key
   if (verifyData.success && verifyData.token) {
     try {
       await initializeE2eeKeys(

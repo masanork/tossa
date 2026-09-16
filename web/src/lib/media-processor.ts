@@ -16,12 +16,12 @@ export interface ProcessedMedia {
 }
 
 /**
- * 写真ファイルを解析し、EXIF、C2PA、リサイズ済みWebP画像を抽出・生成する
+ * Parse photo file and extract EXIF, C2PA, and client-resized WebP data URL
  */
 export async function processImageFile(file: File): Promise<ProcessedMedia> {
   const arrayBuffer = await file.arrayBuffer();
 
-  // 1. EXIF メタデータの抽出
+  // 1. Extract EXIF metadata
   let gpsCoordinates: { lat: number; lng: number } | null = null;
   let dateTime: Date | null = null;
   let make: string | undefined;
@@ -60,10 +60,10 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
     console.warn('Failed to parse EXIF metadata:', err);
   }
 
-  // 2. C2PA (Content Authenticity) 真正性検証
+  // 2. C2PA (Content Authenticity) verification
   const c2paResult = detectC2PA(new Uint8Array(arrayBuffer));
 
-  // 3. クライアント側画像最適化（長辺1200px / WebP圧縮）
+  // 3. Client-side image optimization (max 1200px / WebP compression)
   const dataUrl = await resizeAndCompressImage(file, 1200, 0.82);
 
   const meta: ImageMeta = {
@@ -100,7 +100,7 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
 }
 
 /**
- * バイナリから C2PA / JUMBF マニフェストボックスをスキャンして真正性を検証する
+ * Scan binary for C2PA / JUMBF manifest boxes to verify authenticity
  */
 function detectC2PA(bytes: Uint8Array): {
   hasC2pa: boolean;
@@ -108,7 +108,7 @@ function detectC2PA(bytes: Uint8Array): {
   generator?: string;
   format?: string;
 } {
-  // C2PA / JUMBF シグネチャパターン
+  // C2PA / JUMBF signature patterns
   // 'jumd', 'c2pa', 'c2cl' (claim), 'c2ma' (manifest), 'c2as' (assertions)
   const len = bytes.length;
   let hasC2pa = false;
@@ -116,7 +116,7 @@ function detectC2PA(bytes: Uint8Array): {
   let generator: string | undefined;
   const format = 'JUMBF/C2PA';
 
-  // 簡易高速シグネチャ検索（最初の1MBおよび最後の512KBを中心にスキャン）
+  // Fast scan of initial 1MB and trailing 512KB
   const searchRanges: [number, number][] = [
     [0, Math.min(len, 1024 * 1024)],
     [Math.max(0, len - 512 * 1024), len],
@@ -132,9 +132,9 @@ function detectC2PA(bytes: Uint8Array): {
         bytes[i + 3] === 0x61
       ) {
         hasC2pa = true;
-        isSigned = true; // C2PA マニフェストは暗号署名必須
+        isSigned = true; // C2PA manifests must be cryptographically signed
 
-        // 周辺の文字列から Claim Generator を探査
+        // Inspect nearby text for Claim Generator
         const snippetStart = Math.max(0, i - 128);
         const snippetEnd = Math.min(len, i + 512);
         const snippet = new TextDecoder('utf-8', { fatal: false }).decode(
@@ -154,7 +154,7 @@ function detectC2PA(bytes: Uint8Array): {
         else if (snippet.includes('Truepic')) generator = 'Truepic Verified';
         else if (snippet.includes('Adobe'))
           generator = 'Adobe Content Authenticity';
-        else generator = 'C2PA 準拠デバイス / アプリケーション';
+        else generator = 'C2PA Compliant Device / Application';
 
         break;
       }
@@ -171,7 +171,7 @@ function detectC2PA(bytes: Uint8Array): {
 }
 
 /**
- * Canvas を使用して画像を長辺 maxDimension にリサイズし、WebP または JPEG に圧縮する
+ * Resize image to maxDimension and compress to WebP or JPEG via Canvas
  */
 async function resizeAndCompressImage(
   file: File,
@@ -207,10 +207,10 @@ async function resizeAndCompressImage(
         return;
       }
 
-      // 画像描画
+      // Draw image to canvas
       ctx.drawImage(img, 0, 0, width, height);
 
-      // WebP を試行、非対応なら JPEG
+      // Try WebP, fallback to JPEG
       try {
         const webpData = canvas.toDataURL('image/webp', quality);
         if (webpData.startsWith('data:image/webp')) {
@@ -218,7 +218,7 @@ async function resizeAndCompressImage(
           return;
         }
       } catch (_e) {
-        // フォールバック
+        // Fallback
       }
 
       resolve(canvas.toDataURL('image/jpeg', quality));

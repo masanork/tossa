@@ -31,7 +31,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     expect(body.id).toBeTruthy();
     expect(body.hasPasskey).toBe(false);
 
-    // DB に author_cookie_id が保存されたか検証
+    // Verify that author_cookie_id was saved to the database
     const post = await db
       .prepare('SELECT * FROM posts WHERE id = ?')
       .bind(body.id)
@@ -41,7 +41,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     expect(post!.author_cookie_id).toBe(deviceId);
     expect(post!.title).toBe('中央小学校 給水所');
 
-    // access_logs に post_created が記録されたか検証
+    // Verify that post_created was recorded in access_logs
     const log = await db
       .prepare(
         'SELECT * FROM access_logs WHERE event_type = ? AND device_session_id = ?'
@@ -59,7 +59,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     const myDevice = 'my_phone_device_123';
     const otherDevice = 'stranger_device_456';
 
-    // 自分の端末から投稿作成
+    // Create post from the user's own device
     const createRes = await request('/api/posts', {
       method: 'POST',
       headers: {
@@ -75,7 +75,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     const created = await createRes.json();
 
-    // 自分の端末で一覧取得
+    // Fetch posts from own device
     const resMy = await request('/api/posts', {
       headers: {
         Cookie: `${DEVICE_COOKIE}=${myDevice}`,
@@ -86,7 +86,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     expect(myPost).toBeTruthy();
     expect(myPost.is_owner).toBe(true);
 
-    // 他人の端末で一覧取得
+    // Fetch posts from another user's device
     const resOther = await request('/api/posts', {
       headers: {
         Cookie: `${DEVICE_COOKIE}=${otherDevice}`,
@@ -103,7 +103,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     const ownerDevice = 'owner_device_abc';
     const attackerDevice = 'attacker_device_xyz';
 
-    // 投稿作成
+    // Create post
     const createRes = await request('/api/posts', {
       method: 'POST',
       headers: {
@@ -119,7 +119,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     const { id: postId } = await createRes.json();
 
-    // 第三者が編集を試みる（403 Forbidden になるべき）
+    // Third party attempts to edit (should be 403 Forbidden)
     const attackRes = await request(`/api/posts/${postId}`, {
       method: 'PUT',
       headers: {
@@ -136,7 +136,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     const attackBody = await attackRes.json();
     expect(attackBody.success).toBe(false);
 
-    // 本人の端末から編集
+    // Edit from author's own device
     const editRes = await request(`/api/posts/${postId}`, {
       method: 'PUT',
       headers: {
@@ -153,7 +153,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     expect(editRes.status).toBe(200);
 
-    // DBで更新内容とアクセスログを確認
+    // Verify updated content and access log in database
     const updatedPost = await db
       .prepare('SELECT title, current_status FROM posts WHERE id = ?')
       .bind(postId)
@@ -176,7 +176,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     const ownerDevice = 'owner_del_123';
     const strangerDevice = 'stranger_del_456';
 
-    // 投稿作成
+    // Create post
     const createRes = await request('/api/posts', {
       method: 'POST',
       headers: {
@@ -192,7 +192,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     const { id: postId } = await createRes.json();
 
-    // 他人は削除できない
+    // Unauthorized users cannot delete
     const failDel = await request(`/api/posts/${postId}`, {
       method: 'DELETE',
       headers: {
@@ -201,15 +201,15 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     expect(failDel.status).toBe(403);
 
-    // 管理者ユーザーをDBに登録
+    // Register admin user in database
     await db
       .prepare(
         'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
       )
-      .bind('admin_user_id', 'admin', '管理者', 'admin')
+      .bind('admin_user_id', 'admin', 'Admin User', 'admin')
       .run();
 
-    // 管理者はトークンで他人の投稿を削除できる
+    // Admin can delete any post with their token
     const adminToken = await createSessionToken(
       { userId: 'admin_user_id', username: 'admin', role: 'admin' },
       env.JWT_SECRET
@@ -223,7 +223,7 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     expect(adminDel.status).toBe(200);
 
-    // DBから削除されていることを確認
+    // Verify deletion from database
     const postAfter = await db
       .prepare('SELECT id FROM posts WHERE id = ?')
       .bind(postId)

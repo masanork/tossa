@@ -30,7 +30,7 @@
 <header
   class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs"
 >
-  <!-- 緊急告知アナウンスバー（管理者が告知文を設定している場合に表示） -->
+  <!-- Emergency announcement banner (shown when set by administrator) -->
   {#if settings.emergency_banner}
     <div
       class="bg-amber-500 text-slate-950 px-4 py-2 text-xs md:text-sm font-bold flex items-center justify-between shadow-inner"
@@ -45,7 +45,7 @@
   <div
     class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2"
   >
-    <!-- タイトル -->
+    <!-- Title -->
     <div class="flex items-center gap-3">
       <div class="flex items-center gap-2.5">
         <span class="text-xl font-black tracking-tight text-slate-900">
@@ -62,9 +62,9 @@
       </div>
     </div>
 
-    <!-- アクションボタン群 -->
+    <!-- Action buttons -->
     <div class="flex items-center gap-1.5 sm:gap-2">
-      <!-- 言語切り替えセレクター -->
+      <!-- Language selector -->
       <div class="relative">
         <button
           type="button"
@@ -82,7 +82,7 @@
         </button>
 
         {#if showLangMenu}
-          <!-- ドロップダウンメニュー -->
+          <!-- Dropdown menu -->
           <div
             class="absolute right-0 mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50 text-xs flex flex-col"
           >
@@ -112,7 +112,7 @@
         {/if}
       </div>
 
-      <!-- セキュア連絡（E2EE）ボタン -->
+      <!-- Secure messaging (E2EE) button -->
       <button
         type="button"
         onclick={onOpenMessages}
@@ -123,7 +123,7 @@
         <span class="hidden sm:inline">{m.btn_messages()}</span>
       </button>
 
-      <!-- 認証（Passkey）ボタン -->
+      <!-- Auth (Passkey) button -->
       <button
         type="button"
         onclick={onOpenAdmin}
@@ -147,7 +147,7 @@
         {/if}
       </button>
 
-      <!-- 投稿ボタン（右端・最優先で目立つCTA） -->
+      <!-- Create post CTA button -->
       <button
         type="button"
         onclick={onOpenCreate}

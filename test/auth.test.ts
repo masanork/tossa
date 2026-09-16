@@ -20,11 +20,11 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
   it('assigns admin role to first registered user, user role to subsequent users', async () => {
     const { request, db } = createTestContext();
 
-    // 1人目の登録オプション要求
+    // 1. First user registration option request
     const res1 = await request('/api/auth/register-options', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'alice', displayName: 'アリス' }),
+      body: JSON.stringify({ username: 'alice', displayName: 'Alice' }),
     });
     expect(res1.status).toBe(200);
 
@@ -33,13 +33,13 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
       .bind('alice')
       .first<any>();
     expect(user1).toBeTruthy();
-    expect(user1.role).toBe('admin'); // 1人目は自動的に管理者！
+    expect(user1.role).toBe('admin'); // First user automatically becomes admin!
 
-    // 2人目の登録オプション要求
+    // 2. Second user registration option request
     const res2 = await request('/api/auth/register-options', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: 'bob', displayName: 'ボブ' }),
+      body: JSON.stringify({ username: 'bob', displayName: 'Bob' }),
     });
     expect(res2.status).toBe(200);
 
@@ -48,7 +48,7 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
       .bind('bob')
       .first<any>();
     expect(user2).toBeTruthy();
-    expect(user2.role).toBe('user'); // 2人目以降は一般ユーザー！
+    expect(user2.role).toBe('user'); // Subsequent users get standard 'user' role
   });
 
   it('links device session to user (N:N)', async () => {
@@ -56,7 +56,7 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
     const deviceId = 'test_device_link_123';
     const userId = 'user_link_abc';
 
-    // 端末とユーザーをDBに事前登録
+    // Pre-insert device and user into database
     await db
       .prepare('INSERT INTO device_sessions (id, created_ip) VALUES (?, ?)')
       .bind(deviceId, '1.1.1.1')
@@ -65,10 +65,10 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
       .prepare(
         'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
       )
-      .bind(userId, 'carol', 'キャロル', 'user')
+      .bind(userId, 'carol', 'Carol', 'user')
       .run();
 
-    // N:N 紐付けクエリを実行
+    // Execute N:N link query
     await db
       .prepare(
         'INSERT INTO device_user_links (device_session_id, user_id) VALUES (?, ?)'
@@ -91,7 +91,7 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
   it('allows admin to delegate roles, forbids non-admin from modifying roles', async () => {
     const { request, db, env } = createTestContext();
 
-    // ユーザー作成
+    // Create users
     await db
       .prepare(
         'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
@@ -114,7 +114,7 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
       env.JWT_SECRET
     );
 
-    // 一般ユーザーがロール変更を試みる -> 403 Forbidden
+    // Standard user attempts to change role -> 403 Forbidden
     const failRes = await request('/api/auth/users/user1/role', {
       method: 'PATCH',
       headers: {
@@ -125,7 +125,7 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
     });
     expect(failRes.status).toBe(403);
 
-    // 管理者が一般ユーザーを管理者に昇格 -> 200 OK
+    // Admin promotes standard user to admin -> 200 OK
     const promoteRes = await request('/api/auth/users/user1/role', {
       method: 'PATCH',
       headers: {

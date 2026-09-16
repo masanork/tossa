@@ -26,7 +26,7 @@ export const authRoute = new Hono<{
   Variables: AuthVariables;
 }>();
 
-// 0. 認証ステータス・初回セットアップ状況取得 (GET /api/auth/status)
+// 0. Get authentication and bootstrap status (GET /api/auth/status)
 authRoute.get('/status', async (c) => {
   const total = await countUsers(c.env.DB);
   const admins = await countAdmins(c.env.DB);
@@ -38,7 +38,7 @@ authRoute.get('/status', async (c) => {
   });
 });
 
-// 1. パスキー登録オプション取得 (POST /api/auth/register-options)
+// 1. Get Passkey registration options (POST /api/auth/register-options)
 authRoute.post('/register-options', async (c) => {
   const body = await c.req.json<{ username: string; displayName?: string }>();
   if (!body.username) {
@@ -50,8 +50,8 @@ authRoute.post('/register-options', async (c) => {
 
   let user = await getUserByUsername(c.env.DB, cleanUsername);
 
-  // ユーザーが存在しない場合、新規ユーザーを作成
-  // デプロイ後最初の登録者は自動的に 'admin'、2人目以降は 'user'
+  // If user does not exist, create a new record.
+  // The first user registered after deployment automatically receives 'admin' role; subsequent users get 'user'
   if (!user) {
     const totalUsers = await countUsers(c.env.DB);
     const adminCount = await countAdmins(c.env.DB);
@@ -85,7 +85,7 @@ authRoute.post('/register-options', async (c) => {
   });
 });
 
-// 2. パスキー登録レスポンス検証 (POST /api/auth/verify-registration)
+// 2. Verify Passkey registration response (POST /api/auth/verify-registration)
 authRoute.post('/verify-registration', async (c) => {
   const body = await c.req.json<{ username: string; response: any }>();
   if (!body.username || !body.response) {
@@ -103,19 +103,19 @@ authRoute.post('/verify-registration', async (c) => {
   try {
     const verification = await verifyRegResponse(c.env, user, body.response);
 
-    // 登録成功時にそのままセッショントークンを発行
+    // Issue session token upon successful registration
     const token = await createSessionToken(
       { userId: user.id, username: user.username, role: user.role },
       c.env.JWT_SECRET
     );
 
-    // 端末セッションとPasskeyユーザーを紐付け
+    // Link device session to Passkey user (N:N)
     const deviceId: string | undefined = c.get('deviceSessionId');
     if (deviceId) {
       await linkDeviceToUser(c.env.DB, deviceId, user.id);
     }
 
-    // アクセスログ（登録イベント）
+    // Access log (registration event)
     const ip = getClientIp(c.req.raw);
     const ua = c.req.header('User-Agent') || '';
     await logAccess(
@@ -150,7 +150,7 @@ authRoute.post('/verify-registration', async (c) => {
   }
 });
 
-// 3. ログインオプション取得 (POST /api/auth/login-options)
+// 3. Get Passkey authentication options (POST /api/auth/login-options)
 authRoute.post('/login-options', async (c) => {
   const body = await c.req
     .json<{ username?: string }>()
@@ -169,7 +169,7 @@ authRoute.post('/login-options', async (c) => {
   return c.json({ success: true, options });
 });
 
-// 4. ログインレスポンス検証 (POST /api/auth/verify-authentication)
+// 4. Verify Passkey authentication response (POST /api/auth/verify-authentication)
 authRoute.post('/verify-authentication', async (c) => {
   const body = await c.req.json<{ username?: string; response: any }>();
   if (!body.response) {
@@ -183,7 +183,7 @@ authRoute.post('/verify-authentication', async (c) => {
   if (body.username) {
     user = await getUserByUsername(c.env.DB, body.username.trim());
   } else {
-    // PasskeyのCredential IDからユーザーを特定
+    // Identify user from Passkey Credential ID
     const cred = await c.env.DB.prepare(
       'SELECT user_id FROM credentials WHERE id = ?'
     )
@@ -210,13 +210,13 @@ authRoute.post('/verify-authentication', async (c) => {
       c.env.JWT_SECRET
     );
 
-    // 端末セッションとPasskeyユーザーを紐付け
+    // Link device session to Passkey user (N:N)
     const deviceId: string | undefined = c.get('deviceSessionId');
     if (deviceId) {
       await linkDeviceToUser(c.env.DB, deviceId, user.id);
     }
 
-    // アクセスログ（ログインイベント）
+    // Access log (login event)
     const ip = getClientIp(c.req.raw);
     const ua = c.req.header('User-Agent') || '';
     await logAccess(
@@ -251,7 +251,7 @@ authRoute.post('/verify-authentication', async (c) => {
   }
 });
 
-// 5. ログイン状態の確認 (GET /api/auth/me)
+// 5. Check session status (GET /api/auth/me)
 authRoute.get('/me', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -281,7 +281,7 @@ authRoute.get('/me', async (c) => {
   });
 });
 
-// 6. ユーザー一覧取得 (GET /api/auth/users) - 管理者のみ
+// 6. List users (GET /api/auth/users) - Admin only
 authRoute.get('/users', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -301,7 +301,7 @@ authRoute.get('/users', async (c) => {
   });
 });
 
-// 7. ユーザー権限変更・委譲 (PATCH /api/auth/users/:id/role) - 管理者のみ
+// 7. Change or delegate user role (PATCH /api/auth/users/:id/role) - Admin only
 authRoute.patch('/users/:id/role', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -325,14 +325,14 @@ authRoute.patch('/users/:id/role', async (c) => {
     return c.json({ success: false, error: 'Invalid role' }, 400);
   }
 
-  // 最後の1人の管理者を一般ユーザーに格下げできないように保護
+  // Prevent demoting the last remaining administrator
   if (targetUser.role === 'admin' && body.role !== 'admin') {
     const adminCount = await countAdmins(c.env.DB);
     if (adminCount <= 1) {
       return c.json(
         {
           success: false,
-          error: '最後の管理者の権限を解除することはできません',
+          error: 'Cannot demote the last remaining administrator',
         },
         400
       );

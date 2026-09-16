@@ -16,19 +16,19 @@ describe('Device Cookie & Access Logs Middleware', () => {
 
     expect(res.status).toBe(200);
 
-    // Set-Cookie ヘッダーの検証
+    // Verify Set-Cookie header
     const setCookie = res.headers.get('set-cookie');
     expect(setCookie).toBeTruthy();
     expect(setCookie).toContain(`${DEVICE_COOKIE}=`);
     expect(setCookie).toContain('HttpOnly');
     expect(setCookie).toContain('SameSite=Lax');
 
-    // Cookie値を抽出
+    // Extract cookie value
     const match = setCookie!.match(new RegExp(`${DEVICE_COOKIE}=([a-f0-9]+)`));
     expect(match).toBeTruthy();
     const deviceId = match![1];
 
-    // device_sessions テーブルに登録されたか確認
+    // Verify record in device_sessions table
     const session = await db
       .prepare('SELECT * FROM device_sessions WHERE id = ?')
       .bind(deviceId)
@@ -39,7 +39,7 @@ describe('Device Cookie & Access Logs Middleware', () => {
     expect(session!.created_ip).toBe('198.51.100.1');
     expect(session!.created_ua).toBe('TestBrowser/1.0');
 
-    // access_logs に cookie_issued が記録されたか確認
+    // Verify cookie_issued entry in access_logs
     const log = await db
       .prepare(
         'SELECT * FROM access_logs WHERE device_session_id = ? AND event_type = ?'
@@ -56,7 +56,7 @@ describe('Device Cookie & Access Logs Middleware', () => {
   it('reuses existing device cookie without issuing a new one', async () => {
     const { request, db } = createTestContext();
 
-    // 事前にセッションを登録
+    // Pre-populate an existing session
     const existingDeviceId = 'aabbccddeeff001122334455';
     await db
       .prepare('INSERT INTO device_sessions (id, created_ip) VALUES (?, ?)')
@@ -70,7 +70,7 @@ describe('Device Cookie & Access Logs Middleware', () => {
     });
 
     expect(res.status).toBe(200);
-    // 新しいCookieは発行されない
+    // No new cookie should be issued
     expect(res.headers.get('set-cookie')).toBeNull();
   });
 });

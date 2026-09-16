@@ -58,18 +58,18 @@
     text: string;
   } | null>(null);
 
-  // 初回セットアップ状況
+  // First-time setup state
   let isFirstUserSetup = $state(false);
 
-  // 管理者タブ
+  // Admin tabs
   let activeTab = $state<'settings' | 'federation' | 'users'>('settings');
 
-  // 設定編集用
+  // Settings form state
   let emergencyBanner = $state('');
   let defaultArea = $state('');
   let isSavingSettings = $state(false);
 
-  // Federation / Migration 同期用
+  // Federation / Migration sync state
   let remoteSyncUrl = $state('');
   let isSyncing = $state(false);
   let syncMessage = $state<{ type: 'success' | 'error'; text: string } | null>(
@@ -77,7 +77,7 @@
   );
   let fileInput = $state<HTMLInputElement | null>(null);
 
-  // メンバー管理用
+  // Member management state
   let userList = $state<User[]>([]);
   let isLoadingUsers = $state(false);
   let roleChangeMessage = $state<{
@@ -91,7 +91,7 @@
   });
 
   onMount(async () => {
-    // 初回登録判定（ユーザー数0件かどうか）
+    // Initial setup check (whether there are 0 users registered)
     const status = await fetchAuthStatus();
     if (status.success) {
       isFirstUserSetup = status.isFirstUserSetup;
@@ -117,7 +117,7 @@
     }
   }
 
-  // パスキーログイン実行
+  // Execute Passkey login
   async function handlePasskeyLogin() {
     isAuthenticating = true;
     statusMessage = null;
@@ -149,7 +149,7 @@
     }
   }
 
-  // パスキー新規登録実行
+  // Execute new Passkey registration
   async function handlePasskeyRegister() {
     if (!username.trim()) {
       statusMessage = { type: 'error', text: 'ユーザー名を入力してください' };
@@ -193,7 +193,7 @@
     }
   }
 
-  // ユーザー権限変更（委譲）
+  // Change user role (delegation)
   async function handleUpdateRole(
     targetUserId: string,
     targetUsername: string,
@@ -224,7 +224,7 @@
     }
   }
 
-  // システム設定保存
+  // Save system settings
   async function handleSaveSettings() {
     if (!token) return;
 
@@ -256,7 +256,7 @@
     }
   }
 
-  // リモートURLから他サイトのデータを取り込み・同期
+  // Import and synchronize data from remote URL
   async function handleSyncFromRemoteUrl() {
     if (!token || !remoteSyncUrl.trim()) return;
 
@@ -284,7 +284,7 @@
     }
   }
 
-  // ファイルからGeoJSONをインポート
+  // Import GeoJSON from uploaded file
   async function handleImportFile(e: Event) {
     const target = e.target as HTMLInputElement;
     const file = target.files?.[0];
@@ -334,7 +334,7 @@
   <div
     class="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col"
   >
-    <!-- ヘッダー -->
+    <!-- Header -->
     <div
       class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
     >
@@ -369,7 +369,7 @@
         </div>
       {/if}
 
-      <!-- 1. 未ログイン状態: Passkey 登録 / ログイン -->
+      <!-- 1. Unauthenticated state: Passkey Register / Login -->
       {#if !user}
         <div class="flex flex-col gap-3.5">
           {#if isFirstUserSetup}
@@ -449,10 +449,10 @@
           </div>
         </div>
 
-        <!-- 2. ログイン済み状態 -->
+        <!-- 2. Authenticated state -->
       {:else}
         <div class="flex flex-col gap-4">
-          <!-- ユーザー情報バッジ -->
+          <!-- User info badge -->
           <div
             class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"
           >
@@ -498,7 +498,7 @@
             </button>
           </div>
 
-          <!-- 一般ユーザーの場合のガイド -->
+          <!-- Guide for standard users -->
           {#if user.role !== 'admin'}
             <div
               class="p-4 bg-blue-50/60 rounded-xl border border-blue-100 text-xs text-slate-700 flex flex-col gap-2"
@@ -513,9 +513,9 @@
               </p>
             </div>
 
-            <!-- 管理者の場合のフル機能パネル -->
+            <!-- Full feature panel for administrators -->
           {:else}
-            <!-- タブナビゲーション -->
+            <!-- Tab navigation -->
             <div
               class="flex items-center border-b border-slate-200 text-xs font-bold gap-1"
             >
@@ -565,10 +565,10 @@
               </button>
             </div>
 
-            <!-- タブ1: 地域・告知設定 -->
+            <!-- Tab 1: Region & Announcement settings -->
             {#if activeTab === 'settings'}
               <div class="flex flex-col gap-3.5">
-                <!-- 緊急告知アナウンス文 -->
+                <!-- Emergency announcement banner -->
                 <div>
                   <label
                     for="admin-emergency-banner"
@@ -585,7 +585,7 @@
                   ></textarea>
                 </div>
 
-                <!-- 対象地域・自治体名 -->
+                <!-- Target region / municipality name -->
                 <div>
                   <label
                     for="admin-default-area"
@@ -606,7 +606,7 @@
                   </p>
                 </div>
 
-                <!-- 保存ボタン -->
+                <!-- Save button -->
                 <button
                   type="button"
                   onclick={handleSaveSettings}
@@ -619,7 +619,7 @@
                 </button>
               </div>
 
-              <!-- タブ2: メンバー権限委譲 -->
+              <!-- Tab 2: Member role management -->
             {:else if activeTab === 'users'}
               <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
@@ -692,7 +692,7 @@
                           </div>
                         </div>
 
-                        <!-- 権限バッジ & 変更アクション -->
+                        <!-- Role badge & update action -->
                         <div class="flex items-center gap-2 shrink-0">
                           {#if u.role === 'admin'}
                             <span
@@ -746,7 +746,7 @@
                 </p>
               </div>
 
-              <!-- タブ3: データ合流 (Federation) -->
+              <!-- Tab 3: Data Federation -->
             {:else if activeTab === 'federation'}
               <div
                 class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
@@ -780,7 +780,7 @@
                   </div>
                 {/if}
 
-                <!-- 他サイトのURLから合流 -->
+                <!-- Import from remote site URL -->
                 <div class="flex flex-col gap-1.5">
                   <label
                     for="admin-sync-url"
@@ -810,7 +810,7 @@
                   </div>
                 </div>
 
-                <!-- エクスポート & ファイルインポート -->
+                <!-- Export & file import -->
                 <div class="flex items-center gap-2 pt-1">
                   <a
                     href="/api/federation/export"

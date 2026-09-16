@@ -67,7 +67,7 @@ describe('Threads API (E2EE Secure Messaging)', () => {
     );
 
     const payload = {
-      title: '管理者限定作戦会議',
+      title: 'Admin Only Strategy Meeting',
       type: 'admin_chat',
       members: [
         {

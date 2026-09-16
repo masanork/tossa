@@ -33,8 +33,8 @@ export interface Post {
   tags?: string; // JSON array string
   is_verified: number;
   author_id?: string | null;
-  author_cookie_id?: string | null; // Cookie識別ユーザー（Passkey未登録）
-  is_owner?: boolean; // サーバー側でCookieを照合した結果
+  author_cookie_id?: string | null; // Cookie-identified user (without Passkey)
+  is_owner?: boolean; // Ownership verified by server via cookie matching
   reporter_name: string | null;
   created_at: string;
   updated_at: string;

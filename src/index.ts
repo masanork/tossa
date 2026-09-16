@@ -1,4 +1,4 @@
-// src/index.ts: tossa (咄嗟) Cloudflare Workers Main Entry
+// src/index.ts: tossa Cloudflare Workers Main Entry
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
@@ -13,7 +13,7 @@ import { deviceCookieMiddleware } from './middleware/deviceCookie';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// ロガー & CORSミドルウェア
+// Logger & CORS middleware
 app.use('*', logger());
 app.use(
   '*',
@@ -25,10 +25,10 @@ app.use(
   })
 );
 
-// 端末Cookie自動発行ミドルウェア（全APIルートに適用）
+// Automatic device cookie issuance (applied to all /api/* routes)
 app.use('/api/*', deviceCookieMiddleware);
 
-// APIルーティング
+// API Routes
 app.route('/api/categories', categoriesRoute);
 app.route('/api/posts', postsRoute);
 app.route('/api/settings', settingsRoute);
@@ -37,7 +37,7 @@ app.route('/api/threads', threadsRoute);
 app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
 
-// ヘルスチェック
+// Health check endpoint
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
@@ -47,7 +47,7 @@ app.get('/api/health', (c) => {
   });
 });
 
-// 静的アセット（SPA）へのフォールバック
+// Fallback to static SPA assets
 app.all('*', async (c) => {
   if (c.env.ASSETS) {
     return await c.env.ASSETS.fetch(c.req.raw);

@@ -1,15 +1,15 @@
 // web/src/lib/e2ee.ts: End-to-End Encryption (E2EE) with Passkey PRF Extension & Web Crypto API
 //
-// 1. Passkey PRF (WebAuthn Level 3) による決定論的生体鍵導出
-// 2. ECDH (P-256) によるスレッド共通鍵（AES-256-GCM）の安全なエンベロープ暗号化
-// 3. 複数メンバー・管理者への安全な招待と鍵共有
-// 4. メッセージ本文の AES-256-GCM ゼロ知識暗号化
+// 1. Passkey PRF (WebAuthn Level 3) deterministic biometric key derivation
+// 2. ECDH (P-256) envelope encryption for thread shared key (AES-256-GCM)
+// 3. Multi-recipient envelope sharing for thread members and administrators
+// 4. Zero-knowledge message encryption via AES-256-GCM
 
 export const PRF_SALT = new TextEncoder().encode(
   'tossa:e2ee:identity:salt:v1:2026'
 );
 
-// Base64 / ArrayBuffer 変換ヘルパー
+// Base64 / ArrayBuffer conversion helpers
 export function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   let binary = '';
@@ -28,7 +28,7 @@ export function base64ToBuffer(base64: string): Uint8Array {
   return bytes;
 }
 
-// ユーザーの E2EE アイデンティティ（鍵ペア）
+// User E2EE Identity keypair
 export interface UserIdentityKey {
   privateKey: CryptoKey;
   publicKey: CryptoKey;
@@ -36,17 +36,17 @@ export interface UserIdentityKey {
   isPrfDerived: boolean;
 }
 
-// メモリ上にキャッシュされた現在のユーザーの Identity Key
+// In-memory cached Identity Key of the current user
 let currentIdentityKey: UserIdentityKey | null = null;
 
 /**
- * PRF Extension から返された 32 バイトのシードを用いて、
- * ユーザー固有の ECDH P-256 キーペアを決定論的に導出・または安全にアンロックします。
+ * Derives or unlocks the user's ECDH P-256 key pair deterministically
+ * using the 32-byte seed returned from the Passkey PRF Extension.
  */
 export async function deriveKeyFromPrfSeed(
   prfSeed: ArrayBuffer
 ): Promise<UserIdentityKey> {
-  // 1. PRF シードから HKDF で「Storage Wrapping Key (AES-256-GCM)」を導出
+  // 1. Derive Storage Wrapping Key (AES-256-GCM) from PRF seed via HKDF
   const prfKey = await crypto.subtle.importKey('raw', prfSeed, 'HKDF', false, [
     'deriveKey',
   ]);
@@ -64,7 +64,7 @@ export async function deriveKeyFromPrfSeed(
     ['encrypt', 'decrypt']
   );
 
-  // 2. ローカルストレージに暗号化された秘密鍵があるか確認
+  // 2. Check for encrypted private key in local storage
   const storedEncryptedKey = localStorage.getItem(
     'tossa_prf_encrypted_identity_key'
   );
@@ -120,7 +120,7 @@ export async function deriveKeyFromPrfSeed(
     }
   }
 
-  // 3. 新規に ECDH キーペアを生成し、PRF Wrapping Key で暗号化保存
+  // 3. Generate new ECDH key pair and encrypt under PRF Wrapping Key
   const keyPair = await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
     true,
@@ -164,8 +164,8 @@ export async function deriveKeyFromPrfSeed(
 }
 
 /**
- * PRF非対応環境（フォールバック）: ブラウザの IndexedDB / ローカルストレージを用いて
- * デバイス固有の ECDH キーペアを生成・取得します。
+ * Fallback for environments without PRF: generate and store device-bound
+ * ECDH key pair in local storage.
  */
 export async function getOrCreateFallbackIdentityKey(): Promise<UserIdentityKey> {
   const storedPrivate = localStorage.getItem(
@@ -210,7 +210,7 @@ export async function getOrCreateFallbackIdentityKey(): Promise<UserIdentityKey>
     }
   }
 
-  // 新規生成
+  // Generate new key pair
   const keyPair = await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
     true,
@@ -244,7 +244,7 @@ export async function getOrCreateFallbackIdentityKey(): Promise<UserIdentityKey>
 }
 
 /**
- * 現在アクティブな E2EE アイデンティティを取得
+ * Retrieve currently active E2EE Identity
  */
 export function getCurrentIdentityKey(): UserIdentityKey | null {
   return currentIdentityKey;
@@ -254,10 +254,10 @@ export function setCurrentIdentityKey(key: UserIdentityKey | null): void {
   currentIdentityKey = key;
 }
 
-// ================= スレッド共通鍵 (AES-256-GCM) とエンベロープ暗号化 =================
+// ================= Thread Key (AES-256-GCM) & Envelope Encryption =================
 
 /**
- * 新しいスレッド専用の対称暗号化キー (AES-256-GCM) を生成
+ * Generate a new random 256-bit AES-GCM key for a thread
  */
 export async function generateThreadKey(): Promise<{
   key: CryptoKey;
@@ -275,7 +275,7 @@ export async function generateThreadKey(): Promise<{
 }
 
 /**
- * 対象ユーザーの公開鍵 (ECDH P-256 JWK) に向けて、スレッドキーを暗号化 (Envelope Encryption)
+ * Encrypt thread key for recipient using their ECDH P-256 public key (Envelope Encryption)
  */
 export async function encryptThreadKeyForUser(
   rawThreadKey: Uint8Array,
@@ -284,14 +284,14 @@ export async function encryptThreadKeyForUser(
   encryptedThreadKey: string;
   ephemeralPublicKey: string; // JWK string
 }> {
-  // 1. エフェメラル ECDH キーペアを生成
+  // 1. Generate ephemeral ECDH keypair
   const ephemeralKeyPair = await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
     true,
     ['deriveKey']
   );
 
-  // 2. 相手の公開鍵をインポート
+  // 2. Import recipient public key
   const recipientKey = await crypto.subtle.importKey(
     'jwk',
     recipientPublicKeyJwk,
@@ -300,7 +300,7 @@ export async function encryptThreadKeyForUser(
     []
   );
 
-  // 3. ECDH で共有鍵 (KEK: Key Encryption Key) を導出
+  // 3. Derive Key Encryption Key (KEK) via ECDH
   const kek = await crypto.subtle.deriveKey(
     { name: 'ECDH', public: recipientKey },
     ephemeralKeyPair.privateKey,
@@ -309,7 +309,7 @@ export async function encryptThreadKeyForUser(
     ['encrypt']
   );
 
-  // 4. KEK でスレッド共通鍵を暗号化
+  // 4. Encrypt raw thread key with KEK
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertextBuffer = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
@@ -317,7 +317,7 @@ export async function encryptThreadKeyForUser(
     rawThreadKey as any
   );
 
-  // IV と暗号文を結合して Base64 化
+  // Combine IV and ciphertext, encode as Base64
   const combined = new Uint8Array(iv.byteLength + ciphertextBuffer.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(ciphertextBuffer), iv.byteLength);
@@ -334,7 +334,7 @@ export async function encryptThreadKeyForUser(
 }
 
 /**
- * 自身の ECDH 秘密鍵を用いて、自身向けに暗号化されたスレッド共通鍵を復号
+ * Decrypt thread key using recipient's private ECDH key and sender's ephemeral public key
  */
 export async function decryptThreadKey(
   encryptedThreadKeyBase64: string,
@@ -345,7 +345,7 @@ export async function decryptThreadKey(
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // 1. エフェメラル公開鍵をインポート
+  // 1. Import ephemeral public key
   const ephemeralPublicKeyJwk = JSON.parse(ephemeralPublicKeyJson);
   const ephemeralKey = await crypto.subtle.importKey(
     'jwk',
@@ -355,7 +355,7 @@ export async function decryptThreadKey(
     []
   );
 
-  // 2. ECDH で同じ KEK を導出
+  // 2. Derive same KEK via ECDH
   const kek = await crypto.subtle.deriveKey(
     { name: 'ECDH', public: ephemeralKey },
     myPrivateKey,
@@ -364,7 +364,7 @@ export async function decryptThreadKey(
     ['decrypt']
   );
 
-  // 3. スレッドキーを復号
+  // 3. Decrypt thread key
   const decryptedBuffer = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: iv as any },
     kek,
@@ -383,10 +383,10 @@ export async function decryptThreadKey(
   return { key: threadKey, raw: rawKey };
 }
 
-// ================= メッセージ暗号化 / 復号 (AES-256-GCM) =================
+// ================= Message Encryption & Decryption (AES-256-GCM) =================
 
 /**
- * メッセージ本文をスレッドキーで暗号化
+ * Encrypt plaintext message with thread key
  */
 export async function encryptMessage(
   text: string,
@@ -408,7 +408,7 @@ export async function encryptMessage(
 }
 
 /**
- * 暗号化メッセージをスレッドキーで復号
+ * Decrypt ciphertext message with thread key
  */
 export async function decryptMessage(
   ciphertextBase64: string,
@@ -428,6 +428,6 @@ export async function decryptMessage(
     return new TextDecoder().decode(decryptedBuffer);
   } catch (err: any) {
     console.error('Failed to decrypt message:', err);
-    return '🔒 [復号エラー: メッセージを復号できませんでした]';
+    return '🔒 [Decryption error: Failed to decrypt message]';
   }
 }

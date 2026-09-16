@@ -18,7 +18,7 @@ import {
 
 export const threadsRoute = new Hono<{ Bindings: Bindings }>();
 
-// 認証ヘルパー
+// Authentication helper
 async function getAuthenticatedUser(c: any) {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -26,11 +26,11 @@ async function getAuthenticatedUser(c: any) {
   return await verifySessionToken(token, c.env.JWT_SECRET);
 }
 
-// 1. 自身の公開鍵の登録・更新 (PUT /api/threads/public-key)
+// 1. Register or update own E2EE public key (PUT /api/threads/public-key)
 threadsRoute.put('/public-key', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const body = await c.req.json<{ publicKey: string }>();
@@ -46,12 +46,12 @@ threadsRoute.put('/public-key', async (c) => {
   });
 });
 
-// 2. ユーザーの公開鍵一覧検索 (GET /api/threads/public-keys)
-// 管理者一覧や特定の相手の公開鍵を取得してスレッドを作成・招待するために使用
+// 2. Query public keys of users (GET /api/threads/public-keys)
+// Used to find public keys of administrators or specific users to create/invite to threads
 threadsRoute.get('/public-keys', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const role = c.req.query('role');
@@ -71,11 +71,11 @@ threadsRoute.get('/public-keys', async (c) => {
   });
 });
 
-// 3. 参加しているスレッド一覧取得 (GET /api/threads)
+// 3. List threads joined by current user (GET /api/threads)
 threadsRoute.get('/', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const threads = await getUserThreads(c.env.DB, session.userId);
@@ -86,11 +86,11 @@ threadsRoute.get('/', async (c) => {
   });
 });
 
-// 4. 新規E2EEスレッド作成 (POST /api/threads)
+// 4. Create new E2EE thread (POST /api/threads)
 threadsRoute.post('/', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const body = await c.req.json<{
@@ -112,10 +112,13 @@ threadsRoute.post('/', async (c) => {
     );
   }
 
-  // 管理者会議（admin_chat）は管理者のみ作成可能
+  // Admin chat is restricted to administrators
   if (body.type === 'admin_chat' && session.role !== 'admin') {
     return c.json(
-      { success: false, error: '管理者会議は管理者のみ作成できます' },
+      {
+        success: false,
+        error: 'Only administrators can create admin chat threads',
+      },
       403
     );
   }
@@ -144,18 +147,18 @@ threadsRoute.post('/', async (c) => {
   );
 });
 
-// 5. スレッド詳細 & メッセージ履歴取得 (GET /api/threads/:id)
+// 5. Get thread details & message history (GET /api/threads/:id)
 threadsRoute.get('/:id', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const threadId = c.req.param('id');
   const isMember = await isThreadMember(c.env.DB, threadId, session.userId);
   if (!isMember) {
     return c.json(
-      { success: false, error: 'このスレッドへのアクセス権限がありません' },
+      { success: false, error: 'Access denied to this thread' },
       403
     );
   }
@@ -176,18 +179,18 @@ threadsRoute.get('/:id', async (c) => {
   });
 });
 
-// 6. 暗号化メッセージ送信 (POST /api/threads/:id/messages)
+// 6. Send encrypted message (POST /api/threads/:id/messages)
 threadsRoute.post('/:id/messages', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const threadId = c.req.param('id');
   const isMember = await isThreadMember(c.env.DB, threadId, session.userId);
   if (!isMember) {
     return c.json(
-      { success: false, error: 'このスレッドへの送信権限がありません' },
+      { success: false, error: 'Posting permission denied for this thread' },
       403
     );
   }
@@ -220,18 +223,18 @@ threadsRoute.post('/:id/messages', async (c) => {
   );
 });
 
-// 7. スレッドへの新規参加者・管理者招待 (POST /api/threads/:id/members)
+// 7. Invite new participant / moderator to thread (POST /api/threads/:id/members)
 threadsRoute.post('/:id/members', async (c) => {
   const session = await getAuthenticatedUser(c);
   if (!session) {
-    return c.json({ success: false, error: '認証が必要です' }, 401);
+    return c.json({ success: false, error: 'Authentication required' }, 401);
   }
 
   const threadId = c.req.param('id');
   const isMember = await isThreadMember(c.env.DB, threadId, session.userId);
   if (!isMember) {
     return c.json(
-      { success: false, error: 'このスレッドへの招待権限がありません' },
+      { success: false, error: 'Invitation permission denied for this thread' },
       403
     );
   }

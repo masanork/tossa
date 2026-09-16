@@ -18,7 +18,7 @@
   let isSubmitting = $state(false);
   let errorMessage = $state('');
 
-  // プリセットのステータス候補
+  // Preset status options
   const statusOptions = [
     {
       status: 'available',
@@ -91,7 +91,7 @@
     <div
       class="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
     >
-      <!-- モーダルヘッダー -->
+      <!-- Modal header -->
       <div
         class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50"
       >
@@ -114,7 +114,7 @@
         </button>
       </div>
 
-      <!-- フォーム -->
+      <!-- Form -->
       <form onsubmit={handleSubmit} class="p-5 flex flex-col gap-4">
         {#if errorMessage}
           <div
@@ -154,7 +154,7 @@
           </div>
         </div>
 
-        <!-- 補足コメント -->
+        <!-- Additional notes -->
         <div>
           <label
             for="update-note"
@@ -177,7 +177,7 @@
           💡 現場の善意による情報提供です。正確な情報の維持にご協力ください。
         </div>
 
-        <!-- ボタン -->
+        <!-- Action buttons -->
         <div
           class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100"
         >

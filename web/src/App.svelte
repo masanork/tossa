@@ -31,13 +31,13 @@
   let totalPosts = $state(0);
   let isLoading = $state(true);
 
-  // フィルタ状態（ボキャブラリタグ、キーワード、エリア）
+  // Filter state (vocabulary tag, keyword, area)
   let selectedTag = $state<string | null>(null);
   let searchQuery = $state('');
   let selectedArea = $state<string>('');
   let viewMode = $state<'list' | 'map'>('list');
 
-  // モーダル
+  // Modal state
   let showAdminModal = $state(false);
   let showCreateModal = $state(false);
   let showMessagesModal = $state(false);
@@ -45,11 +45,11 @@
   let editingPost = $state<Post | null>(null);
   let messageContextPost = $state<Post | null>(null);
 
-  // 認証
+  // Auth state
   let currentUser = $state<User | null>(null);
   let authToken = $state<string | null>(localStorage.getItem('tossa_token'));
 
-  // エリア候補（投稿データから自動抽出）
+  // Candidate areas (extracted from posts)
   let availableAreas = $derived.by(() => {
     const set = new Set<string>();
     posts.forEach((p) => {
@@ -59,7 +59,7 @@
   });
 
   onMount(async () => {
-    // 1. 認証トークン確認
+    // 1. Verify auth token
     if (authToken) {
       const authRes = await checkAuth(authToken);
       if (authRes.authenticated && authRes.user) {
@@ -70,7 +70,7 @@
       }
     }
 
-    // 2. 初期データロード
+    // 2. Load initial data
     await loadInitialData();
   });
 
@@ -79,9 +79,7 @@
     try {
       const fetchedSettings = await fetchSettings();
       settings = fetchedSettings || {};
-
       vocabularyTags = await fetchVocabularyTags();
-
       await reloadPosts();
     } catch (err) {
       console.error('Failed to load initial data:', err);
@@ -108,13 +106,13 @@
     }
   }
 
-  // タグ（ボキャブラリ）選択ハンドラ
+  // Tag (vocabulary) selection handler
   function handleSelectTag(tag: string | null) {
     selectedTag = tag;
     reloadPosts();
   }
 
-  // 検索ハンドラ
+  // Search input handler
   let searchTimeout: any = null;
   function handleSearchInput(e: Event) {
     searchQuery = (e.target as HTMLInputElement).value;
@@ -124,7 +122,7 @@
     }, 300);
   }
 
-  // 認証成功ハンドラ
+  // Auth success handler
   function handleAuthSuccess(user: User, token: string) {
     currentUser = user;
     authToken = token;
@@ -137,19 +135,19 @@
     localStorage.removeItem('tossa_token');
   }
 
-  // 投稿作成オープン（Cookie識別により未ログインでも即座に投稿可能）
+  // Open create post (cookie identification allows instant posting without login)
   function handleOpenCreate() {
     editingPost = null;
     showCreateModal = true;
   }
 
-  // 投稿編集オープン
+  // Open edit post
   function handleEditPost(post: Post) {
     editingPost = post;
     showCreateModal = true;
   }
 
-  // 投稿削除（Cookie所有者またはPasskey本人/管理者）
+  // Delete post (cookie owner, author, or admin)
   async function handleDeletePost(postId: string) {
     try {
       const res = await deletePost(postId, authToken);
@@ -168,7 +166,7 @@
     await reloadPosts();
   }
 
-  // E2EEメッセージモーダルを開く
+  // Open E2EE messaging modal
   function handleOpenMessages() {
     if (!currentUser || !authToken) {
       alert(m.e2ee_need_auth());
@@ -179,7 +177,7 @@
     showMessagesModal = true;
   }
 
-  // 投稿への問い合わせ（メッセージモーダルを特定投稿で開く）
+  // Contact about post (open messages modal with post context)
   function handleContactPost(post: Post) {
     if (!currentUser || !authToken) {
       alert(m.e2ee_need_auth());
@@ -190,12 +188,12 @@
     showMessagesModal = true;
   }
 
-  // Passkey登録促進バナーの非表示状態
+  // Passkey nudge banner dismissed state
   let hidePasskeyNudge = $state(false);
 </script>
 
 <div class="min-h-screen flex flex-col bg-slate-50">
-  <!-- ヘッダー -->
+  <!-- Header -->
   <Header
     {settings}
     user={currentUser}
@@ -206,7 +204,7 @@
     onOpenMessages={handleOpenMessages}
   />
 
-  <!-- 自発的ボキャブラリ（タグ）メインフィルターバー -->
+  <!-- Organic vocabulary tag filter bar -->
   <VocabularyFilter
     tags={vocabularyTags}
     {selectedTag}
@@ -214,7 +212,7 @@
     onSelectTag={handleSelectTag}
   />
 
-  <!-- 未ログイン（端末Cookie識別）ユーザーへのPasskey登録促進バナー -->
+  <!-- Passkey nudge banner for cookie-identified users -->
   {#if !currentUser && !hidePasskeyNudge}
     <div class="max-w-4xl mx-auto px-4 w-full mb-3">
       <div
@@ -260,12 +258,12 @@
     </div>
   {/if}
 
-  <!-- サブバー: 検索・エリア・表示切替 (List ⇄ Map) -->
+  <!-- Sub-bar: Search, Area, View toggle (List ⇄ Map) -->
   <div
     class="max-w-4xl mx-auto px-4 w-full mb-3 flex flex-col sm:flex-row items-center justify-between gap-2.5"
   >
     <div class="flex items-center gap-2 w-full sm:w-auto flex-1">
-      <!-- 検索バー -->
+      <!-- Search input -->
       <div class="relative flex-1">
         <Search
           class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -279,7 +277,7 @@
         />
       </div>
 
-      <!-- エリア選択 -->
+      <!-- Area dropdown -->
       {#if availableAreas.length > 0}
         <select
           bind:value={selectedArea}
@@ -294,7 +292,7 @@
       {/if}
     </div>
 
-    <!-- リスト / 地図トグルボタン -->
+    <!-- List / Map view toggle -->
     <div
       class="flex items-center bg-slate-200/80 p-0.5 rounded-lg shrink-0 self-end sm:self-auto"
     >
@@ -339,7 +337,7 @@
     </div>
   </div>
 
-  <!-- メインコンテンツ -->
+  <!-- Main content -->
   <main class="max-w-4xl mx-auto px-4 w-full flex-1 pb-16">
     {#if isLoading}
       <div
@@ -351,7 +349,7 @@
         <span>{m.loading_posts()}</span>
       </div>
     {:else if viewMode === 'map'}
-      <!-- 地図ビュー -->
+      <!-- Map view -->
       {#if posts.length === 0}
         <div
           class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs mb-4"
@@ -381,10 +379,10 @@
         />
       {/if}
     {:else}
-      <!-- リストビュー -->
+      <!-- List view -->
       {#if posts.length === 0}
         {#if selectedTag || searchQuery || selectedArea}
-          <!-- 絞り込みによる0件 -->
+          <!-- Empty results from filter -->
           <div
             class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs"
           >
@@ -409,7 +407,7 @@
             </button>
           </div>
         {:else}
-          <!-- 完全白紙時のウェルカムCTA -->
+          <!-- Welcome CTA when zero posts exist -->
           <div
             class="py-12 sm:py-16 text-center bg-gradient-to-b from-white to-blue-50/40 rounded-3xl border border-blue-100 p-8 sm:p-12 shadow-xs"
           >
@@ -480,7 +478,7 @@
     {/if}
   </main>
 
-  <!-- フローティング投稿ボタン（スマホ用・目立つデザイン） -->
+  <!-- Floating post CTA button (mobile) -->
   <div class="fixed bottom-5 right-5 sm:hidden z-30">
     <button
       type="button"
@@ -492,7 +490,7 @@
     </button>
   </div>
 
-  <!-- 各種モーダル -->
+  <!-- Modals -->
   {#if updatingPost}
     <UpdateStatusModal
       post={updatingPost}

@@ -57,10 +57,10 @@ class I18nState {
   }
 
   /**
-   * ステータスコード（available, crowded, closed等）の翻訳ラベルを返す
+   * Returns localized status label for status codes (available, crowded, closed, etc.)
    */
   translateStatus(statusCode: string, fallbackLabel?: string): string {
-    // リアクティブに現在の言語を参照
+    // Read reactive locale state
     const _lang = this.current;
     switch (statusCode) {
       case 'available':

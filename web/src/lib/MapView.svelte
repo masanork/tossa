@@ -21,7 +21,7 @@
     // Dynamic import for Leaflet (SSR-safe)
     leaflet = await import('leaflet');
 
-    // 地図初期化（全国表示をデフォルトとし、投稿や設定エリアに応じて自動移動）
+    // Initialize map (default to nationwide view, auto-adjust to posts or defaultArea)
     map = leaflet.map(mapContainer, {
       center: [36.2048, 138.2529],
       zoom: 5,
@@ -30,7 +30,7 @@
 
     leaflet.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // 国土地理院またはOpenStreetMapタイル
+    // OpenStreetMap tiles
     leaflet
       .tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -41,7 +41,7 @@
     markersLayer = leaflet.layerGroup().addTo(map);
     updateMarkers();
 
-    // 投稿に座標がない場合で、defaultArea が設定されている場合はそのエリアに移動
+    // If no posts have coordinates, pan to defaultArea if specified
     const hasAnyCoords = posts.some((p) => p.lat && p.lng);
     if (!hasAnyCoords && defaultArea) {
       try {
@@ -66,7 +66,7 @@
     }
   });
 
-  // posts が変化したらマーカーを再描画
+  // Re-render markers when posts update
   $effect(() => {
     if (posts && markersLayer && leaflet) {
       updateMarkers();
@@ -85,7 +85,7 @@
         hasCoords = true;
         bounds.extend([post.lat, post.lng]);
 
-        // アイコン生成（ステータスに応じた視認性の高いピン）
+        // Generate pin icon styled by status
         const pinColor =
           post.current_status === 'danger' || post.current_status === 'closed'
             ? '#dc2626'

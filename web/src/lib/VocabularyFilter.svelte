@@ -1,4 +1,4 @@
-<!-- web/src/lib/VocabularyFilter.svelte: 自発的に成長するボキャブラリ・メインフィルターバー -->
+<!-- web/src/lib/VocabularyFilter.svelte: Organic vocabulary tag filter bar -->
 <script lang="ts">
   import type { TagCount } from './types';
   import { Sparkles, X } from '@lucide/svelte';
@@ -15,7 +15,7 @@
 
 <div class="w-full overflow-x-auto no-scrollbar py-2.5 px-4">
   <div class="flex items-center gap-2 max-w-4xl mx-auto min-w-max">
-    <!-- 「すべて」ボタン -->
+    <!-- "All" button -->
     <button
       type="button"
       onclick={() => onSelectTag(null)}
@@ -40,7 +40,7 @@
       {/if}
     </button>
 
-    <!-- 投稿から自発的に生まれたタグ（ボキャブラリ）ピル群 -->
+    <!-- Organic vocabulary tags derived from community posts -->
     {#if tags.length === 0}
       <div
         class="flex items-center gap-1.5 text-xs text-slate-400 pl-2 select-none"

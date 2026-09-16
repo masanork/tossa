@@ -34,7 +34,7 @@ export async function createRegOptions(
     },
   });
 
-  // チャレンジを一時保存
+  // Temporarily save challenge
   await env.DB.prepare('UPDATE users SET current_challenge = ? WHERE id = ?')
     .bind(options.challenge, user.id)
     .run();
@@ -65,7 +65,7 @@ export async function verifyRegResponse(
 
   const { credential } = verification.registrationInfo;
 
-  // DBに credential を保存
+  // Save credential to database
   const credId = credential.id;
   const publicKeyB64 = isoBase64URL.fromBuffer(credential.publicKey);
   const counter = credential.counter;
@@ -88,7 +88,7 @@ export async function verifyRegResponse(
     )
     .run();
 
-  // チャレンジをクリア
+  // Clear challenge
   await env.DB.prepare('UPDATE users SET current_challenge = NULL WHERE id = ?')
     .bind(user.id)
     .run();
@@ -138,7 +138,7 @@ export async function verifyAuthResponse(
     throw new Error('No pending authentication challenge found');
   }
 
-  // 該当する credential を取得
+  // Retrieve matching credential
   const cred = await env.DB.prepare(
     'SELECT * FROM credentials WHERE id = ? AND user_id = ?'
   )
@@ -167,12 +167,12 @@ export async function verifyAuthResponse(
     throw new Error('Authentication verification failed');
   }
 
-  // カウンターを更新
+  // Update counter
   await env.DB.prepare('UPDATE credentials SET counter = ? WHERE id = ?')
     .bind(verification.authenticationInfo.newCounter, cred.id)
     .run();
 
-  // チャレンジをクリア
+  // Clear challenge
   await env.DB.prepare('UPDATE users SET current_challenge = NULL WHERE id = ?')
     .bind(user.id)
     .run();

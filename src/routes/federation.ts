@@ -11,7 +11,7 @@ import { verifySessionToken } from '../auth/session';
 
 export const federationRoute = new Hono<{ Bindings: Bindings }>();
 
-// JSON-LD コンテキスト定義（オープンディザスタデータ互換）
+// JSON-LD Context definition (Open Disaster Data compatible)
 const GEOJSON_LD_CONTEXT = [
   'https://geojson.org/geojson-ld/geojson-context.jsonld',
   {
@@ -25,8 +25,8 @@ const GEOJSON_LD_CONTEXT = [
   },
 ];
 
-// GET /api/feed.json (公開オープンデータ・GeoJSON-LD フィード)
-// 誰でも、外部のGISアプリや自治体、他サイトから購読・集約可能
+// GET /api/feed.json (Public Open Data GeoJSON-LD Feed)
+// Open for external GIS applications, local authorities, and federated sites
 federationRoute.get('/feed.json', async (c) => {
   const settings = await getSystemSettings(c.env.DB);
   const features = await exportAllPostsForFederation(c.env.DB);
@@ -46,7 +46,7 @@ federationRoute.get('/feed.json', async (c) => {
   });
 });
 
-// GET /api/federation/export (アーカイブ・移行用エクスポート)
+// GET /api/federation/export (Archive & Migration export)
 federationRoute.get('/export', async (c) => {
   const settings = await getSystemSettings(c.env.DB);
   const features = await exportAllPostsForFederation(c.env.DB);
@@ -69,19 +69,22 @@ federationRoute.get('/export', async (c) => {
   });
 });
 
-// POST /api/federation/import (他サイトと合流・同期)
-// 1. 直接 GeoJSON ボディを受け取る
-// 2. または remoteUrl を受け取り、相手サーバーから /api/feed.json をフェッチしてマージ
+// POST /api/federation/import (Federate and synchronize with external sites)
+// 1. Accepts GeoJSON body directly, or
+// 2. Accepts remoteUrl and fetches /api/feed.json to merge
 federationRoute.post('/import', async (c) => {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
-    return c.json({ success: false, error: '管理者認証が必要です' }, 401);
+    return c.json(
+      { success: false, error: 'Admin or moderator authorization required' },
+      401
+    );
   }
 
   const session = await verifySessionToken(token, c.env.JWT_SECRET);
   if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
-    return c.json({ success: false, error: '権限がありません' }, 403);
+    return c.json({ success: false, error: 'Permission denied' }, 403);
   }
 
   const body = await c.req.json<{
@@ -96,10 +99,10 @@ federationRoute.post('/import', async (c) => {
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       targetUrl = `https://${targetUrl}`;
     }
-    // 末尾スラッシュ除去
+    // Remove trailing slash
     targetUrl = targetUrl.replace(/\/$/, '');
 
-    // feed.json または export エンドポイントを試行
+    // Try feed.json or export endpoint
     const feedUrl = targetUrl.endsWith('/api/feed.json')
       ? targetUrl
       : `${targetUrl}/api/feed.json`;
@@ -113,7 +116,7 @@ federationRoute.post('/import', async (c) => {
         return c.json(
           {
             success: false,
-            error: `相手サイトからの取得に失敗しました (HTTP ${res.status}): ${feedUrl}`,
+            error: `Failed to fetch from remote site (HTTP ${res.status}): ${feedUrl}`,
           },
           400
         );
@@ -126,8 +129,7 @@ federationRoute.post('/import', async (c) => {
         return c.json(
           {
             success: false,
-            error:
-              '相手サイトのデータ形式が不正です (features配列が見つかりません)',
+            error: 'Invalid remote data format (missing features array)',
           },
           400
         );
@@ -138,7 +140,7 @@ federationRoute.post('/import', async (c) => {
       return c.json(
         {
           success: false,
-          error: `相手サイトとの通信エラー: ${err.message}`,
+          error: `Remote site communication error: ${err.message}`,
         },
         500
       );
@@ -147,7 +149,10 @@ federationRoute.post('/import', async (c) => {
     featuresToImport = body.features;
   } else {
     return c.json(
-      { success: false, error: 'features配列またはremoteUrlの指定が必要です' },
+      {
+        success: false,
+        error: 'Either features array or remoteUrl is required',
+      },
       400
     );
   }
@@ -156,7 +161,7 @@ federationRoute.post('/import', async (c) => {
 
   return c.json({
     success: true,
-    message: `同期完了: ${stats.added} 件を新規追加、${stats.updated} 件を最新状態に更新しました（${stats.skipped} 件スキップ）`,
+    message: `Synchronization complete: ${stats.added} added, ${stats.updated} updated, ${stats.skipped} skipped`,
     stats,
   });
 });

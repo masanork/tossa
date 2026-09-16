@@ -4,7 +4,7 @@ import { createMiddleware } from 'hono/factory';
 import type { Bindings } from '../types';
 
 export const DEVICE_COOKIE = 'tossa_device';
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1年
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 function generateDeviceId(): string {
   const bytes = new Uint8Array(24);
@@ -25,7 +25,7 @@ export function getClientIp(req: Request): string {
 }
 
 /**
- * アクセスログを非同期記録（失敗してもリクエストを止めない）
+ * Asynchronously logs access events without blocking request pipeline
  */
 export async function logAccess(
   db: D1Database,
@@ -39,7 +39,7 @@ export async function logAccess(
   try {
     await db
       .prepare(
-        `INSERT INTO access_logs
+        `INSERT INTO access_logs 
            (event_type, device_session_id, user_id, ip_address, user_agent, metadata)
          VALUES (?, ?, ?, ?, ?, ?)`
       )
@@ -58,10 +58,10 @@ export async function logAccess(
 }
 
 /**
- * デバイスCookieミドルウェア
- * - Cookieが未発行なら新規発行し device_sessions + access_logs に記録
- * - 発行済みなら DBに存在することを保証し last_seen_at を更新
- * - c.get('deviceSessionId') でどのハンドラからも取得可能
+ * Device Cookie Middleware
+ * - Issues new cookie if none exists, records to device_sessions + access_logs
+ * - If already issued, ensures record exists in DB and updates last_seen_at
+ * - Makes deviceSessionId available to all handlers via c.get('deviceSessionId')
  */
 export const deviceCookieMiddleware = createMiddleware<{
   Bindings: Bindings;
@@ -75,7 +75,7 @@ export const deviceCookieMiddleware = createMiddleware<{
   if (!deviceId) {
     deviceId = generateDeviceId();
 
-    // 新規端末: DB登録 + Cookie発行 + ログ記録
+    // New device: DB record + Set-Cookie + audit log
     await c.env.DB.prepare(
       'INSERT OR IGNORE INTO device_sessions (id, created_ip, created_ua) VALUES (?, ?, ?)'
     )
@@ -93,7 +93,7 @@ export const deviceCookieMiddleware = createMiddleware<{
       secure: isHttps,
     });
   } else {
-    // 既存端末: device_sessions に存在することを保証しつつ last_seen_at 更新
+    // Existing device: update last_seen_at asynchronously
     c.env.DB.prepare(
       'INSERT OR IGNORE INTO device_sessions (id, created_ip, created_ua) VALUES (?, ?, ?)'
     )

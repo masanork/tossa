@@ -43,11 +43,11 @@ export interface Post {
   verification_count?: number;
   last_verified_at?: string | null;
   attributes: string; // JSON string
-  tags: string; // JSON array string e.g. '["給水", "Wi-Fi"]'
+  tags: string; // JSON array string e.g. '["water", "wi-fi"]'
   is_verified: number; // 0 or 1
   author_id?: string | null;
-  author_cookie_id?: string | null; // Cookie識別ユーザー（Passkey未登録）
-  is_owner?: boolean; // Cookieベースの所有者フラグ（クエリ時に付与）
+  author_cookie_id?: string | null; // Cookie-identified user (without Passkey)
+  is_owner?: boolean; // Cookie-based ownership flag (attached on query)
   reporter_name: string | null;
   created_at: string;
   updated_at: string;
