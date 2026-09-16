@@ -1,7 +1,7 @@
 // web/src/lib/offlineQueue.ts: Offline Outbox Queue for Disaster Resilience
 import { createPost, updatePostStatus } from './api';
 
-export type CreatePostPayload = Parameters<typeof createPost>[0];
+type CreatePostPayload = Parameters<typeof createPost>[0];
 
 export interface QueuedPost {
   id: string;
@@ -22,11 +22,11 @@ export interface QueuedStatusUpdate {
   createdAt: string;
 }
 
-export type QueuedItem = QueuedPost | QueuedStatusUpdate;
+type QueuedItem = QueuedPost | QueuedStatusUpdate;
 
 const STORAGE_KEY = 'tossa_offline_outbox';
 
-export function getOfflineQueue(): QueuedItem[] {
+function getOfflineQueue(): QueuedItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -35,7 +35,7 @@ export function getOfflineQueue(): QueuedItem[] {
   }
 }
 
-export function saveOfflineQueue(queue: QueuedItem[]): void {
+function saveOfflineQueue(queue: QueuedItem[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   } catch {
@@ -69,11 +69,6 @@ export function enqueueStatusUpdate(
   queue.push(item);
   saveOfflineQueue(queue);
   return item;
-}
-
-export function removeQueueItem(id: string): void {
-  const queue = getOfflineQueue().filter((item) => item.id !== id);
-  saveOfflineQueue(queue);
 }
 
 export function getPendingQueueCount(): number {

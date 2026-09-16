@@ -13,23 +13,23 @@
   const { tags, selectedTag, totalCount, onSelectTag }: Props = $props();
 </script>
 
-<div class="w-full overflow-x-auto no-scrollbar py-2.5 px-4">
-  <div class="flex items-center gap-2 max-w-4xl mx-auto min-w-max">
+<div class="no-scrollbar w-full overflow-x-auto px-4 py-2.5">
+  <div class="mx-auto flex max-w-4xl min-w-max items-center gap-2">
     <!-- "All" button -->
     <button
       type="button"
       onclick={() => onSelectTag(null)}
-      class={`px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs flex items-center gap-1.5 ${
+      class={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold shadow-xs transition-all ${
         selectedTag === null
           ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900 ring-offset-1'
-          : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
       }`}
     >
       <span>🌐</span>
       <span>すべて</span>
       {#if totalCount > 0}
         <span
-          class={`text-[10px] px-1.5 py-0.2 rounded-full ${
+          class={`py-0.2 rounded-full px-1.5 text-[10px] ${
             selectedTag === null
               ? 'bg-slate-700 text-slate-200'
               : 'bg-slate-100 text-slate-500'
@@ -43,9 +43,9 @@
     <!-- Organic vocabulary tags derived from community posts -->
     {#if tags.length === 0}
       <div
-        class="flex items-center gap-1.5 text-xs text-slate-400 pl-2 select-none"
+        class="flex items-center gap-1.5 pl-2 text-xs text-slate-400 select-none"
       >
-        <Sparkles class="w-3.5 h-3.5 text-amber-500 shrink-0" />
+        <Sparkles class="h-3.5 w-3.5 shrink-0 text-amber-500" />
         <span>投稿にタグをつけると、ここにフィルターが自発的に並びます</span>
       </div>
     {:else}
@@ -53,15 +53,15 @@
         <button
           type="button"
           onclick={() => onSelectTag(selectedTag === t.name ? null : t.name)}
-          class={`px-3.5 py-2 rounded-full text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs flex items-center gap-1.5 ${
+          class={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold shadow-xs transition-all ${
             selectedTag === t.name
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md ring-2 ring-blue-500 ring-offset-1'
-              : 'bg-white text-slate-700 hover:bg-slate-100 hover:border-slate-300 border border-slate-200'
+              : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100'
           }`}
         >
           <span>#{t.name}</span>
           <span
-            class={`text-[10px] px-1.5 py-0.2 rounded-full ${
+            class={`py-0.2 rounded-full px-1.5 text-[10px] ${
               selectedTag === t.name
                 ? 'bg-blue-800 text-blue-100'
                 : 'bg-slate-100 text-slate-600'
@@ -70,7 +70,7 @@
             {t.count}
           </span>
           {#if selectedTag === t.name}
-            <X class="w-3.5 h-3.5 ml-0.5 text-blue-200" />
+            <X class="ml-0.5 h-3.5 w-3.5 text-blue-200" />
           {/if}
         </button>
       {/each}

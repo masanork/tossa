@@ -60,8 +60,8 @@ class ModalManager {
   }
 
   closeTop(): void {
-    if (this.stack.length > 0) {
-      const top = this.stack[this.stack.length - 1];
+    const top = this.stack[this.stack.length - 1];
+    if (top !== undefined) {
       this.close(top);
     }
   }

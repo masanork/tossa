@@ -24,7 +24,10 @@ async function getHmacKey(secret: string): Promise<CryptoKey> {
 function base64UrlEncode(data: Uint8Array): string {
   let str = '';
   for (let i = 0; i < data.byteLength; i++) {
-    str += String.fromCharCode(data[i]);
+    const byte = data[i];
+    if (byte !== undefined) {
+      str += String.fromCharCode(byte);
+    }
   }
   return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
@@ -75,6 +78,7 @@ export async function verifySessionToken(
   if (parts.length !== 2) return null;
 
   const [payloadB64, sigB64] = parts;
+  if (!payloadB64 || !sigB64) return null;
   const key = await getHmacKey(secret);
   const enc = new TextEncoder();
 

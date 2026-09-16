@@ -41,7 +41,7 @@ class I18nState {
         }
       }
       try {
-        setParaglideLocale(this.current, { reload: false });
+        void setParaglideLocale(this.current, { reload: false });
       } catch {}
     }
   }
@@ -51,7 +51,7 @@ class I18nState {
     if (typeof window !== 'undefined') {
       localStorage.setItem('tossa_locale', lang);
       try {
-        setParaglideLocale(lang, { reload: false });
+        void setParaglideLocale(lang, { reload: false });
       } catch {}
     }
   }

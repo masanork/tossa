@@ -619,28 +619,28 @@
   onclick={(e) => {
     if (e.target === e.currentTarget) onClose();
   }}
-  class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
+  class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
 >
   <div
-    class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150 max-h-[94vh] flex flex-col"
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-150 sm:rounded-2xl"
   >
     <!-- Mobile drag handle -->
     <div
-      class="w-10 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0"
+      class="mx-auto my-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden"
     ></div>
 
     <!-- Header -->
     <div
-      class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5"
     >
       <div class="flex items-center gap-2">
         {#if editingPost}
-          <Edit3 class="w-4 h-4 text-blue-600" />
+          <Edit3 class="h-4 w-4 text-blue-600" />
           <h2 class="text-base font-black text-slate-900">
             {m.modal_edit_title()}
           </h2>
         {:else}
-          <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"
+          <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-600"
           ></span>
           <h2 class="text-base font-black text-slate-900">
             {m.modal_create_title()}
@@ -650,23 +650,23 @@
       <button
         type="button"
         onclick={onClose}
-        class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
       >
-        <X class="w-5 h-5" />
+        <X class="h-5 w-5" />
       </button>
     </div>
 
     <!-- Form -->
     <form
       onsubmit={handleSubmit}
-      class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto"
+      class="flex flex-col gap-4 overflow-y-auto p-4 sm:p-5"
     >
       {#if !token}
         <div
-          class="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs"
+          class="flex flex-col items-start justify-between gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/80 p-3 text-xs shadow-2xs sm:flex-row sm:items-center"
         >
           <div class="flex items-start gap-2 text-slate-700">
-            <ShieldCheck class="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
+            <ShieldCheck class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
             <div class="leading-relaxed">
               <span class="font-bold text-slate-900"
                 >{m.modal_cookie_info_title()}</span
@@ -683,7 +683,7 @@
                 onClose();
                 onOpenAuth();
               }}
-              class="shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer flex items-center gap-1 self-end sm:self-auto"
+              class="flex shrink-0 cursor-pointer items-center gap-1 self-end rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 sm:self-auto"
             >
               <span>{m.nudge_register_btn()}</span>
             </button>
@@ -693,22 +693,22 @@
 
       {#if errorMessage}
         <div
-          class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-center gap-1.5"
+          class="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700"
         >
-          <AlertCircle class="w-4 h-4 shrink-0" />
+          <AlertCircle class="h-4 w-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       {/if}
 
       <!-- Photo attachment (EXIF auto location & C2PA authenticity) -->
       <div
-        class="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
+        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5"
       >
         <div class="flex items-center justify-between">
           <div
             class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
           >
-            <Camera class="w-4 h-4 text-blue-600" />
+            <Camera class="h-4 w-4 text-blue-600" />
             <span>{m.photo_attach()}</span>
           </div>
           <span class="text-[10px] text-slate-500">{m.photo_subtext()}</span>
@@ -717,36 +717,36 @@
         {#if imagePreviewUrl}
           <!-- Photo preview and metadata badge -->
           <div
-            class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 flex flex-col"
+            class="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-900"
           >
             <div
-              class="relative max-h-56 overflow-hidden flex items-center justify-center bg-black/40"
+              class="relative flex max-h-56 items-center justify-center overflow-hidden bg-black/40"
             >
               <img
                 src={imagePreviewUrl}
                 alt="添付写真"
-                class="w-full h-auto max-h-56 object-contain"
+                class="h-auto max-h-56 w-full object-contain"
               />
               <button
                 type="button"
                 onclick={removeImage}
-                class="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-rose-600 text-white rounded-full transition shadow-md cursor-pointer"
+                class="absolute top-2 right-2 cursor-pointer rounded-full bg-black/70 p-1.5 text-white shadow-md transition hover:bg-rose-600"
                 title="写真を削除"
               >
-                <Trash2 class="w-3.5 h-3.5" />
+                <Trash2 class="h-3.5 w-3.5" />
               </button>
             </div>
 
             <!-- EXIF & C2PA verification status bar -->
             <div
-              class="p-2.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px]"
+              class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white p-2.5 text-[11px]"
             >
               <div class="flex flex-wrap items-center gap-1.5">
                 {#if c2paVerified}
                   <span
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300"
+                    class="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 font-bold text-emerald-800"
                   >
-                    <ShieldCheck class="w-3.5 h-3.5 text-emerald-600" />
+                    <ShieldCheck class="h-3.5 w-3.5 text-emerald-600" />
                     <span
                       >C2PA 真正性確認済 ({c2paInfo?.generator ||
                         '認証カメラ'})</span
@@ -754,7 +754,7 @@
                   </span>
                 {:else}
                   <span
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
+                    class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-slate-600"
                   >
                     <span>標準画像</span>
                   </span>
@@ -762,9 +762,9 @@
 
                 {#if photoTakenTime}
                   <span
-                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-200"
+                    class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-medium text-blue-700"
                   >
-                    <Clock class="w-3 h-3 text-blue-500" />
+                    <Clock class="h-3 w-3 text-blue-500" />
                     <span>撮影: {photoTakenTime}</span>
                   </span>
                 {/if}
@@ -772,7 +772,7 @@
 
               {#if imageMeta?.exif?.latitude && imageMeta?.exif?.longitude}
                 <span
-                  class="text-[10px] text-emerald-700 font-semibold flex items-center gap-1"
+                  class="flex items-center gap-1 text-[10px] font-semibold text-emerald-700"
                 >
                   ✓ EXIF座標連動済
                 </span>
@@ -782,7 +782,7 @@
         {:else}
           <!-- Upload dropzone area -->
           <label
-            class="border-2 border-dashed border-slate-300 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center gap-1.5 bg-white cursor-pointer transition hover:bg-blue-50/20 group"
+            class="group flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 transition hover:border-blue-500 hover:bg-blue-50/20"
           >
             <input
               type="file"
@@ -793,20 +793,20 @@
             />
             {#if isProcessingImage}
               <div
-                class="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
+                class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
               ></div>
               <span class="text-xs text-slate-500">EXIF解析・C2PA検証中...</span
               >
             {:else}
               <div
-                class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition"
+                class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition group-hover:scale-110"
               >
-                <Camera class="w-4 h-4" />
+                <Camera class="h-4 w-4" />
               </div>
               <div class="text-xs font-bold text-slate-700">
                 写真を撮影または選択
               </div>
-              <p class="text-[10px] text-slate-400 text-center leading-tight">
+              <p class="text-center text-[10px] leading-tight text-slate-400">
                 写真の位置情報（EXIF GPS）からピンが自動配置されます。<br />
                 C2PA来歴署名も自動検知し真正性を担保します。
               </p>
@@ -819,7 +819,7 @@
       <div>
         <label
           for="post-title"
-          class="block text-xs font-bold text-slate-700 mb-1"
+          class="mb-1 block text-xs font-bold text-slate-700"
         >
           施設・拠点・情報タイトル <span class="text-rose-600">*</span>
         </label>
@@ -829,16 +829,16 @@
           bind:value={title}
           placeholder="例: 中央公民館 給水所、〇〇カフェ、市民総合体育館"
           required
-          class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       </div>
 
       <!-- Area name & address -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <div>
           <label
             for="post-area"
-            class="block text-xs font-bold text-slate-700 mb-1"
+            class="mb-1 block text-xs font-bold text-slate-700"
           >
             地区・地域名 <span class="text-rose-600">*</span>
           </label>
@@ -850,18 +850,18 @@
               ? `例: ${defaultArea}`
               : '例: 中央区、本町、北地区'}
             required
-            class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
           {#if availableAreas.length > 0}
-            <div class="flex flex-wrap gap-1 mt-1.5">
-              <span class="text-[10px] text-slate-400 py-0.5">候補:</span>
+            <div class="mt-1.5 flex flex-wrap gap-1">
+              <span class="py-0.5 text-[10px] text-slate-400">候補:</span>
               {#each availableAreas.slice(0, 5) as a (a)}
                 <button
                   type="button"
                   onclick={() => {
                     area = a;
                   }}
-                  class="px-1.5 py-0.5 text-[10px] rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium cursor-pointer"
+                  class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200"
                 >
                   {a}
                 </button>
@@ -872,7 +872,7 @@
         <div class="sm:col-span-2">
           <label
             for="post-address"
-            class="block text-xs font-bold text-slate-700 mb-1"
+            class="mb-1 block text-xs font-bold text-slate-700"
             >住所・場所の詳細（任意）</label
           >
           <input
@@ -880,27 +880,27 @@
             type="text"
             bind:value={address}
             placeholder="例: 〇〇町1-2-3 正門前、体育館入口付近"
-            class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
         </div>
       </div>
 
       <!-- Pin location on map (lat/lng) -->
       <div
-        class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
+        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5"
       >
         <div class="flex items-center justify-between">
           <div
             class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
           >
-            <MapPin class="w-4 h-4 text-blue-600" />
+            <MapPin class="h-4 w-4 text-blue-600" />
             <span>地図上の位置（ピン設定）</span>
           </div>
           {#if lat !== null && lng !== null}
             <span
-              class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex items-center gap-1"
+              class="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700"
             >
-              <Check class="w-3 h-3" />
+              <Check class="h-3 w-3" />
               <span>ピン設定済み</span>
             </span>
           {:else}
@@ -916,10 +916,10 @@
             type="button"
             onclick={handleGetCurrentLocation}
             disabled={isLocating}
-            class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50"
           >
             <Navigation
-              class={`w-3.5 h-3.5 text-blue-600 ${isLocating ? 'animate-spin' : ''}`}
+              class={`h-3.5 w-3.5 text-blue-600 ${isLocating ? 'animate-spin' : ''}`}
             />
             <span
               >{isLocating ? '現在地を取得中...' : '📍 現在地からセット'}</span
@@ -931,11 +931,11 @@
             onclick={handleGeocodeAddress}
             disabled={isGeocoding ||
               (!address.trim() && !title.trim() && !area.trim())}
-            class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs disabled:opacity-50"
+            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50"
             title="入力した住所や拠点名から地図位置を自動検索します"
           >
             <Search
-              class={`w-3.5 h-3.5 text-indigo-600 ${isGeocoding ? 'animate-spin' : ''}`}
+              class={`h-3.5 w-3.5 text-indigo-600 ${isGeocoding ? 'animate-spin' : ''}`}
             />
             <span>{isGeocoding ? '住所検索中...' : '🔍 住所からピン配置'}</span>
           </button>
@@ -943,10 +943,10 @@
 
         {#if geoStatusMessage}
           <div
-            class={`text-[11px] px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
+            class={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] ${
               geoStatusMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                : 'border border-rose-200 bg-rose-50 text-rose-800'
             }`}
           >
             <span>{geoStatusMessage.text}</span>
@@ -955,7 +955,7 @@
               onclick={() => {
                 geoStatusMessage = null;
               }}
-              class="text-slate-400 hover:text-slate-700 font-bold ml-1 cursor-pointer"
+              class="ml-1 cursor-pointer font-bold text-slate-400 hover:text-slate-700"
             >
               ×
             </button>
@@ -964,15 +964,15 @@
 
         <!-- Interactive minimap -->
         <div
-          class="relative w-full h-44 rounded-xl overflow-hidden border border-slate-300 shadow-inner bg-slate-200"
+          class="relative h-44 w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner"
         >
-          <div bind:this={pickerMapContainer} class="w-full h-full z-0"></div>
+          <div bind:this={pickerMapContainer} class="z-0 h-full w-full"></div>
 
           <div
-            class="absolute top-2 left-2 right-2 z-[400] pointer-events-none flex justify-center"
+            class="pointer-events-none absolute top-2 right-2 left-2 z-[400] flex justify-center"
           >
             <div
-              class="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-medium px-2.5 py-1 rounded-full shadow-xs"
+              class="rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-medium text-white shadow-xs backdrop-blur-xs"
             >
               👆 地図タップでピン配置、ピンのドラッグで位置微調整
             </div>
@@ -981,22 +981,22 @@
 
         <!-- Numeric coordinate display & clear button -->
         <div
-          class="flex items-center justify-between text-[11px] text-slate-600 pt-0.5"
+          class="flex items-center justify-between pt-0.5 text-[11px] text-slate-600"
         >
           {#if lat !== null && lng !== null}
-            <div class="font-mono font-semibold text-slate-800 text-[11px]">
+            <div class="font-mono text-[11px] font-semibold text-slate-800">
               緯度: {lat.toFixed(5)}, 経度: {lng.toFixed(5)}
             </div>
             <button
               type="button"
               onclick={clearLocation}
-              class="text-rose-600 hover:text-rose-800 font-bold cursor-pointer hover:underline flex items-center gap-1"
+              class="flex cursor-pointer items-center gap-1 font-bold text-rose-600 hover:text-rose-800 hover:underline"
             >
-              <RotateCcw class="w-3 h-3" />
+              <RotateCcw class="h-3 w-3" />
               <span>ピンを解除</span>
             </button>
           {:else}
-            <span class="text-slate-400 text-[10px]">
+            <span class="text-[10px] text-slate-400">
               ※
               地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
             </span>
@@ -1006,14 +1006,14 @@
 
       <!-- Source / reference link (optional) -->
       <div
-        class="p-3 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-2"
+        class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3"
       >
         <div class="flex items-center justify-between">
           <label
             for="post-source-url"
-            class="text-xs font-bold text-slate-700 flex items-center gap-1.5"
+            class="flex items-center gap-1.5 text-xs font-bold text-slate-700"
           >
-            <Link class="w-3.5 h-3.5 text-blue-600" />
+            <Link class="h-3.5 w-3.5 text-blue-600" />
             <span>情報源・参照リンク（任意）</span>
           </label>
           <span class="text-[10px] text-slate-500">正確性検証用</span>
@@ -1024,13 +1024,13 @@
           type="url"
           bind:value={sourceUrl}
           placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
-          class="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
 
         {#if sourceTrustBadge}
           <div class="flex items-center gap-2">
             <span
-              class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${sourceTrustBadge.color}`}
+              class={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${sourceTrustBadge.color}`}
             >
               <span>{sourceTrustBadge.icon}</span>
               <span>{sourceTrustBadge.label}</span>
@@ -1043,11 +1043,11 @@
       </div>
 
       <!-- Status selection -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div>
           <label
             for="post-status-select"
-            class="block text-xs font-bold text-slate-700 mb-1"
+            class="mb-1 block text-xs font-bold text-slate-700"
             >現在の状況</label
           >
           <select
@@ -1060,7 +1060,7 @@
               if (val === 'out_of_stock') statusLabel = '本日分終了';
               if (val === 'open') statusLabel = '営業中';
             }}
-            class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
           >
             <option value="available">利用可能 / 配布中</option>
             <option value="open">営業中 / 開設中</option>
@@ -1071,7 +1071,7 @@
         <div>
           <label
             for="post-status-label"
-            class="block text-xs font-bold text-slate-700 mb-1"
+            class="mb-1 block text-xs font-bold text-slate-700"
             >状況の表示名</label
           >
           <input
@@ -1079,7 +1079,7 @@
             type="text"
             bind:value={statusLabel}
             placeholder="例: 給水中、電源開放中、時短営業中"
-            class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
         </div>
       </div>
@@ -1088,7 +1088,7 @@
       <div>
         <label
           for="post-note"
-          class="block text-xs font-bold text-slate-700 mb-1"
+          class="mb-1 block text-xs font-bold text-slate-700"
           >補足メモ・備考（任意）</label
         >
         <textarea
@@ -1096,19 +1096,19 @@
           bind:value={note}
           rows="2"
           placeholder="持参が必要な物（ポリタンク等）、営業時間、連絡先など"
-          class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
         ></textarea>
       </div>
 
       <!-- Voluntary vocabulary (tags) -->
       <div
-        class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex flex-col gap-2.5"
+        class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3"
       >
         <div class="flex items-center justify-between">
           <div
             class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
           >
-            <Sparkles class="w-3.5 h-3.5 text-blue-600" />
+            <Sparkles class="h-3.5 w-3.5 text-blue-600" />
             <span>タグ（地域のボキャブラリ）</span>
           </div>
           <span class="text-[10px] text-slate-500">複数追加可能</span>
@@ -1118,13 +1118,13 @@
           <div class="flex flex-wrap gap-1.5">
             {#each selectedTags as tag (tag)}
               <span
-                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-2xs"
+                class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
               >
                 <span>#{tag}</span>
                 <button
                   type="button"
                   onclick={() => toggleTag(tag)}
-                  class="text-blue-200 hover:text-white transition ml-0.5 cursor-pointer"
+                  class="ml-0.5 cursor-pointer text-blue-200 transition hover:text-white"
                 >
                   ×
                 </button>
@@ -1135,20 +1135,20 @@
 
         {#if vocabularyTags.length > 0}
           <div>
-            <span class="block text-[11px] font-semibold text-slate-500 mb-1">
+            <span class="mb-1 block text-[11px] font-semibold text-slate-500">
               地域のボキャブラリから選ぶ（タップで追加）:
             </span>
             <div
-              class="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1.5 bg-white rounded-lg border border-slate-200"
+              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5"
             >
               {#each vocabularyTags as vt (vt.name)}
                 <button
                   type="button"
                   onclick={() => toggleTag(vt.name)}
-                  class={`px-2 py-0.5 rounded-md text-[11px] font-medium transition cursor-pointer flex items-center gap-1 ${
+                  class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
                     selectedTags.includes(vt.name)
-                      ? 'bg-blue-100 text-blue-800 font-bold border border-blue-300'
-                      : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800'
+                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   <span>#{vt.name}</span>
@@ -1160,13 +1160,13 @@
         {/if}
 
         <div>
-          <span class="block text-[11px] font-semibold text-slate-500 mb-1">
+          <span class="mb-1 block text-[11px] font-semibold text-slate-500">
             新しいタグを追加する:
           </span>
           <div class="flex items-center gap-1.5">
             <div class="relative flex-1">
               <span
-                class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold"
+                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-400"
                 >#</span
               >
               <input
@@ -1174,13 +1174,13 @@
                 bind:value={newTagInput}
                 onkeydown={handleTagKeydown}
                 placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
-                class="w-full pl-6 pr-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
             <button
               type="button"
               onclick={addNewTag}
-              class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer"
+              class="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700"
             >
               {m.btn_add()}
             </button>
@@ -1190,19 +1190,19 @@
 
       <!-- Footer -->
       <div
-        class="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 shrink-0"
+        class="flex shrink-0 items-center justify-end gap-2 border-t border-slate-100 pt-3"
       >
         <button
           type="button"
           onclick={onClose}
-          class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+          class="cursor-pointer rounded-lg px-4 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
         >
           {m.btn_cancel()}
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
-          class="px-5 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-xs transition active:scale-95 cursor-pointer"
+          class="cursor-pointer rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2 text-xs font-bold text-white shadow-xs transition hover:from-blue-700 hover:to-indigo-700 active:scale-95 disabled:opacity-50"
         >
           {isSubmitting
             ? editingPost

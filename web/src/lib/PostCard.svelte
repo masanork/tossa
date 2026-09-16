@@ -227,16 +227,19 @@
 </script>
 
 <article
-  class="bg-white rounded-2xl p-4 shadow-xs border border-slate-200 hover:border-slate-300 transition-all flex flex-col gap-3"
+  class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300"
 >
   <!-- Top: Area, tags, official badge, last updated -->
   <div class="flex items-center justify-between gap-2 text-xs">
-    <div class="flex items-center gap-1.5 flex-wrap">
-      {#if parsedTags.length > 0}
+    <div class="flex flex-wrap items-center gap-1.5">
+      {#if parsedTags[0]}
         <button
           type="button"
-          onclick={() => onSelectTag?.(parsedTags[0])}
-          class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold text-white text-[11px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition shadow-2xs cursor-pointer"
+          onclick={() => {
+            const tag = parsedTags[0];
+            if (tag) onSelectTag?.(tag);
+          }}
+          class="inline-flex cursor-pointer items-center gap-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-2xs transition hover:from-blue-700 hover:to-indigo-700"
         >
           <span>🏷️</span>
           <span>#{parsedTags[0]}</span>
@@ -244,14 +247,14 @@
       {/if}
 
       <span
-        class="px-2 py-0.5 rounded-md font-semibold bg-slate-100 text-slate-700 text-[11px]"
+        class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700"
       >
         {post.area}
       </span>
 
       {#if (post.author_id && currentUser?.id === post.author_id) || post.is_owner}
         <span
-          class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px]"
+          class="inline-flex items-center gap-0.5 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700"
         >
           {m.my_post_badge()}
         </span>
@@ -263,9 +266,9 @@
 
       {#if post.is_verified === 1}
         <span
-          class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md font-bold bg-blue-50 text-blue-700 border border-blue-200 text-[10px]"
+          class="inline-flex items-center gap-0.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700"
         >
-          <CheckCircle class="w-3 h-3 text-blue-600" />
+          <CheckCircle class="h-3 w-3 text-blue-600" />
           {m.official_verified()}
         </span>
       {/if}
@@ -273,9 +276,9 @@
 
     <!-- Last updated time -->
     <div
-      class="flex items-center gap-1 text-[11px] text-slate-400 font-medium shrink-0"
+      class="flex shrink-0 items-center gap-1 text-[11px] font-medium text-slate-400"
     >
-      <Clock class="w-3 h-3" />
+      <Clock class="h-3 w-3" />
       <span>{formatRelativeTime(post.updated_at)}</span>
     </div>
   </div>
@@ -283,22 +286,22 @@
   <!-- Photo (if attached) -->
   {#if post.image_url}
     <div
-      class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-950/5 flex flex-col"
+      class="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-950/5"
     >
       <button
         type="button"
         onclick={() => {
           showImageModal = true;
         }}
-        class="relative w-full h-44 sm:h-48 overflow-hidden bg-slate-900 group cursor-pointer"
+        class="group relative h-44 w-full cursor-pointer overflow-hidden bg-slate-900 sm:h-48"
       >
         <img
           src={post.image_url}
           alt={post.title}
-          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div
-          class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1"
+          class="absolute inset-0 flex items-center justify-center gap-1 bg-black/20 text-xs font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
         >
           <span>🔍</span>
           <span>タップして拡大</span>
@@ -307,28 +310,28 @@
 
       <!-- Image authenticity metadata (timestamp, GPS, C2PA signature) -->
       <div
-        class="px-3 py-2 bg-slate-900/90 text-white text-[11px] flex items-center justify-between gap-2 border-t border-slate-800"
+        class="flex items-center justify-between gap-2 border-t border-slate-800 bg-slate-900/90 px-3 py-2 text-[11px] text-white"
       >
         <div class="flex items-center gap-2">
           {#if photoTakenTime}
             <span class="inline-flex items-center gap-1 text-slate-300">
-              <Clock class="w-3 h-3 text-slate-400" />
+              <Clock class="h-3 w-3 text-slate-400" />
               <span>{photoTakenTime} 撮影</span>
             </span>
           {/if}
 
           {#if parsedImageMeta?.c2pa?.hasC2pa}
             <span
-              class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] font-bold"
+              class="inline-flex items-center gap-1 rounded border border-blue-400/30 bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-300"
             >
-              <ShieldCheck class="w-3 h-3 text-blue-400" />
+              <ShieldCheck class="h-3 w-3 text-blue-400" />
               <span>C2PA真正性検証済</span>
             </span>
           {/if}
         </div>
 
         {#if post.lat && post.lng}
-          <span class="text-slate-400 font-mono">📍 GPS位置あり</span>
+          <span class="font-mono text-slate-400">📍 GPS位置あり</span>
         {/if}
       </div>
     </div>
@@ -336,12 +339,12 @@
 
   <!-- Title & status badge -->
   <div class="flex items-start justify-between gap-3">
-    <h3 class="text-base font-bold text-slate-900 leading-snug">
+    <h3 class="text-base leading-snug font-bold text-slate-900">
       {post.title}
     </h3>
 
     <span
-      class={`shrink-0 px-3 py-1 rounded-lg text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}
+      class={`shrink-0 rounded-lg px-3 py-1 text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}
     >
       {i18n.translateStatus(post.current_status, post.status_label)}
     </span>
@@ -350,7 +353,7 @@
   <!-- Address -->
   {#if post.address}
     <div class="flex items-center gap-1.5 text-xs text-slate-600">
-      <MapPin class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+      <MapPin class="h-3.5 w-3.5 shrink-0 text-slate-400" />
       <span class="truncate">{post.address}</span>
     </div>
   {/if}
@@ -358,7 +361,7 @@
   <!-- Notes & Details -->
   {#if post.note}
     <p
-      class="text-xs text-slate-700 bg-slate-50 p-2.5 rounded-lg leading-relaxed whitespace-pre-wrap"
+      class="rounded-lg bg-slate-50 p-2.5 text-xs leading-relaxed whitespace-pre-wrap text-slate-700"
     >
       {post.note}
     </p>
@@ -367,20 +370,20 @@
   <!-- Source URL and reference links with trust badge -->
   {#if post.source_url && sourceTrustBadge}
     <div
-      class="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200/80 text-xs"
+      class="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50 p-2 text-xs"
     >
-      <span class="text-slate-400 shrink-0">情報源:</span>
+      <span class="shrink-0 text-slate-400">情報源:</span>
       <a
         href={post.source_url}
         target="_blank"
         rel="noopener noreferrer"
-        class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold text-[11px] border transition hover:opacity-80 shrink-0 ${sourceTrustBadge.color}`}
+        class={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold transition hover:opacity-80 ${sourceTrustBadge.color}`}
       >
         <span>{sourceTrustBadge.icon}</span>
         <span>{sourceTrustBadge.label}</span>
-        <ExternalLink class="w-2.5 h-2.5 ml-0.5" />
+        <ExternalLink class="ml-0.5 h-2.5 w-2.5" />
       </a>
-      <span class="text-[10px] text-slate-400 truncate"
+      <span class="truncate text-[10px] text-slate-400"
         >{sourceTrustBadge.host}</span
       >
     </div>
@@ -388,19 +391,19 @@
 
   <!-- Dynamic attribute tags (water type, business hours, etc.) -->
   {#if Object.keys(parsedAttrs).length > 0}
-    <div class="flex items-center gap-1.5 flex-wrap">
+    <div class="flex flex-wrap items-center gap-1.5">
       {#each Object.entries(parsedAttrs) as [key, val] (key)}
         {#if typeof val === 'string' || typeof val === 'number'}
           <span
-            class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium"
+            class="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
           >
-            <span class="text-slate-400 mr-1">{key}:</span>
+            <span class="mr-1 text-slate-400">{key}:</span>
             {val}
           </span>
         {:else if Array.isArray(val)}
           {#each val as item, i (i)}
             <span
-              class="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-medium"
+              class="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800"
             >
               🏷️ {item}
             </span>
@@ -412,19 +415,19 @@
 
   <!-- Voluntary vocabulary tags -->
   {#if parsedTags.length > 0}
-    <div class="flex items-center gap-1.5 flex-wrap">
+    <div class="flex flex-wrap items-center gap-1.5">
       {#each parsedTags as t (t)}
         {#if onSelectTag}
           <button
             type="button"
             onclick={() => onSelectTag?.(t)}
-            class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-semibold transition cursor-pointer"
+            class="inline-flex cursor-pointer items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100"
           >
             #{t}
           </button>
         {:else}
           <span
-            class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-semibold"
+            class="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700"
           >
             #{t}
           </span>
@@ -435,7 +438,7 @@
 
   <!-- Bottom: Verification & status report action bar -->
   <div
-    class="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 mt-auto"
+    class="mt-auto flex flex-col items-stretch justify-between gap-2 border-t border-slate-100 pt-2.5 sm:flex-row sm:items-center"
   >
     <!-- Accuracy & local verification button -->
     <div class="flex items-center gap-2">
@@ -443,18 +446,18 @@
         type="button"
         onclick={handleVerify}
         disabled={isVerifiedByMe || isVerifying}
-        class={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-2xs cursor-pointer ${
+        class={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold shadow-2xs transition ${
           isVerifiedByMe
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-            : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 active:scale-95'
+            ? 'border border-emerald-300 bg-emerald-50 text-emerald-700'
+            : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95'
         }`}
         title="この情報が現在も有効であることを支持します"
       >
         {#if isVerifiedByMe}
-          <Check class="w-3.5 h-3.5 text-emerald-600" />
+          <Check class="h-3.5 w-3.5 text-emerald-600" />
           <span>{m.btn_verified()} ({verificationCount})</span>
         {:else}
-          <ThumbsUp class="w-3.5 h-3.5 text-blue-600" />
+          <ThumbsUp class="h-3.5 w-3.5 text-blue-600" />
           <span>{m.btn_verify()} ({verificationCount})</span>
         {/if}
       </button>
@@ -467,15 +470,15 @@
     </div>
 
     <!-- Action buttons (Edit, Delete, Report status) -->
-    <div class="flex items-center gap-1.5 self-end sm:self-auto flex-wrap">
+    <div class="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
       {#if isAuthorOrAdmin}
         <button
           type="button"
           onclick={() => onEditPost?.(post)}
-          class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 hover:border-slate-300 transition cursor-pointer shadow-2xs"
+          class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-100"
           title="この投稿を編集"
         >
-          <Edit3 class="w-3.5 h-3.5 text-blue-600" />
+          <Edit3 class="h-3.5 w-3.5 text-blue-600" />
           <span>{m.btn_edit()}</span>
         </button>
 
@@ -486,10 +489,10 @@
               onDeletePost?.(post.id);
             }
           }}
-          class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-600 bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 transition cursor-pointer shadow-2xs"
+          class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 shadow-2xs transition hover:border-rose-300 hover:bg-rose-50"
           title="この投稿を削除"
         >
-          <Trash2 class="w-3.5 h-3.5 text-rose-600" />
+          <Trash2 class="h-3.5 w-3.5 text-rose-600" />
           <span>{m.btn_delete()}</span>
         </button>
       {/if}
@@ -498,10 +501,10 @@
       <button
         type="button"
         onclick={() => onContactPost?.(post)}
-        class="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition cursor-pointer shadow-2xs"
+        class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50"
         title="この投稿について管理者や投稿者にセキュア連絡"
       >
-        <MessageSquareLock class="w-3.5 h-3.5 text-blue-600" />
+        <MessageSquareLock class="h-3.5 w-3.5 text-blue-600" />
         <span>{m.btn_contact()}</span>
       </button>
 
@@ -509,9 +512,9 @@
       <button
         type="button"
         onclick={() => onOpenUpdateStatus(post)}
-        class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 transition cursor-pointer shadow-2xs"
+        class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-200 active:scale-95"
       >
-        <RefreshCw class="w-3.5 h-3.5 text-slate-500" />
+        <RefreshCw class="h-3.5 w-3.5 text-slate-500" />
         <span>{m.btn_report_status()}</span>
       </button>
     </div>
@@ -527,43 +530,43 @@
       onclick={() => {
         showImageModal = false;
       }}
-      class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity cursor-pointer border-none"
+      class="fixed inset-0 cursor-pointer border-none bg-black/80 backdrop-blur-sm transition-opacity"
       aria-label="モーダルを閉じる"
     ></button>
 
     <!-- Modal content -->
     <div
-      class="relative z-10 max-w-3xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+      class="relative z-10 flex max-h-[90vh] max-w-3xl flex-col overflow-hidden rounded-2xl bg-slate-900 shadow-2xl"
       role="dialog"
       aria-modal="true"
       aria-label="写真拡大表示"
     >
       <div
-        class="p-3 bg-slate-800 text-white flex items-center justify-between"
+        class="flex items-center justify-between bg-slate-800 p-3 text-white"
       >
-        <span class="text-xs font-bold truncate pr-4">{post.title} の写真</span>
+        <span class="truncate pr-4 text-xs font-bold">{post.title} の写真</span>
         <button
           type="button"
           onclick={() => {
             showImageModal = false;
           }}
-          class="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
+          class="cursor-pointer rounded-lg p-1 text-slate-400 transition hover:text-white"
         >
-          <X class="w-5 h-5" />
+          <X class="h-5 w-5" />
         </button>
       </div>
-      <div class="p-2 flex items-center justify-center bg-black overflow-auto">
+      <div class="flex items-center justify-center overflow-auto bg-black p-2">
         <img
           src={post.image_url}
           alt={post.title}
-          class="max-w-full max-h-[75vh] object-contain rounded"
+          class="max-h-[75vh] max-w-full rounded object-contain"
         />
       </div>
       {#if parsedImageMeta?.c2pa?.hasC2pa}
         <div
-          class="p-3 bg-slate-800 border-t border-slate-700 text-xs text-emerald-400 flex items-center gap-1.5 font-bold"
+          class="flex items-center gap-1.5 border-t border-slate-700 bg-slate-800 p-3 text-xs font-bold text-emerald-400"
         >
-          <ShieldCheck class="w-4 h-4 text-emerald-400" />
+          <ShieldCheck class="h-4 w-4 text-emerald-400" />
           <span
             >C2PA コンテンツ来歴・真正性認証済み ({parsedImageMeta.c2pa
               .claimGenerator || '真正カメラ署名'})</span

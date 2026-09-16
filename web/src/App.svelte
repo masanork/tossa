@@ -289,7 +289,7 @@
   let hidePasskeyNudge = $state(false);
 </script>
 
-<div class="min-h-screen flex flex-col bg-slate-50">
+<div class="flex min-h-screen flex-col bg-slate-50">
   <!-- Header -->
   <Header
     {settings}
@@ -305,13 +305,13 @@
   <!-- Offline status & Sync notification banners -->
   {#if !isOnline}
     <div
-      class="bg-amber-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition"
+      class="flex items-center justify-center gap-2 bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition"
     >
-      <WifiOff class="w-4 h-4 shrink-0" />
+      <WifiOff class="h-4 w-4 shrink-0" />
       <span>{m.offline_banner()}</span>
       {#if pendingCount > 0}
         <span
-          class="bg-amber-800 px-2 py-0.5 rounded-full text-[11px] font-mono shrink-0"
+          class="shrink-0 rounded-full bg-amber-800 px-2 py-0.5 font-mono text-[11px]"
         >
           未送信: {pendingCount}件
         </span>
@@ -319,9 +319,9 @@
     </div>
   {:else if offlineNotice}
     <div
-      class="bg-emerald-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-center gap-2 shadow-xs animate-in fade-in duration-200"
+      class="animate-in fade-in flex items-center justify-center gap-2 bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs duration-200"
     >
-      <Check class="w-4 h-4 shrink-0" />
+      <Check class="h-4 w-4 shrink-0" />
       <span>{offlineNotice}</span>
     </div>
   {/if}
@@ -336,13 +336,13 @@
 
   <!-- Passkey nudge banner for cookie-identified users -->
   {#if !currentUser && !hidePasskeyNudge}
-    <div class="max-w-4xl mx-auto px-4 w-full mb-3">
+    <div class="mx-auto mb-3 w-full max-w-4xl px-4">
       <div
-        class="bg-gradient-to-r from-blue-50 via-indigo-50 to-white border border-blue-200/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs"
+        class="flex items-center justify-between gap-3 rounded-2xl border border-blue-200/80 bg-gradient-to-r from-blue-50 via-indigo-50 to-white p-3 shadow-2xs sm:p-3.5"
       >
-        <div class="flex items-center gap-2.5 min-w-0">
+        <div class="flex min-w-0 items-center gap-2.5">
           <div
-            class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs font-bold text-sm"
+            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold text-white shadow-xs"
           >
             🔑
           </div>
@@ -350,18 +350,18 @@
             <span class="font-bold text-slate-800"
               >{m.nudge_cookie_title()}</span
             >
-            <p class="text-[11px] text-slate-500 mt-0.5">
+            <p class="mt-0.5 text-[11px] text-slate-500">
               {m.nudge_cookie_desc()}
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 shrink-0">
+        <div class="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
             onclick={() => {
               showAdminModal = true;
             }}
-            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer whitespace-nowrap"
+            class="cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold whitespace-nowrap text-white shadow-2xs transition hover:bg-blue-700"
           >
             {m.nudge_register_btn()}
           </button>
@@ -370,7 +370,7 @@
             onclick={() => {
               hidePasskeyNudge = true;
             }}
-            class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition cursor-pointer"
+            class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200/50 hover:text-slate-600"
             title="閉じる"
           >
             ✕
@@ -382,20 +382,20 @@
 
   <!-- Sub-bar: Search, Area, View toggle (List ⇄ Map) -->
   <div
-    class="max-w-4xl mx-auto px-4 w-full mb-3 flex flex-col sm:flex-row items-center justify-between gap-2.5"
+    class="mx-auto mb-3 flex w-full max-w-4xl flex-col items-center justify-between gap-2.5 px-4 sm:flex-row"
   >
-    <div class="flex items-center gap-2 w-full sm:w-auto flex-1">
+    <div class="flex w-full flex-1 items-center gap-2 sm:w-auto">
       <!-- Search input -->
       <div class="relative flex-1">
         <Search
-          class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          class="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
         />
         <input
           type="text"
           value={searchQuery}
           oninput={handleSearchInput}
           placeholder={m.search_placeholder()}
-          class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+          class="w-full rounded-lg border border-slate-200 bg-white py-1.5 pr-3 pl-8 text-xs shadow-2xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
       </div>
 
@@ -404,7 +404,7 @@
         <select
           bind:value={selectedArea}
           onchange={() => reloadPosts()}
-          class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 shadow-2xs focus:outline-none"
+          class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs focus:outline-none"
         >
           <option value="">{m.all_areas()}</option>
           {#each availableAreas as a (a)}
@@ -416,20 +416,20 @@
 
     <!-- List / Map view toggle -->
     <div
-      class="flex items-center bg-slate-200/80 p-0.5 rounded-lg shrink-0 self-end sm:self-auto"
+      class="flex shrink-0 items-center self-end rounded-lg bg-slate-200/80 p-0.5 sm:self-auto"
     >
       <button
         type="button"
         onclick={() => {
           viewMode = 'list';
         }}
-        class={`flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+        class={`flex cursor-pointer items-center gap-1 rounded-md px-3 py-1 text-xs font-bold transition-all ${
           viewMode === 'list'
             ? 'bg-white text-slate-900 shadow-xs'
             : 'text-slate-600 hover:text-slate-900'
         }`}
       >
-        <List class="w-3.5 h-3.5" />
+        <List class="h-3.5 w-3.5" />
         <span>{m.btn_list_view()}</span>
       </button>
 
@@ -438,35 +438,35 @@
         onclick={() => {
           viewMode = 'map';
         }}
-        class={`flex items-center gap-1 px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${
+        class={`flex cursor-pointer items-center gap-1 rounded-md px-3 py-1 text-xs font-bold transition-all ${
           viewMode === 'map'
             ? 'bg-white text-slate-900 shadow-xs'
             : 'text-slate-600 hover:text-slate-900'
         }`}
       >
-        <MapIcon class="w-3.5 h-3.5" />
+        <MapIcon class="h-3.5 w-3.5" />
         <span>{m.btn_map_view()}</span>
       </button>
 
       <button
         type="button"
         onclick={() => reloadPosts()}
-        class="p-1 text-slate-500 hover:text-slate-800 ml-1 rounded-md transition cursor-pointer"
+        class="ml-1 cursor-pointer rounded-md p-1 text-slate-500 transition hover:text-slate-800"
         title={m.btn_refresh()}
       >
-        <RotateCw class="w-3.5 h-3.5" />
+        <RotateCw class="h-3.5 w-3.5" />
       </button>
     </div>
   </div>
 
   <!-- Main content -->
-  <main class="max-w-4xl mx-auto px-4 w-full flex-1 pb-16">
+  <main class="mx-auto w-full max-w-4xl flex-1 px-4 pb-16">
     {#if isLoading}
       <div
-        class="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-2"
+        class="flex flex-col items-center gap-2 py-16 text-center text-xs text-slate-400"
       >
         <div
-          class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"
+          class="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
         ></div>
         <span>{m.loading_posts()}</span>
       </div>
@@ -474,19 +474,19 @@
       <!-- Map view -->
       {#if posts.length === 0}
         <div
-          class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs mb-4"
+          class="mb-4 rounded-2xl border border-slate-200 bg-white p-8 py-16 text-center shadow-xs"
         >
-          <div class="text-3xl mb-2">🗺️</div>
-          <h3 class="text-sm font-bold text-slate-800 mb-1">
+          <div class="mb-2 text-3xl">🗺️</div>
+          <h3 class="mb-1 text-sm font-bold text-slate-800">
             {m.map_empty_title()}
           </h3>
-          <p class="text-xs text-slate-500 mb-4">
+          <p class="mb-4 text-xs text-slate-500">
             {m.map_empty_desc()}
           </p>
           <button
             type="button"
             onclick={handleOpenCreate}
-            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
+            class="cursor-pointer rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700"
           >
             {m.empty_btn()}
           </button>
@@ -504,13 +504,13 @@
         {#if selectedTag || searchQuery || selectedArea}
           <!-- Empty results from filter -->
           <div
-            class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs"
+            class="rounded-2xl border border-slate-200 bg-white p-8 py-16 text-center shadow-xs"
           >
-            <div class="text-3xl mb-2">🔍</div>
-            <h3 class="text-sm font-bold text-slate-800 mb-1">
+            <div class="mb-2 text-3xl">🔍</div>
+            <h3 class="mb-1 text-sm font-bold text-slate-800">
               {m.empty_filter_title()}
             </h3>
-            <p class="text-xs text-slate-500 mb-4">
+            <p class="mb-4 text-xs text-slate-500">
               {m.empty_filter_desc()}
             </p>
             <button
@@ -521,7 +521,7 @@
                 selectedArea = '';
                 reloadPosts();
               }}
-              class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
+              class="cursor-pointer rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-200"
             >
               {m.btn_clear_filters()}
             </button>
@@ -529,30 +529,30 @@
         {:else}
           <!-- Welcome CTA when zero posts exist -->
           <div
-            class="py-12 sm:py-16 text-center bg-gradient-to-b from-white to-blue-50/40 rounded-3xl border border-blue-100 p-8 sm:p-12 shadow-xs"
+            class="rounded-3xl border border-blue-100 bg-gradient-to-b from-white to-blue-50/40 p-8 py-12 text-center shadow-xs sm:p-12 sm:py-16"
           >
             <div
-              class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner"
+              class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 text-3xl text-blue-600 shadow-inner"
             >
               🌱
             </div>
-            <h3 class="text-lg font-black text-slate-900 mb-2">
+            <h3 class="mb-2 text-lg font-black text-slate-900">
               {m.empty_title()}
             </h3>
             <p
-              class="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mb-6"
+              class="mx-auto mb-6 max-w-md text-xs leading-relaxed text-slate-600 sm:text-sm"
             >
               {m.empty_description()}
             </p>
             <div
-              class="flex flex-col sm:flex-row items-center justify-center gap-3"
+              class="flex flex-col items-center justify-center gap-3 sm:flex-row"
             >
               <button
                 type="button"
                 onclick={handleOpenCreate}
-                class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
+                class="flex w-full transform cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-blue-700 hover:to-indigo-700 hover:shadow-lg active:translate-y-0 sm:w-auto"
               >
-                <Plus class="w-4 h-4" />
+                <Plus class="h-4 w-4" />
                 <span>{m.empty_btn()}</span>
               </button>
             </div>
@@ -560,12 +560,12 @@
         {/if}
       {:else}
         <div
-          class="flex items-center justify-between text-xs text-slate-500 mb-2 px-1"
+          class="mb-2 flex items-center justify-between px-1 text-xs text-slate-500"
         >
           <span>{m.posts_count({ count: totalPosts })}</span>
           {#if selectedTag}
             <span
-              class="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded"
+              class="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 font-bold text-blue-600"
             >
               {m.filtering_by_tag({ tag: selectedTag })}
               <button
@@ -579,7 +579,7 @@
           >
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
           {#each posts as post (post.id)}
             <PostCard
               {post}
@@ -597,13 +597,13 @@
   </main>
 
   <!-- Floating post CTA button (mobile) -->
-  <div class="fixed bottom-5 right-5 sm:hidden z-30">
+  <div class="fixed right-5 bottom-5 z-30 sm:hidden">
     <button
       type="button"
       onclick={handleOpenCreate}
-      class="flex items-center gap-2 px-5 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white rounded-full font-black text-sm shadow-xl active:scale-95 transition-all cursor-pointer ring-4 ring-blue-500/20"
+      class="flex cursor-pointer items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-3.5 text-sm font-black text-white shadow-xl ring-4 ring-blue-500/20 transition-all hover:from-blue-700 active:scale-95"
     >
-      <Plus class="w-4 h-4" />
+      <Plus class="h-4 w-4" />
       <span>{m.btn_post()}</span>
     </button>
   </div>

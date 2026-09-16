@@ -332,46 +332,46 @@
   onclick={(e) => {
     if (e.target === e.currentTarget) onClose();
   }}
-  class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
+  class="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs sm:items-center sm:p-4"
 >
   <div
-    class="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150 max-h-[92vh] flex flex-col"
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl duration-150 sm:rounded-2xl"
   >
     <!-- Mobile drag handle -->
     <div
-      class="w-10 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0"
+      class="mx-auto my-2 h-1 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden"
     ></div>
 
     <!-- Header -->
     <div
-      class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4"
     >
       <div class="flex items-center gap-2">
-        <KeyRound class="w-4 h-4 text-blue-600" />
+        <KeyRound class="h-4 w-4 text-blue-600" />
         <h2 class="text-base font-black text-slate-900">Passkey 認証・設定</h2>
       </div>
       <button
         type="button"
         onclick={onClose}
-        class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
+        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600"
       >
-        <X class="w-5 h-5" />
+        <X class="h-5 w-5" />
       </button>
     </div>
 
-    <div class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto">
+    <div class="flex flex-col gap-4 overflow-y-auto p-4 sm:p-5">
       {#if statusMessage}
         <div
-          class={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
+          class={`flex items-center gap-2 rounded-xl p-3 text-xs font-medium ${
             statusMessage.type === 'success'
-              ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-              : 'bg-rose-50 border border-rose-200 text-rose-800'
+              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border border-rose-200 bg-rose-50 text-rose-800'
           }`}
         >
           {#if statusMessage.type === 'success'}
-            <Check class="w-4 h-4 shrink-0 text-emerald-600" />
+            <Check class="h-4 w-4 shrink-0 text-emerald-600" />
           {:else}
-            <AlertCircle class="w-4 h-4 shrink-0 text-rose-600" />
+            <AlertCircle class="h-4 w-4 shrink-0 text-rose-600" />
           {/if}
           <span>{statusMessage.text}</span>
         </div>
@@ -382,9 +382,9 @@
         <div class="flex flex-col gap-3.5">
           {#if isFirstUserSetup}
             <div
-              class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start gap-2"
+              class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
             >
-              <Crown class="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+              <Crown class="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
               <div>
                 <span class="font-bold">初回管理者セットアップ:</span>
                 <p class="mt-0.5 text-[11px] leading-relaxed text-amber-800">
@@ -393,17 +393,17 @@
               </div>
             </div>
           {:else}
-            <p class="text-xs text-slate-600 leading-relaxed">
+            <p class="text-xs leading-relaxed text-slate-600">
               パスワードは不要です。端末の生体認証（Touch ID / Face ID / Windows
               Hello）で即座にログイン・登録できます。認証すると情報の投稿や、自分が投稿した情報の編集・削除が可能です。
             </p>
           {/if}
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div>
               <label
                 for="auth-username"
-                class="block text-xs font-bold text-slate-700 mb-1"
+                class="mb-1 block text-xs font-bold text-slate-700"
               >
                 ユーザー名（ID） <span class="text-rose-600">*</span>
               </label>
@@ -412,13 +412,13 @@
                 type="text"
                 bind:value={username}
                 placeholder="例: yamada"
-                class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
             <div>
               <label
                 for="auth-display-name"
-                class="block text-xs font-bold text-slate-700 mb-1"
+                class="mb-1 block text-xs font-bold text-slate-700"
               >
                 表示名・ニックネーム（任意）
               </label>
@@ -427,19 +427,19 @@
                 type="text"
                 bind:value={displayName}
                 placeholder="例: 山田太郎"
-                class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-2 pt-2">
+          <div class="flex flex-col gap-2 pt-2 sm:flex-row">
             <button
               type="button"
               onclick={handlePasskeyLogin}
               disabled={isAuthenticating}
-              class="flex-1 py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
             >
-              <KeyRound class="w-4 h-4" />
+              <KeyRound class="h-4 w-4" />
               <span
                 >{isAuthenticating ? '認証中...' : 'Passkey でログイン'}</span
               >
@@ -449,9 +449,9 @@
               type="button"
               onclick={handlePasskeyRegister}
               disabled={isAuthenticating || !username.trim()}
-              class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              class="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
             >
-              <UserCheck class="w-4 h-4 text-blue-600" />
+              <UserCheck class="h-4 w-4 text-blue-600" />
               <span>Passkey で新規登録</span>
             </button>
           </div>
@@ -462,35 +462,35 @@
         <div class="flex flex-col gap-4">
           <!-- User info badge -->
           <div
-            class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"
+            class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3"
           >
             <div class="flex items-center gap-2.5">
               <div
-                class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-xs"
+                class="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-sm font-black text-white shadow-xs"
               >
                 {user.displayName.charAt(0)}
               </div>
               <div>
                 <div
-                  class="text-xs font-bold text-slate-900 flex items-center gap-1.5"
+                  class="flex items-center gap-1.5 text-xs font-bold text-slate-900"
                 >
                   <span>{user.displayName}</span>
                   {#if user.role === 'admin'}
                     <span
-                      class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"
+                      class="py-0.2 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"
                     >
-                      <Crown class="w-3 h-3 text-amber-600" />
+                      <Crown class="h-3 w-3 text-amber-600" />
                       管理者
                     </span>
                   {:else}
                     <span
-                      class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                      class="py-0.2 inline-flex items-center gap-0.5 rounded-full border border-blue-200 bg-blue-50 px-1.5 text-[10px] font-semibold text-blue-700"
                     >
                       一般ユーザー
                     </span>
                   {/if}
                 </div>
-                <div class="text-[11px] text-slate-500 font-mono">
+                <div class="font-mono text-[11px] text-slate-500">
                   @{user.username}
                 </div>
               </div>
@@ -498,10 +498,10 @@
             <button
               type="button"
               onclick={onLogout}
-              class="px-2.5 py-1.5 text-xs text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition cursor-pointer flex items-center gap-1 font-medium"
+              class="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
               title="ログアウト"
             >
-              <LogOut class="w-3.5 h-3.5" />
+              <LogOut class="h-3.5 w-3.5" />
               <span>ログアウト</span>
             </button>
           </div>
@@ -509,13 +509,13 @@
           <!-- Guide for standard users -->
           {#if user.role !== 'admin'}
             <div
-              class="p-4 bg-blue-50/60 rounded-xl border border-blue-100 text-xs text-slate-700 flex flex-col gap-2"
+              class="flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-slate-700"
             >
-              <div class="font-bold text-blue-900 flex items-center gap-1.5">
-                <Shield class="w-4 h-4 text-blue-600" />
+              <div class="flex items-center gap-1.5 font-bold text-blue-900">
+                <Shield class="h-4 w-4 text-blue-600" />
                 <span>Passkey 認証完了</span>
               </div>
-              <p class="leading-relaxed text-[11px] text-slate-600">
+              <p class="text-[11px] leading-relaxed text-slate-600">
                 あなたの端末は安全に認証されています。生活情報の投稿や、ご自身が投稿したカードの「✏️
                 編集」「🗑️ 削除」が行えます。
               </p>
@@ -525,20 +525,20 @@
           {:else}
             <!-- Tab navigation -->
             <div
-              class="flex items-center border-b border-slate-200 text-xs font-bold gap-1"
+              class="flex items-center gap-1 border-b border-slate-200 text-xs font-bold"
             >
               <button
                 type="button"
                 onclick={() => {
                   activeTab = 'settings';
                 }}
-                class={`px-3 py-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'settings'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <Sliders class="w-3.5 h-3.5" />
+                <Sliders class="h-3.5 w-3.5" />
                 <span>地域・告知</span>
               </button>
 
@@ -547,13 +547,13 @@
                 onclick={() => {
                   activeTab = 'users';
                 }}
-                class={`px-3 py-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'users'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <Users class="w-3.5 h-3.5" />
+                <Users class="h-3.5 w-3.5" />
                 <span>メンバー権限委譲</span>
               </button>
 
@@ -562,13 +562,13 @@
                 onclick={() => {
                   activeTab = 'federation';
                 }}
-                class={`px-3 py-2 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'federation'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <Network class="w-3.5 h-3.5" />
+                <Network class="h-3.5 w-3.5" />
                 <span>データ合流</span>
               </button>
             </div>
@@ -580,7 +580,7 @@
                 <div>
                   <label
                     for="admin-emergency-banner"
-                    class="block text-xs font-bold text-slate-700 mb-1"
+                    class="mb-1 block text-xs font-bold text-slate-700"
                   >
                     緊急告知アナウンス文（全画面最上部に固定表示）
                   </label>
@@ -589,7 +589,7 @@
                     bind:value={emergencyBanner}
                     rows="2"
                     placeholder="例: 台風接近に伴い避難所が開設されています。給水・物資の最新状況を共有してください。（空にすると非表示）"
-                    class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   ></textarea>
                 </div>
 
@@ -597,7 +597,7 @@
                 <div>
                   <label
                     for="admin-default-area"
-                    class="block text-xs font-bold text-slate-700 mb-1"
+                    class="mb-1 block text-xs font-bold text-slate-700"
                   >
                     対象地域・自治体名
                   </label>
@@ -606,9 +606,9 @@
                     type="text"
                     bind:value={defaultArea}
                     placeholder="例: 高知県高知市、能登地方、〇〇町（空欄時は全域）"
-                    class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
-                  <p class="text-[10px] text-slate-500 mt-1">
+                  <p class="mt-1 text-[10px] text-slate-500">
                     ※
                     設定するとヘッダーに地域名が表示され、地図の初期表示や住所補完の中心となります。
                   </p>
@@ -619,7 +619,7 @@
                   type="button"
                   onclick={handleSaveSettings}
                   disabled={isSavingSettings}
-                  class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   <span
                     >{isSavingSettings ? '保存中...' : '設定を反映する'}</span
@@ -637,10 +637,10 @@
                   <button
                     type="button"
                     onclick={loadUsers}
-                    class="text-xs text-blue-600 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
+                    class="flex cursor-pointer items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
                   >
                     <RefreshCw
-                      class={`w-3 h-3 ${isLoadingUsers ? 'animate-spin' : ''}`}
+                      class={`h-3 w-3 ${isLoadingUsers ? 'animate-spin' : ''}`}
                     />
                     <span>再読み込み</span>
                   </button>
@@ -648,10 +648,10 @@
 
                 {#if roleChangeMessage}
                   <div
-                    class={`p-2.5 rounded-lg text-xs font-medium flex items-center gap-2 ${
+                    class={`flex items-center gap-2 rounded-lg p-2.5 text-xs font-medium ${
                       roleChangeMessage.type === 'success'
-                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                        : 'bg-rose-50 border border-rose-200 text-rose-800'
+                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                        : 'border border-rose-200 bg-rose-50 text-rose-800'
                     }`}
                   >
                     <span>{roleChangeMessage.text}</span>
@@ -659,7 +659,7 @@
                 {/if}
 
                 <div
-                  class="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 bg-slate-50/50"
+                  class="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50"
                 >
                   {#if isLoadingUsers}
                     <div class="py-6 text-center text-xs text-slate-400">
@@ -672,11 +672,11 @@
                   {:else}
                     {#each userList as u (u.id)}
                       <div
-                        class="p-3 flex items-center justify-between gap-2 bg-white hover:bg-slate-50 transition"
+                        class="flex items-center justify-between gap-2 bg-white p-3 transition hover:bg-slate-50"
                       >
-                        <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="flex min-w-0 items-center gap-2.5">
                           <div
-                            class="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0"
+                            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700"
                           >
                             {u.displayName
                               ? u.displayName.charAt(0)
@@ -684,29 +684,29 @@
                           </div>
                           <div class="min-w-0">
                             <div
-                              class="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5"
+                              class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-800"
                             >
                               <span>{u.displayName || u.username}</span>
                               {#if u.id === user.id}
                                 <span
-                                  class="text-[10px] text-blue-600 font-bold"
+                                  class="text-[10px] font-bold text-blue-600"
                                   >(自分)</span
                                 >
                               {/if}
                             </div>
-                            <div class="text-[10px] text-slate-400 truncate">
+                            <div class="truncate text-[10px] text-slate-400">
                               @{u.username}
                             </div>
                           </div>
                         </div>
 
                         <!-- Role badge & update action -->
-                        <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex shrink-0 items-center gap-2">
                           {#if u.role === 'admin'}
                             <span
-                              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"
+                              class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800"
                             >
-                              <Crown class="w-3 h-3 text-amber-600" />
+                              <Crown class="h-3 w-3 text-amber-600" />
                               管理者
                             </span>
                             {#if u.id !== user.id}
@@ -718,14 +718,14 @@
                                     u.displayName || u.username,
                                     'user'
                                   )}
-                                class="px-2 py-1 text-[10px] font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-md transition cursor-pointer border border-slate-200"
+                                class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900"
                               >
                                 一般に戻す
                               </button>
                             {/if}
                           {:else}
                             <span
-                              class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600"
+                              class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
                             >
                               一般
                             </span>
@@ -737,9 +737,9 @@
                                   u.displayName || u.username,
                                   'admin'
                                 )}
-                              class="px-2 py-1 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition cursor-pointer flex items-center gap-1"
+                              class="flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100"
                             >
-                              <Crown class="w-2.5 h-2.5 text-amber-600" />
+                              <Crown class="h-2.5 w-2.5 text-amber-600" />
                               <span>管理者に昇格</span>
                             </button>
                           {/if}
@@ -757,31 +757,31 @@
               <!-- Tab 3: Data Federation -->
             {:else if activeTab === 'federation'}
               <div
-                class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col gap-2.5"
+                class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5"
               >
                 <div class="flex items-center justify-between">
                   <div
                     class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
                   >
-                    <Network class="w-4 h-4 text-blue-600" />
+                    <Network class="h-4 w-4 text-blue-600" />
                     <span>他サイトとの合流・連携 (Federation)</span>
                   </div>
-                  <span class="text-[10px] text-slate-500 font-mono"
+                  <span class="font-mono text-[10px] text-slate-500"
                     >GeoJSON-LD</span
                   >
                 </div>
 
-                <p class="text-[11px] text-slate-500 leading-relaxed">
+                <p class="text-[11px] leading-relaxed text-slate-500">
                   災害時に他チームが立ち上げた tossa
                   や互換サイトと相互にデータを合流・移行できます。
                 </p>
 
                 {#if syncMessage}
                   <div
-                    class={`text-[11px] p-2.5 rounded-lg flex items-center gap-1.5 ${
+                    class={`flex items-center gap-1.5 rounded-lg p-2.5 text-[11px] ${
                       syncMessage.type === 'success'
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium'
-                        : 'bg-rose-50 text-rose-800 border border-rose-200'
+                        ? 'border border-emerald-200 bg-emerald-50 font-medium text-emerald-800'
+                        : 'border border-rose-200 bg-rose-50 text-rose-800'
                     }`}
                   >
                     <span>{syncMessage.text}</span>
@@ -802,16 +802,16 @@
                       type="url"
                       bind:value={remoteSyncUrl}
                       placeholder="例: https://other-tossa.workers.dev"
-                      class="flex-1 px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                     <button
                       type="button"
                       onclick={handleSyncFromRemoteUrl}
                       disabled={isSyncing || !remoteSyncUrl.trim()}
-                      class="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                      class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
                     >
                       <RefreshCw
-                        class={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`}
+                        class={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`}
                       />
                       <span>{isSyncing ? '同期中...' : '合流・同期'}</span>
                     </button>
@@ -823,16 +823,16 @@
                   <a
                     href="/api/federation/export"
                     download
-                    class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs text-center"
+                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100"
                   >
-                    <Download class="w-3.5 h-3.5 text-blue-600" />
+                    <Download class="h-3.5 w-3.5 text-blue-600" />
                     <span>データ出力 (Export)</span>
                   </a>
 
                   <label
-                    class="flex-1 py-1.5 px-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer text-center"
+                    class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100"
                   >
-                    <Upload class="w-3.5 h-3.5 text-indigo-600" />
+                    <Upload class="h-3.5 w-3.5 text-indigo-600" />
                     <span>ファイル取込 (Import)</span>
                     <input
                       type="file"

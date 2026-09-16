@@ -166,7 +166,7 @@
 </script>
 
 <div
-  class="relative w-full h-[calc(100vh-210px)] min-h-[420px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner"
+  class="relative h-[calc(100vh-210px)] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-inner"
 >
-  <div bind:this={mapContainer} class="w-full h-full z-0"></div>
+  <div bind:this={mapContainer} class="z-0 h-full w-full"></div>
 </div>

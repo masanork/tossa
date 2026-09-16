@@ -8,12 +8,19 @@ on:
 
 jobs:
   test-and-lint:
-    name: Lint, Typecheck, Unit & E2E Tests
+    name: Lint, Typecheck, Knip, Unit & E2E Tests
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -27,16 +34,24 @@ jobs:
       - name: Install Web Dependencies
         run: npm --prefix web ci
 
-      - name: Check Code Formatting (Prettier)
+      - name: Audit Production Dependencies
+        run: |
+          npm audit --omit=dev --audit-level=high
+          npm --prefix web audit --omit=dev --audit-level=high
+
+      - name: Check Code Formatting & Tailwind Class Ordering (Prettier)
         run: npm run format:check
 
-      - name: Lint Code (ESLint)
+      - name: Lint Code (ESLint with Type-Checked Rules)
         run: npm run lint
+
+      - name: Detect Dead Code & Unused Dependencies (Knip)
+        run: npm run knip
 
       - name: Type Check (TypeScript & Svelte Check)
         run: npm run typecheck
 
-      - name: Run Unit & Integration Tests (Vitest)
+      - name: Run Unit & Integration Tests with Typecheck (Vitest)
         run: npm test
 
       - name: Install Playwright Chromium & System Dependencies
