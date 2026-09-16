@@ -270,9 +270,23 @@ authRoute.get('/me', async (c) => {
     return c.json({ success: false, authenticated: false }, 401);
   }
 
+  let freshToken: string | undefined;
+  if (user.role !== session.role) {
+    freshToken = await createSessionToken(
+      {
+        userId: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        role: user.role,
+      },
+      c.env.JWT_SECRET
+    );
+  }
+
   return c.json({
     success: true,
     authenticated: true,
+    token: freshToken,
     user: {
       id: user.id,
       username: user.username,
@@ -282,6 +296,21 @@ authRoute.get('/me', async (c) => {
   });
 });
 
+// Helper: verify admin permission checking both session token and DB
+async function getAdminUserFromToken(
+  token: string,
+  env: Bindings
+): Promise<{ user: User; session: any } | null> {
+  const session = await verifySessionToken(token, env.JWT_SECRET);
+  if (!session) return null;
+  const user = await getUserById(env.DB, session.userId);
+  if (!user) return null;
+  if (session.role === 'admin' || user.role === 'admin') {
+    return { user, session };
+  }
+  return null;
+}
+
 // 6. List users (GET /api/auth/users) - Admin only
 authRoute.get('/users', async (c) => {
   const authHeader = c.req.header('Authorization');
@@ -290,8 +319,8 @@ authRoute.get('/users', async (c) => {
     return c.json({ success: false, error: 'Authorization required' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
-  if (!session || session.role !== 'admin') {
+  const auth = await getAdminUserFromToken(token, c.env);
+  if (!auth) {
     return c.json({ success: false, error: 'Admin permission required' }, 403);
   }
 
@@ -310,8 +339,8 @@ authRoute.patch('/users/:id/role', async (c) => {
     return c.json({ success: false, error: 'Authorization required' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
-  if (!session || session.role !== 'admin') {
+  const auth = await getAdminUserFromToken(token, c.env);
+  if (!auth) {
     return c.json({ success: false, error: 'Admin permission required' }, 403);
   }
 
@@ -356,13 +385,13 @@ authRoute.delete('/users/:id', async (c) => {
     return c.json({ success: false, error: 'Authorization required' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
-  if (!session || session.role !== 'admin') {
+  const auth = await getAdminUserFromToken(token, c.env);
+  if (!auth) {
     return c.json({ success: false, error: 'Admin permission required' }, 403);
   }
 
   const targetUserId = c.req.param('id');
-  if (targetUserId === session.userId) {
+  if (targetUserId === auth.session.userId) {
     return c.json(
       { success: false, error: '自分自身のアカウントは削除できません' },
       400

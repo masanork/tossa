@@ -160,6 +160,8 @@
       const res = await fetchUsers(token);
       if (res.success && res.users) {
         userList = res.users;
+      } else if (res.error) {
+        roleChangeMessage = { type: 'error', text: res.error };
       }
     } catch {
       // ignore
@@ -167,6 +169,18 @@
       isLoadingUsers = false;
     }
   }
+
+  $effect(() => {
+    if (
+      activeTab === 'users' &&
+      token &&
+      user?.role === 'admin' &&
+      userList.length === 0 &&
+      !isLoadingUsers
+    ) {
+      void loadUsers();
+    }
+  });
 
   // Execute Passkey login
   async function handlePasskeyLogin() {
@@ -664,6 +678,7 @@
                 type="button"
                 onclick={() => {
                   activeTab = 'users';
+                  void loadUsers();
                 }}
                 class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'users'
@@ -672,7 +687,7 @@
                 }`}
               >
                 <Users class="h-3.5 w-3.5" />
-                <span>メンバー権限委譲</span>
+                <span>メンバー</span>
               </button>
 
               <button
@@ -825,7 +840,7 @@
                 <div class="flex items-center justify-between">
                   <span
                     class="text-xs font-bold text-slate-700 dark:text-slate-300"
-                    >登録済みユーザー一覧 ({userList.length}名)</span
+                    >メンバー一覧 ({userList.length}名)</span
                   >
                   <button
                     type="button"

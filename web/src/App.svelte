@@ -229,6 +229,10 @@
       const authRes = await checkAuth(authToken);
       if (authRes.authenticated && authRes.user) {
         currentUser = authRes.user;
+        if (authRes.token) {
+          authToken = authRes.token;
+          localStorage.setItem('tossa_token', authRes.token);
+        }
       } else {
         authToken = null;
         localStorage.removeItem('tossa_token');

@@ -406,6 +406,7 @@ export async function initializeE2eeKeys(
 export async function checkAuth(token: string): Promise<{
   authenticated: boolean;
   user?: User;
+  token?: string;
 }> {
   try {
     const res = await fetch(`${API_BASE}/auth/me`, {
