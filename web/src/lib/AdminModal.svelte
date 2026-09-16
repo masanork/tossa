@@ -423,14 +423,18 @@
         <div
           class={`flex items-center gap-2 rounded-xl p-3 text-xs font-medium ${
             statusMessage.type === 'success'
-              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border border-rose-200 bg-rose-50 text-rose-800'
+              ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
           }`}
         >
           {#if statusMessage.type === 'success'}
-            <Check class="h-4 w-4 shrink-0 text-emerald-600" />
+            <Check
+              class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            />
           {:else}
-            <AlertCircle class="h-4 w-4 shrink-0 text-rose-600" />
+            <AlertCircle
+              class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+            />
           {/if}
           <span>{statusMessage.text}</span>
         </div>
@@ -441,18 +445,24 @@
         <div class="flex flex-col gap-3.5">
           {#if isFirstUserSetup}
             <div
-              class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
+              class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
             >
-              <Crown class="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <Crown
+                class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+              />
               <div>
                 <span class="font-bold">初回管理者セットアップ:</span>
-                <p class="mt-0.5 text-[11px] leading-relaxed text-amber-800">
+                <p
+                  class="mt-0.5 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300"
+                >
                   現在システムに管理者が登録されていません。最初にPasskey登録を行った利用者に、自動的にシステム管理者（admin）権限が付与されます。
                 </p>
               </div>
             </div>
           {:else}
-            <p class="text-xs leading-relaxed text-slate-600">
+            <p
+              class="text-xs leading-relaxed text-slate-600 dark:text-slate-400"
+            >
               パスワードは不要です。端末の生体認証（Touch ID / Face ID / Windows
               Hello）で即座にログイン・登録できます。認証すると情報の投稿や、自分が投稿した情報の編集・削除が可能です。
             </p>
@@ -462,22 +472,24 @@
             <div>
               <label
                 for="auth-username"
-                class="mb-1 block text-xs font-bold text-slate-700"
+                class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
               >
-                ユーザー名（ID） <span class="text-rose-600">*</span>
+                ユーザー名（ID） <span class="text-rose-600 dark:text-rose-400"
+                  >*</span
+                >
               </label>
               <input
                 id="auth-username"
                 type="text"
                 bind:value={username}
                 placeholder="例: yamada"
-                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
             <div>
               <label
                 for="auth-display-name"
-                class="mb-1 block text-xs font-bold text-slate-700"
+                class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
               >
                 表示名・ニックネーム（任意）
               </label>
@@ -486,7 +498,7 @@
                 type="text"
                 bind:value={displayName}
                 placeholder="例: 山田太郎"
-                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
           </div>
@@ -508,7 +520,7 @@
               type="button"
               onclick={handlePasskeyRegister}
               disabled={isAuthenticating || !username.trim()}
-              class="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50"
+              class="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               <UserCheck class="h-4 w-4 text-blue-600" />
               <span>Passkey で新規登録</span>
@@ -521,7 +533,7 @@
         <div class="flex flex-col gap-4">
           <!-- User info badge -->
           <div
-            class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3"
+            class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/60"
           >
             <div class="flex items-center gap-2.5">
               <div
@@ -531,25 +543,29 @@
               </div>
               <div>
                 <div
-                  class="flex items-center gap-1.5 text-xs font-bold text-slate-900"
+                  class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100"
                 >
                   <span>{user.displayName}</span>
                   {#if user.role === 'admin'}
                     <span
-                      class="py-0.2 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"
+                      class="py-0.2 inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                     >
-                      <Crown class="h-3 w-3 text-amber-600" />
+                      <Crown
+                        class="h-3 w-3 text-amber-600 dark:text-amber-400"
+                      />
                       管理者
                     </span>
                   {:else}
                     <span
-                      class="py-0.2 inline-flex items-center gap-0.5 rounded-full border border-blue-200 bg-blue-50 px-1.5 text-[10px] font-semibold text-blue-700"
+                      class="py-0.2 inline-flex items-center gap-0.5 rounded-full border border-blue-200 bg-blue-50 px-1.5 text-[10px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
                     >
                       一般ユーザー
                     </span>
                   {/if}
                 </div>
-                <div class="font-mono text-[11px] text-slate-500">
+                <div
+                  class="font-mono text-[11px] text-slate-500 dark:text-slate-400"
+                >
                   @{user.username}
                 </div>
               </div>
@@ -557,7 +573,7 @@
             <button
               type="button"
               onclick={onLogout}
-              class="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-50"
+              class="flex cursor-pointer items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-medium text-rose-600 transition hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
               title="ログアウト"
             >
               <LogOut class="h-3.5 w-3.5" />
@@ -568,13 +584,17 @@
           <!-- Guide for standard users -->
           {#if user.role !== 'admin'}
             <div
-              class="flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-slate-700"
+              class="flex flex-col gap-2 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-slate-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-slate-300"
             >
-              <div class="flex items-center gap-1.5 font-bold text-blue-900">
-                <Shield class="h-4 w-4 text-blue-600" />
+              <div
+                class="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-200"
+              >
+                <Shield class="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span>Passkey 認証完了</span>
               </div>
-              <p class="text-[11px] leading-relaxed text-slate-600">
+              <p
+                class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"
+              >
                 あなたの端末は安全に認証されています。生活情報の投稿や、ご自身が投稿したカードの「✏️
                 編集」「🗑️ 削除」が行えます。
               </p>
@@ -584,7 +604,7 @@
           {:else}
             <!-- Tab navigation -->
             <div
-              class="flex items-center gap-1 border-b border-slate-200 text-xs font-bold"
+              class="flex items-center gap-1 border-b border-slate-200 text-xs font-bold dark:border-slate-800"
             >
               <button
                 type="button"
@@ -593,8 +613,8 @@
                 }}
                 class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'settings'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Sliders class="h-3.5 w-3.5" />
@@ -608,8 +628,8 @@
                 }}
                 class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'users'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Users class="h-3.5 w-3.5" />
@@ -623,8 +643,8 @@
                 }}
                 class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
                   activeTab === 'federation'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                 }`}
               >
                 <Network class="h-3.5 w-3.5" />
@@ -639,7 +659,7 @@
                 <div>
                   <label
                     for="admin-emergency-banner"
-                    class="mb-1 block text-xs font-bold text-slate-700"
+                    class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
                   >
                     緊急告知アナウンス文（全画面最上部に固定表示）
                   </label>
@@ -648,7 +668,7 @@
                     bind:value={emergencyBanner}
                     rows="2"
                     placeholder="例: 台風接近に伴い避難所が開設されています。給水・物資の最新状況を共有してください。（空にすると非表示）"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                   ></textarea>
                 </div>
 
@@ -656,7 +676,7 @@
                 <div>
                   <label
                     for="admin-default-area"
-                    class="mb-1 block text-xs font-bold text-slate-700"
+                    class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
                   >
                     対象地域・自治体名
                   </label>
@@ -665,9 +685,11 @@
                     type="text"
                     bind:value={defaultArea}
                     placeholder="例: 高知県高知市、能登地方、〇〇町（空欄時は全域）"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                   />
-                  <p class="mt-1 text-[10px] text-slate-500">
+                  <p
+                    class="mt-1 text-[10px] text-slate-500 dark:text-slate-400"
+                  >
                     ※
                     設定するとヘッダーに地域名が表示され、地図の初期表示や住所補完の中心となります。
                   </p>
@@ -707,7 +729,7 @@
                         type="text"
                         bind:value={broadcastTitle}
                         placeholder="通知タイトル (例: 【緊急避難】河川水位が警戒水位を超過)"
-                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                       />
                     </div>
                     <div>
@@ -715,7 +737,7 @@
                         bind:value={broadcastBody}
                         rows="2"
                         placeholder="通知本文 (例: ○○川流域にお住まいの方は、速やかに高台や避難所に避難を開始してください。)"
-                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                       ></textarea>
                     </div>
                     <div>
@@ -723,7 +745,7 @@
                         type="text"
                         bind:value={broadcastArea}
                         placeholder="対象地域（空欄の場合は全地域に配信）"
-                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                       />
                     </div>
 
@@ -762,13 +784,14 @@
             {:else if activeTab === 'users'}
               <div class="flex flex-col gap-3">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-slate-700"
+                  <span
+                    class="text-xs font-bold text-slate-700 dark:text-slate-300"
                     >登録済みユーザー一覧 ({userList.length}名)</span
                   >
                   <button
                     type="button"
                     onclick={loadUsers}
-                    class="flex cursor-pointer items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
+                    class="flex cursor-pointer items-center gap-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
                   >
                     <RefreshCw
                       class={`h-3 w-3 ${isLoadingUsers ? 'animate-spin' : ''}`}
@@ -781,8 +804,8 @@
                   <div
                     class={`flex items-center gap-2 rounded-lg p-2.5 text-xs font-medium ${
                       roleChangeMessage.type === 'success'
-                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
-                        : 'border border-rose-200 bg-rose-50 text-rose-800'
+                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
                     }`}
                   >
                     <span>{roleChangeMessage.text}</span>
@@ -790,24 +813,28 @@
                 {/if}
 
                 <div
-                  class="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50"
+                  class="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-800/40"
                 >
                   {#if isLoadingUsers}
-                    <div class="py-6 text-center text-xs text-slate-400">
+                    <div
+                      class="py-6 text-center text-xs text-slate-400 dark:text-slate-500"
+                    >
                       ユーザー一覧を読み込み中...
                     </div>
                   {:else if userList.length === 0}
-                    <div class="py-6 text-center text-xs text-slate-400">
+                    <div
+                      class="py-6 text-center text-xs text-slate-400 dark:text-slate-500"
+                    >
                       ユーザーが見つかりません
                     </div>
                   {:else}
                     {#each userList as u (u.id)}
                       <div
-                        class="flex items-center justify-between gap-2 bg-white p-3 transition hover:bg-slate-50"
+                        class="flex items-center justify-between gap-2 bg-white p-3 transition hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/60"
                       >
                         <div class="flex min-w-0 items-center gap-2.5">
                           <div
-                            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700"
+                            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-300"
                           >
                             {u.displayName
                               ? u.displayName.charAt(0)
@@ -815,17 +842,19 @@
                           </div>
                           <div class="min-w-0">
                             <div
-                              class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-800"
+                              class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-800 dark:text-slate-200"
                             >
                               <span>{u.displayName || u.username}</span>
                               {#if u.id === user.id}
                                 <span
-                                  class="text-[10px] font-bold text-blue-600"
+                                  class="text-[10px] font-bold text-blue-600 dark:text-blue-400"
                                   >(自分)</span
                                 >
                               {/if}
                             </div>
-                            <div class="truncate text-[10px] text-slate-400">
+                            <div
+                              class="truncate text-[10px] text-slate-400 dark:text-slate-500"
+                            >
                               @{u.username}
                             </div>
                           </div>
@@ -835,9 +864,11 @@
                         <div class="flex shrink-0 items-center gap-2">
                           {#if u.role === 'admin'}
                             <span
-                              class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800"
+                              class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                             >
-                              <Crown class="h-3 w-3 text-amber-600" />
+                              <Crown
+                                class="h-3 w-3 text-amber-600 dark:text-amber-400"
+                              />
                               管理者
                             </span>
                             {#if u.id !== user.id}
@@ -849,14 +880,14 @@
                                     u.displayName || u.username,
                                     'user'
                                   )}
-                                class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900"
+                                class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
                               >
                                 一般に戻す
                               </button>
                             {/if}
                           {:else}
                             <span
-                              class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600"
+                              class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                             >
                               一般
                             </span>
@@ -868,9 +899,11 @@
                                   u.displayName || u.username,
                                   'admin'
                                 )}
-                              class="flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100"
+                              class="flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
                             >
-                              <Crown class="h-2.5 w-2.5 text-amber-600" />
+                              <Crown
+                                class="h-2.5 w-2.5 text-amber-600 dark:text-amber-400"
+                              />
                               <span>管理者に昇格</span>
                             </button>
                           {/if}
@@ -879,7 +912,7 @@
                     {/each}
                   {/if}
                 </div>
-                <p class="text-[10px] text-slate-400">
+                <p class="text-[10px] text-slate-400 dark:text-slate-500">
                   ※
                   管理者権限を持つユーザーは、システム設定の更新、他サイトとのデータ同期、および全投稿の編集・削除が可能です。
                 </p>
@@ -888,21 +921,24 @@
               <!-- Tab 3: Data Federation -->
             {:else if activeTab === 'federation'}
               <div
-                class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5"
+                class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/60"
               >
                 <div class="flex items-center justify-between">
                   <div
-                    class="flex items-center gap-1.5 text-xs font-bold text-slate-800"
+                    class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
                   >
-                    <Network class="h-4 w-4 text-blue-600" />
+                    <Network class="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     <span>他サイトとの合流・連携 (Federation)</span>
                   </div>
-                  <span class="font-mono text-[10px] text-slate-500"
+                  <span
+                    class="font-mono text-[10px] text-slate-500 dark:text-slate-400"
                     >GeoJSON-LD</span
                   >
                 </div>
 
-                <p class="text-[11px] leading-relaxed text-slate-500">
+                <p
+                  class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
+                >
                   災害時に他チームが立ち上げた tossa
                   や互換サイトと相互にデータを合流・移行できます。
                 </p>
@@ -911,8 +947,8 @@
                   <div
                     class={`flex items-center gap-1.5 rounded-lg p-2.5 text-[11px] ${
                       syncMessage.type === 'success'
-                        ? 'border border-emerald-200 bg-emerald-50 font-medium text-emerald-800'
-                        : 'border border-rose-200 bg-rose-50 text-rose-800'
+                        ? 'border border-emerald-200 bg-emerald-50 font-medium text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
                     }`}
                   >
                     <span>{syncMessage.text}</span>
@@ -923,7 +959,7 @@
                 <div class="flex flex-col gap-1.5">
                   <label
                     for="admin-sync-url"
-                    class="text-[11px] font-bold text-slate-700"
+                    class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
                   >
                     他サイトと同期（相手の tossa URL を入力）:
                   </label>
@@ -933,7 +969,7 @@
                       type="url"
                       bind:value={remoteSyncUrl}
                       placeholder="例: https://other-tossa.workers.dev"
-                      class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     />
                     <button
                       type="button"
@@ -954,16 +990,20 @@
                   <a
                     href="/api/federation/export"
                     download
-                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100"
+                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
-                    <Download class="h-3.5 w-3.5 text-blue-600" />
+                    <Download
+                      class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+                    />
                     <span>データ出力 (Export)</span>
                   </a>
 
                   <label
-                    class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100"
+                    class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
-                    <Upload class="h-3.5 w-3.5 text-indigo-600" />
+                    <Upload
+                      class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"
+                    />
                     <span>ファイル取込 (Import)</span>
                     <input
                       type="file"

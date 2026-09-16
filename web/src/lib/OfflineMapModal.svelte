@@ -302,13 +302,17 @@
         <div
           class="flex items-center gap-2 rounded-xl p-3 text-xs font-bold {statusMessage.type ===
           'success'
-            ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-            : 'border border-rose-200 bg-rose-50 text-rose-700'}"
+            ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+            : 'border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'}"
         >
           {#if statusMessage.type === 'success'}
-            <CheckCircle2 class="h-4 w-4 shrink-0 text-emerald-600" />
+            <CheckCircle2
+              class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            />
           {:else}
-            <AlertCircle class="h-4 w-4 shrink-0 text-rose-600" />
+            <AlertCircle
+              class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+            />
           {/if}
           <span>{statusMessage.text}</span>
         </div>
@@ -317,10 +321,10 @@
       <!-- Progress bar during download -->
       {#if isDownloading}
         <div
-          class="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 p-3"
+          class="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/60"
         >
           <div class="flex items-center justify-between text-xs font-bold">
-            <span class="text-blue-700">
+            <span class="text-blue-700 dark:text-blue-400">
               {m.map_offline_downloading({
                 loaded: progress.loaded,
                 total: progress.total,
@@ -330,12 +334,14 @@
             <button
               type="button"
               onclick={handleCancelDownload}
-              class="cursor-pointer font-bold text-slate-500 hover:text-slate-800"
+              class="cursor-pointer font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
             >
               {m.map_offline_cancel()}
             </button>
           </div>
-          <div class="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+          <div
+            class="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+          >
             <div
               class="h-full bg-blue-600 transition-all duration-150"
               style="width: {progress.percent}%"

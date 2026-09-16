@@ -315,21 +315,21 @@
 
       {#if (post.author_id && currentUser?.id === post.author_id) || post.is_owner}
         <span
-          class="inline-flex items-center gap-0.5 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700"
+          class="inline-flex items-center gap-0.5 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
         >
           {m.my_post_badge()}
         </span>
       {:else if post.reporter_name}
-        <span class="text-[10px] text-slate-400">
+        <span class="text-[10px] text-slate-400 dark:text-slate-500">
           by {post.reporter_name}
         </span>
       {/if}
 
       {#if post.is_verified === 1}
         <span
-          class="inline-flex items-center gap-0.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700"
+          class="inline-flex items-center gap-0.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
         >
-          <CheckCircle class="h-3 w-3 text-blue-600" />
+          <CheckCircle class="h-3 w-3 text-blue-600 dark:text-blue-400" />
           {m.official_verified()}
         </span>
       {/if}
@@ -345,7 +345,7 @@
 
     <!-- Last updated time -->
     <div
-      class="flex shrink-0 items-center gap-1 text-[11px] font-medium text-slate-400"
+      class="flex shrink-0 items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500"
     >
       <Clock class="h-3 w-3" />
       <span>{formatRelativeTime(post.updated_at)}</span>
@@ -355,7 +355,7 @@
   <!-- Photo (if attached) -->
   {#if post.image_url}
     <div
-      class="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-950/5"
+      class="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-950/5 dark:border-slate-800 dark:bg-slate-900/40"
     >
       <button
         type="button"
@@ -488,7 +488,7 @@
     <div
       class="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50 p-2 text-xs dark:border-slate-800 dark:bg-slate-800/80"
     >
-      <span class="shrink-0 text-slate-400">情報源:</span>
+      <span class="shrink-0 text-slate-400 dark:text-slate-500">情報源:</span>
       <a
         href={post.source_url}
         target="_blank"
@@ -499,7 +499,7 @@
         <span>{sourceTrustBadge.label}</span>
         <ExternalLink class="ml-0.5 h-2.5 w-2.5" />
       </a>
-      <span class="truncate text-[10px] text-slate-400"
+      <span class="truncate text-[10px] text-slate-400 dark:text-slate-500"
         >{sourceTrustBadge.host}</span
       >
     </div>
@@ -513,7 +513,7 @@
           <span
             class="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
           >
-            <span class="mr-1 text-slate-400">{key}:</span>
+            <span class="mr-1 text-slate-400 dark:text-slate-500">{key}:</span>
             {val}
           </span>
         {:else if Array.isArray(val)}

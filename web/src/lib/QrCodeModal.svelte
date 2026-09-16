@@ -174,10 +174,12 @@
 
       <!-- QR Code high-contrast viewport (always pure white box for optical recognition) -->
       <div
-        class="relative flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-slate-300 bg-white p-3 shadow-md"
+        class="relative flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-slate-300 bg-white p-3 shadow-md dark:border-slate-600"
       >
         {#if isGenerating}
-          <div class="flex flex-col items-center gap-2 text-slate-400">
+          <div
+            class="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500"
+          >
             <div
               class="h-8 w-8 animate-spin rounded-full border-3 border-indigo-500 border-t-transparent"
             ></div>

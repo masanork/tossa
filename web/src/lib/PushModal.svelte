@@ -21,13 +21,20 @@
   } from '@lucide/svelte';
 
   interface Props {
+    isTop?: boolean;
     zIndex?: number;
     availableAreas: string[];
     token: string | null;
     onClose: () => void;
   }
 
-  const { zIndex = 50, availableAreas, token, onClose }: Props = $props();
+  const {
+    isTop = true,
+    zIndex = 50,
+    availableAreas,
+    token,
+    onClose,
+  }: Props = $props();
 
   let testSuccess = $state(false);
   let isSendingTest = $state(false);
@@ -110,8 +117,11 @@
 
 <!-- Modal Dialog / Mobile Bottom Sheet -->
 <div
-  class="fixed inset-x-0 bottom-0 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-6 shadow-2xl transition-all duration-300 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900"
+  class="fixed inset-x-0 bottom-0 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-6 shadow-2xl transition-all duration-300 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:max-h-[85vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900 {isTop
+    ? 'opacity-100'
+    : 'pointer-events-none opacity-80'}"
   style="z-index: {zIndex + 1};"
+  inert={!isTop}
   use:swipeDown={onClose}
   role="dialog"
   aria-labelledby="push-modal-title"

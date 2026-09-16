@@ -806,7 +806,7 @@
         {:else}
           <!-- Upload dropzone area -->
           <label
-            class="group dark:bg-slate-850 flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 transition hover:border-blue-500 hover:bg-blue-50/20 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-blue-400 dark:hover:bg-blue-950/20"
+            class="group flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4 transition hover:border-blue-500 hover:bg-blue-50/20 dark:border-slate-700 dark:bg-slate-800/60 dark:hover:border-blue-400 dark:hover:bg-blue-950/20"
           >
             <input
               type="file"
@@ -1190,7 +1190,9 @@
                   }`}
                 >
                   <span>#{vt.name}</span>
-                  <span class="text-[9px] text-slate-400">({vt.count})</span>
+                  <span class="text-[9px] text-slate-400 dark:text-slate-500"
+                    >({vt.count})</span
+                  >
                 </button>
               {/each}
             </div>
