@@ -18,7 +18,11 @@ import {
   deleteUser,
   linkDeviceToUser,
 } from '../db/queries';
-import { createSessionToken, verifySessionToken } from '../auth/session';
+import {
+  createSessionToken,
+  verifySessionToken,
+  createApiToken,
+} from '../auth/session';
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
 
 type AuthVariables = { deviceSessionId: string };
@@ -422,5 +426,61 @@ authRoute.delete('/users/:id', async (c) => {
   return c.json({
     success: true,
     message: `ユーザー「${targetUser.username}」を削除しました`,
+  });
+});
+
+// 9. Issue API Token for MCP / Agents (POST /api/auth/api-tokens)
+authRoute.post('/api-tokens', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json(
+      { success: false, error: 'Passkey authentication required' },
+      401
+    );
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session) {
+    return c.json({ success: false, error: 'Invalid or expired session' }, 401);
+  }
+
+  const user = await getUserById(c.env.DB, session.userId);
+  if (!user) {
+    return c.json({ success: false, error: 'User not found' }, 404);
+  }
+
+  const body = await c.req
+    .json<{ name?: string; expiresInDays?: number }>()
+    .catch(() => ({}) as { name?: string; expiresInDays?: number });
+  const tokenName = body.name?.trim() || 'MCP Agent';
+  const days =
+    body.expiresInDays && body.expiresInDays > 0 && body.expiresInDays <= 365
+      ? body.expiresInDays
+      : 365;
+
+  const result = await createApiToken(
+    {
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      role: user.role,
+    },
+    tokenName,
+    c.env.JWT_SECRET,
+    days * 24 * 60 * 60
+  );
+
+  return c.json({
+    success: true,
+    token: result.token,
+    tokenName: result.tokenName,
+    expiresAt: result.expiresAt,
+    user: {
+      id: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      role: user.role,
+    },
   });
 });

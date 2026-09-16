@@ -10,6 +10,7 @@ import { authRoute } from './routes/auth';
 import { federationRoute } from './routes/federation';
 import { threadsRoute } from './routes/threads';
 import { pushRoute } from './routes/push';
+import { mcpRoute } from './routes/mcp';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -36,6 +37,8 @@ app.route('/api/settings', settingsRoute);
 app.route('/api/auth', authRoute);
 app.route('/api/threads', threadsRoute);
 app.route('/api/push', pushRoute);
+app.route('/api/mcp', mcpRoute);
+app.route('/mcp', mcpRoute);
 app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
 

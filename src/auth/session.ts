@@ -1,11 +1,13 @@
 // src/auth/session.ts: Lightweight signed session token for Cloudflare Workers
 
-interface SessionPayload {
+export interface SessionPayload {
   userId: string;
   username: string;
   displayName?: string;
   role: 'admin' | 'moderator' | 'user';
   exp: number; // Unix timestamp in seconds
+  type?: 'session' | 'api_token';
+  tokenName?: string;
 }
 
 const DEFAULT_SECRET = 'tossa-development-fallback-secret-change-in-production';
@@ -74,7 +76,10 @@ export async function verifySessionToken(
   token: string,
   secret: string = DEFAULT_SECRET
 ): Promise<SessionPayload | null> {
-  const parts = token.split('.');
+  const cleanToken = token.startsWith('tossa_pat_')
+    ? token.slice('tossa_pat_'.length)
+    : token;
+  const parts = cleanToken.split('.');
   if (parts.length !== 2) return null;
 
   const [payloadB64, sigB64] = parts;
@@ -101,4 +106,39 @@ export async function verifySessionToken(
   } catch {
     return null;
   }
+}
+
+/**
+ * Issue a Personal Access Token (PAT) for MCP or external agents.
+ * Default expiration is 1 year (365 days).
+ */
+export async function createApiToken(
+  user: {
+    id: string;
+    username: string;
+    displayName?: string;
+    role: 'admin' | 'moderator' | 'user';
+  },
+  name: string = 'MCP Agent',
+  secret: string = DEFAULT_SECRET,
+  expiresInSeconds: number = 365 * 24 * 60 * 60
+): Promise<{ token: string; expiresAt: string; tokenName: string }> {
+  const rawToken = await createSessionToken(
+    {
+      userId: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+      type: 'api_token',
+      tokenName: name,
+    },
+    secret,
+    expiresInSeconds
+  );
+
+  return {
+    token: `tossa_pat_${rawToken}`,
+    expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+    tokenName: name,
+  };
 }

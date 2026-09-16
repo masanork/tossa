@@ -14,6 +14,7 @@
     updateUserRole,
     deleteUserApi,
     broadcastPushApi,
+    issueApiTokenApi,
   } from './api';
   import {
     X,
@@ -34,6 +35,8 @@
     BellRing,
     Radio,
     Trash2,
+    Bot,
+    Copy,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
@@ -74,7 +77,82 @@
   let isFirstUserSetup = $state(false);
 
   // Admin tabs
-  let activeTab = $state<'settings' | 'federation' | 'users'>('settings');
+  let activeTab = $state<'settings' | 'federation' | 'users' | 'mcp'>(
+    'settings'
+  );
+
+  // MCP / API Token state
+  let mcpTokenName = $state('Claude / Cursor MCP');
+  let isIssuingMcpToken = $state(false);
+  let issuedMcpToken = $state<{
+    token: string;
+    tokenName: string;
+    expiresAt: string;
+  } | null>(null);
+  let isTokenCopied = $state(false);
+  let isSnippetCopied = $state(false);
+  let mcpTokenError = $state<string | null>(null);
+
+  async function handleIssueMcpToken() {
+    if (!token) return;
+    isIssuingMcpToken = true;
+    mcpTokenError = null;
+    isTokenCopied = false;
+    try {
+      const res = await issueApiTokenApi(
+        mcpTokenName.trim() || 'MCP Agent',
+        token
+      );
+      if (res.success && res.token) {
+        issuedMcpToken = {
+          token: res.token,
+          tokenName: res.tokenName || mcpTokenName,
+          expiresAt: res.expiresAt || '',
+        };
+      } else {
+        mcpTokenError = res.error || 'トークン発行に失敗しました';
+      }
+    } catch (err: any) {
+      mcpTokenError = err.message || '通信エラーが発生しました';
+    } finally {
+      isIssuingMcpToken = false;
+    }
+  }
+
+  async function handleCopyToken() {
+    if (!issuedMcpToken) return;
+    await navigator.clipboard.writeText(issuedMcpToken.token);
+    isTokenCopied = true;
+    setTimeout(() => {
+      isTokenCopied = false;
+    }, 2500);
+  }
+
+  async function handleCopySnippet() {
+    const origin = window.location.origin;
+    const tokenStr = issuedMcpToken
+      ? issuedMcpToken.token
+      : 'tossa_pat_YOUR_TOKEN';
+    const snippet = JSON.stringify(
+      {
+        mcpServers: {
+          tossa: {
+            url: `${origin}/mcp`,
+            headers: {
+              Authorization: `Bearer ${tokenStr}`,
+            },
+          },
+        },
+      },
+      null,
+      2
+    );
+    await navigator.clipboard.writeText(snippet);
+    isSnippetCopied = true;
+    setTimeout(() => {
+      isSnippetCopied = false;
+    }, 2500);
+  }
 
   // Settings form state
   let emergencyBanner = $state('');
@@ -653,6 +731,100 @@
               </p>
             </div>
 
+            <!-- Standard User: MCP / Agent Token Card -->
+            <div
+              class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+            >
+              <div
+                class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200"
+              >
+                <Bot class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <span>AI エージェント連携（MCP）</span>
+              </div>
+              <p
+                class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"
+              >
+                Claude Desktop、Cursor などの AI アシスタントと連携するための
+                API トークンを発行できます。
+              </p>
+
+              <div>
+                <label
+                  for="user-mcp-token-name"
+                  class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+                >
+                  トークン用途・識別名
+                </label>
+                <div class="flex gap-2">
+                  <input
+                    id="user-mcp-token-name"
+                    type="text"
+                    bind:value={mcpTokenName}
+                    placeholder="例: Claude Desktop, Cursor"
+                    class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                  <button
+                    type="button"
+                    onclick={handleIssueMcpToken}
+                    disabled={isIssuingMcpToken}
+                    class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <KeyRound class="h-3.5 w-3.5" />
+                    <span
+                      >{isIssuingMcpToken
+                        ? '発行中...'
+                        : 'トークンを発行'}</span
+                    >
+                  </button>
+                </div>
+              </div>
+
+              {#if mcpTokenError}
+                <div
+                  class="rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
+                >
+                  {mcpTokenError}
+                </div>
+              {/if}
+
+              {#if issuedMcpToken}
+                <div
+                  class="flex flex-col gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/40"
+                >
+                  <div class="flex items-center justify-between">
+                    <span
+                      class="flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+                    >
+                      <Check class="h-3.5 w-3.5" />
+                      APIトークンを発行しました（有効期限: 1年間）
+                    </span>
+                  </div>
+
+                  <div class="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      readonly
+                      value={issuedMcpToken.token}
+                      class="flex-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 font-mono text-[11px] text-slate-800 select-all dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onclick={handleCopyToken}
+                      class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                    >
+                      {#if isTokenCopied}
+                        <Check class="h-3.5 w-3.5" />
+                        <span>コピー済</span>
+                      {:else}
+                        <Copy class="h-3.5 w-3.5" />
+                        <span>コピー</span>
+                      {/if}
+                    </button>
+                  </div>
+                </div>
+              {/if}
+            </div>
+
             <!-- Full feature panel for administrators -->
           {:else}
             <!-- Tab navigation -->
@@ -703,6 +875,21 @@
               >
                 <Network class="h-3.5 w-3.5" />
                 <span>データ合流</span>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => {
+                  activeTab = 'mcp';
+                }}
+                class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
+                  activeTab === 'mcp'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Bot class="h-3.5 w-3.5" />
+                <span>MCP連携</span>
               </button>
             </div>
 
@@ -1085,6 +1272,163 @@
                       class="hidden"
                     />
                   </label>
+                </div>
+              </div>
+            {/if}
+
+            <!-- Tab 4: MCP / Agent Integration -->
+            {#if activeTab === 'mcp'}
+              <div class="flex flex-col gap-3.5">
+                <div
+                  class="rounded-xl border border-blue-100 bg-blue-50/60 p-3.5 text-xs text-slate-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-slate-300"
+                >
+                  <div
+                    class="mb-1 flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-200"
+                  >
+                    <Bot class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <span>AI エージェント連携（MCP）</span>
+                  </div>
+                  <p
+                    class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"
+                  >
+                    Claude Desktop、Cursor、Antigravity 等の AI
+                    アシスタントから、tossa
+                    の生活情報や避難所・給水所データを直接検索・更新できる
+                    MCP（Model Context
+                    Protocol）エンドポイントが稼働しています。
+                  </p>
+                </div>
+
+                <!-- Token Generation Card -->
+                <div
+                  class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                >
+                  <div>
+                    <label
+                      for="mcp-token-name"
+                      class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+                    >
+                      トークン用途・識別名
+                    </label>
+                    <div class="flex gap-2">
+                      <input
+                        id="mcp-token-name"
+                        type="text"
+                        bind:value={mcpTokenName}
+                        placeholder="例: Claude Desktop, Cursor"
+                        class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                      <button
+                        type="button"
+                        onclick={handleIssueMcpToken}
+                        disabled={isIssuingMcpToken}
+                        class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        <KeyRound class="h-3.5 w-3.5" />
+                        <span
+                          >{isIssuingMcpToken
+                            ? '発行中...'
+                            : 'トークンを発行'}</span
+                        >
+                      </button>
+                    </div>
+                  </div>
+
+                  {#if mcpTokenError}
+                    <div
+                      class="rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
+                    >
+                      {mcpTokenError}
+                    </div>
+                  {/if}
+
+                  {#if issuedMcpToken}
+                    <div
+                      class="flex flex-col gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/40"
+                    >
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+                        >
+                          <Check class="h-3.5 w-3.5" />
+                          APIトークンを発行しました（有効期限: 1年間）
+                        </span>
+                        <span
+                          class="text-[10px] text-slate-500 dark:text-slate-400"
+                        >
+                          {issuedMcpToken.tokenName}
+                        </span>
+                      </div>
+
+                      <div class="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          readonly
+                          value={issuedMcpToken.token}
+                          class="flex-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 font-mono text-[11px] text-slate-800 select-all dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100"
+                        />
+                        <button
+                          type="button"
+                          onclick={handleCopyToken}
+                          class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                        >
+                          {#if isTokenCopied}
+                            <Check class="h-3.5 w-3.5" />
+                            <span>コピー済</span>
+                          {:else}
+                            <Copy class="h-3.5 w-3.5" />
+                            <span>コピー</span>
+                          {/if}
+                        </button>
+                      </div>
+
+                      <p class="text-[10px] text-slate-500 dark:text-slate-400">
+                        ※
+                        トークンは再表示されません。安全な場所に保存してエージェントの設定ファイルに設定してください。
+                      </p>
+                    </div>
+                  {/if}
+
+                  <!-- Setup Configuration Guide -->
+                  <div
+                    class="flex flex-col gap-1.5 border-t border-slate-200/80 pt-2.5 dark:border-slate-700/60"
+                  >
+                    <div class="flex items-center justify-between">
+                      <span
+                        class="text-xs font-bold text-slate-700 dark:text-slate-300"
+                      >
+                        Claude Desktop / Cursor 設定スニペット
+                      </span>
+                      <button
+                        type="button"
+                        onclick={handleCopySnippet}
+                        class="flex cursor-pointer items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        {#if isSnippetCopied}
+                          <Check class="h-3 w-3" />
+                          <span>設定JSONをコピー済</span>
+                        {:else}
+                          <Copy class="h-3 w-3" />
+                          <span>設定JSONをコピー</span>
+                        {/if}
+                      </button>
+                    </div>
+
+                    <pre
+                      class="overflow-x-auto rounded-lg bg-slate-900 p-2.5 font-mono text-[11px] leading-snug text-slate-200"><code
+                        >{`{
+  "mcpServers": {
+    "tossa": {
+      "url": "${typeof window !== 'undefined' ? window.location.origin : ''}/mcp"${
+        issuedMcpToken
+          ? `,\n      "headers": {\n        "Authorization": "Bearer ${issuedMcpToken.token}"\n      }`
+          : ''
+      }
+    }
+  }
+}`}</code
+                      ></pre>
+                  </div>
                 </div>
               </div>
             {/if}

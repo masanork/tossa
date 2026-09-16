@@ -518,6 +518,28 @@ export async function importFederationFromFeatures(
   return await res.json();
 }
 
+export async function issueApiTokenApi(
+  name: string,
+  token: string,
+  expiresInDays: number = 365
+): Promise<{
+  success: boolean;
+  token?: string;
+  tokenName?: string;
+  expiresAt?: string;
+  error?: string;
+}> {
+  const res = await fetch(`${API_BASE}/auth/api-tokens`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ name, expiresInDays }),
+  });
+  return await res.json();
+}
+
 // ================= E2EE Messaging API Functions =================
 
 export async function updateMyPublicKey(
