@@ -10,6 +10,16 @@ export interface UserLocation {
   timestamp: number;
 }
 
+export interface WaypointTarget {
+  id: string;
+  title: string;
+  area: string;
+  lat: number;
+  lng: number;
+  statusLabel?: string | null;
+  address?: string | null;
+}
+
 export class GeolocationManager {
   currentLocation = $state<UserLocation | null>(null);
   isLocating = $state<boolean>(false);
@@ -19,6 +29,7 @@ export class GeolocationManager {
     'prompt'
   );
   sortByDistance = $state<boolean>(false);
+  activeWaypoint = $state<WaypointTarget | null>(null);
 
   private watchId: number | null = null;
   private orientationListener: ((e: DeviceOrientationEvent) => void) | null =
@@ -310,6 +321,54 @@ export class GeolocationManager {
       targetLat,
       targetLng
     );
+  }
+
+  /**
+   * Starts waypoint navigation toward the given target.
+   * Immediately activates GPS tracking and device compass.
+   */
+  startNavigation(target: WaypointTarget): void {
+    this.activeWaypoint = target;
+    this.startOrientationTracking();
+    this.startWatching();
+    if (!this.currentLocation) {
+      void this.requestLocation();
+    }
+  }
+
+  /**
+   * Stops active waypoint navigation.
+   */
+  stopNavigation(): void {
+    this.activeWaypoint = null;
+    if (!this.sortByDistance) {
+      this.stopWatching();
+      this.stopOrientationTracking();
+    }
+  }
+
+  /**
+   * Calculates distance to active waypoint in meters.
+   */
+  get waypointDistance(): number | null {
+    if (!this.activeWaypoint) return null;
+    return this.getDistanceTo(this.activeWaypoint.lat, this.activeWaypoint.lng);
+  }
+
+  /**
+   * Calculates bearing to active waypoint in degrees.
+   */
+  get waypointBearing(): number | null {
+    if (!this.activeWaypoint) return null;
+    return this.getBearingTo(this.activeWaypoint.lat, this.activeWaypoint.lng);
+  }
+
+  /**
+   * True if user has arrived within 30 meters of active waypoint.
+   */
+  get isWaypointArrived(): boolean {
+    const d = this.waypointDistance;
+    return d !== null && d <= 30;
   }
 }
 

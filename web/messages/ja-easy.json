@@ -89,5 +89,15 @@
   "geo_straight_line": "まっすぐ {dist}",
   "geo_direction": "{cardinal}の ほうこう",
   "geo_direction_arrow": "むき: {cardinal} ({deg}°)",
-  "geo_prompt_enable": "いま いる ばしょから ちかい じゅんに ならべる"
+  "geo_prompt_enable": "いま いる ばしょから ちかい じゅんに ならべる",
+  "nav_start": "ここへ いく",
+  "nav_active": "あんないちゅう",
+  "nav_stop": "あんないを おわる",
+  "nav_arrived": "もくてきちの ちかくに つきました",
+  "nav_approaching": "あと まっすぐ {dist}",
+  "nav_compass_relative": "まえから {angle}ど",
+  "nav_view_map": "ちずで みる",
+  "nav_hud_title": "ひなんじょ・きゅうすいじょ あんない",
+  "nav_expand": "コンパスを おおきくする",
+  "nav_collapse": "ちいさくする"
 }

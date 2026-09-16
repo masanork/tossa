@@ -58,6 +58,10 @@
     - 100% offline client-side Haversine straight-line distance (m/km) and forward azimuth bearing calculation.
     - Real-time rotating compass needle tracking device heading (DeviceOrientation API / geomagnetic sensor).
     - Distance-based timeline sorting and interactive user location pin & centering on Leaflet map view.
+13. **Offline Evacuation Waypoint Navigation HUD & Compass Tracking**
+    - Instant straight-line HUD guidance to selected shelters and water distribution stations.
+    - Persistent heads-up display showing live remaining distance countdown, target compass orientation, and 30m proximity arrival alert.
+    - Expandable high-contrast compass dial and automatic vector route polyline & waypoint centering on the interactive map.
 
 ---
 

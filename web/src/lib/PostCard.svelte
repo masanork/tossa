@@ -260,6 +260,23 @@
     }
   }
 
+  function handleToggleNavigation() {
+    if (!post.lat || !post.lng) return;
+    if (geolocationManager.activeWaypoint?.id === post.id) {
+      geolocationManager.stopNavigation();
+    } else {
+      geolocationManager.startNavigation({
+        id: post.id,
+        title: post.title,
+        area: post.area,
+        lat: post.lat,
+        lng: post.lng,
+        statusLabel: post.status_label,
+        address: post.address,
+      });
+    }
+  }
+
   // Image zoom modal state
   let showImageModal = $state(false);
 </script>
@@ -402,25 +419,44 @@
     {/if}
 
     {#if distanceInfo}
-      <div
-        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200/80 bg-blue-50/80 px-2 py-0.5 text-xs font-bold text-blue-700 shadow-2xs dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
-        title={m.geo_direction_arrow({
-          cardinal: distanceInfo.cardinal,
-          deg: distanceInfo.bearing,
-        })}
+      <button
+        type="button"
+        onclick={handleToggleNavigation}
+        class={`inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2 py-0.5 text-xs font-bold shadow-2xs transition-all ${
+          geolocationManager.activeWaypoint?.id === post.id
+            ? 'border-blue-500 bg-blue-600 text-white shadow-blue-500/30'
+            : 'border-blue-200/80 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50'
+        }`}
+        title={geolocationManager.activeWaypoint?.id === post.id
+          ? m.nav_stop()
+          : m.nav_start()}
       >
         <Navigation
-          class="h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform duration-200 dark:text-blue-400"
+          class={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
+            geolocationManager.activeWaypoint?.id === post.id
+              ? 'text-white'
+              : 'text-blue-600 dark:text-blue-400'
+          }`}
           style="transform: rotate({distanceInfo.relativeAngle}deg);"
         />
         <span
           >{m.geo_straight_line({ dist: distanceInfo.formattedDistance })}</span
         >
         <span
-          class="text-[10px] font-normal text-blue-600/80 dark:text-blue-400/80"
-          >({m.geo_direction({ cardinal: distanceInfo.cardinal })})</span
+          class={`text-[10px] font-normal ${
+            geolocationManager.activeWaypoint?.id === post.id
+              ? 'text-blue-100'
+              : 'text-blue-600/80 dark:text-blue-400/80'
+          }`}>({m.geo_direction({ cardinal: distanceInfo.cardinal })})</span
         >
-      </div>
+        {#if geolocationManager.activeWaypoint?.id === post.id}
+          <span
+            class="py-0.2 ml-0.5 rounded bg-blue-700 px-1 text-[9px] text-white"
+          >
+            {m.nav_active()}
+          </span>
+        {/if}
+      </button>
     {/if}
   </div>
 
@@ -560,6 +596,35 @@
         >
           <Trash2 class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
           <span>{m.btn_delete()}</span>
+        </button>
+      {/if}
+
+      <!-- Evacuation Navigation Guide button -->
+      {#if post.lat && post.lng}
+        <button
+          type="button"
+          onclick={handleToggleNavigation}
+          class={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold shadow-2xs transition-all active:scale-95 ${
+            geolocationManager.activeWaypoint?.id === post.id
+              ? 'bg-blue-600 text-white shadow-blue-500/20 hover:bg-blue-700'
+              : 'border border-blue-200 bg-blue-50 text-blue-700 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/60'
+          }`}
+          title={geolocationManager.activeWaypoint?.id === post.id
+            ? m.nav_stop()
+            : m.nav_start()}
+        >
+          <Navigation
+            class={`h-3.5 w-3.5 ${
+              geolocationManager.activeWaypoint?.id === post.id
+                ? 'animate-pulse text-white'
+                : 'text-blue-600 dark:text-blue-400'
+            }`}
+          />
+          <span>
+            {geolocationManager.activeWaypoint?.id === post.id
+              ? m.nav_active()
+              : m.nav_start()}
+          </span>
         </button>
       {/if}
 

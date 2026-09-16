@@ -303,4 +303,66 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(locateBtn).toBeVisible();
     await locateBtn.click();
   });
+
+  test('9. Emergency evacuation waypoint navigation HUD & compass tracking', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({
+      latitude: 35.6812,
+      longitude: 139.7671,
+    });
+
+    await page.goto('/');
+
+    // Ensure Japanese locale
+    const langBtn = page.locator(
+      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
+    );
+    if (await langBtn.isVisible()) {
+      await langBtn.click();
+      await page.locator('button:has-text("日本語 (標準)")').click();
+    }
+
+    // 1. Find a post with navigation guide button
+    const navBtn = page
+      .locator('button:has-text("避難案内"), button:has-text("Navigate")')
+      .first();
+    await expect(navBtn).toBeVisible({ timeout: 10000 });
+    await navBtn.click();
+
+    // 2. HUD should appear at bottom of screen
+    const hud = page.locator(
+      'aside[aria-label*="ナビゲーション"], aside[aria-label*="Navigation"]'
+    );
+    await expect(hud).toBeVisible();
+
+    // 3. Expand HUD to show Compass Rose
+    const expandBtn = hud.locator(
+      'button[title*="拡大"], button[title*="Expand"]'
+    );
+    await expandBtn.first().click();
+
+    // Cardinal indicator "N" should be visible inside compass dial
+    const northIndicator = hud.locator('span:has-text("N")');
+    await expect(northIndicator).toBeVisible();
+
+    // 4. Test View on Map action from HUD
+    const viewMapBtn = hud.locator(
+      'button[title*="地図で追従"], button[title*="Track on Map"]'
+    );
+    if (await viewMapBtn.isVisible()) {
+      await viewMapBtn.click();
+      const mapContainer = page.locator('.leaflet-container');
+      await expect(mapContainer).toBeVisible();
+    }
+
+    // 5. End navigation guidance
+    const stopBtn = hud.locator('button[title*="終了"], button[title*="End"]');
+    await stopBtn.click();
+
+    // HUD should be dismissed
+    await expect(hud).not.toBeVisible();
+  });
 });

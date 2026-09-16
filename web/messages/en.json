@@ -89,5 +89,15 @@
   "geo_straight_line": "Direct {dist}",
   "geo_direction": "Heading {cardinal}",
   "geo_direction_arrow": "Bearing: {cardinal} ({deg}°)",
-  "geo_prompt_enable": "Enable location to sort by distance"
+  "geo_prompt_enable": "Enable location to sort by distance",
+  "nav_start": "Navigate",
+  "nav_active": "Navigating",
+  "nav_stop": "End Guidance",
+  "nav_arrived": "You have arrived near the destination",
+  "nav_approaching": "Direct {dist} to destination",
+  "nav_compass_relative": "{angle}° relative to heading",
+  "nav_view_map": "Track on Map",
+  "nav_hud_title": "Evacuation Waypoint Navigation",
+  "nav_expand": "Expand Compass",
+  "nav_collapse": "Collapse"
 }

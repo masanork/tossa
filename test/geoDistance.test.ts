@@ -242,4 +242,51 @@ describe('GeolocationManager', () => {
     expect(manager.sortByDistance).toBe(false);
     expect(storageMock['tossa_sort_distance']).toBe('false');
   });
+
+  it('manages activeWaypoint navigation lifecycle and arrival state', () => {
+    storageMock['tossa_last_pos'] = JSON.stringify({
+      lat: 35.6812,
+      lng: 139.7671,
+      accuracy: 5,
+    });
+    const manager = new GeolocationManager();
+
+    expect(manager.activeWaypoint).toBeNull();
+    expect(manager.waypointDistance).toBeNull();
+    expect(manager.waypointBearing).toBeNull();
+    expect(manager.isWaypointArrived).toBe(false);
+
+    // Start navigation toward Shinjuku Station (~6.2km away)
+    manager.startNavigation({
+      id: 'shelter-1',
+      title: '新宿中央避難所',
+      area: '新宿区',
+      lat: 35.6896,
+      lng: 139.7006,
+    });
+
+    expect(manager.activeWaypoint).not.toBeNull();
+    expect(manager.activeWaypoint?.title).toBe('新宿中央避難所');
+    expect(manager.waypointDistance).toBeGreaterThan(6000);
+    expect(manager.waypointBearing).not.toBeNull();
+    expect(manager.isWaypointArrived).toBe(false);
+
+    // Simulate moving near the waypoint (within 20m)
+    manager.currentLocation = {
+      lat: 35.6895,
+      lng: 139.7006,
+      accuracy: 5,
+      heading: null,
+      timestamp: Date.now(),
+    };
+
+    expect(manager.waypointDistance).toBeLessThan(30);
+    expect(manager.isWaypointArrived).toBe(true);
+
+    // Stop navigation
+    manager.stopNavigation();
+    expect(manager.activeWaypoint).toBeNull();
+    expect(manager.waypointDistance).toBeNull();
+    expect(manager.isWaypointArrived).toBe(false);
+  });
 });

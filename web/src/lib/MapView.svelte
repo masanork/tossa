@@ -12,6 +12,7 @@
   interface Props {
     posts: Post[];
     defaultArea?: string;
+    focusWaypointTrigger?: number;
     onOpenUpdateStatus: (post: Post) => void;
     onOpenOfflineMap?: (
       currentBounds: MapBounds,
@@ -20,13 +21,19 @@
     ) => void;
   }
 
-  const { posts, defaultArea, onOpenUpdateStatus, onOpenOfflineMap }: Props =
-    $props();
+  const {
+    posts,
+    defaultArea,
+    focusWaypointTrigger,
+    onOpenUpdateStatus,
+    onOpenOfflineMap,
+  }: Props = $props();
 
   let mapContainer: HTMLDivElement;
   let map: L.Map | null = null;
   let markersLayer: L.LayerGroup | null = null;
   let userLocationLayer: L.LayerGroup | null = null;
+  let routeLayer: L.LayerGroup | null = null;
   let leaflet: typeof L | null = null;
   let initialBoundsFitted = false;
   let isOnline = $state(
@@ -68,8 +75,10 @@
 
     markersLayer = leaflet.layerGroup().addTo(map);
     userLocationLayer = leaflet.layerGroup().addTo(map);
+    routeLayer = leaflet.layerGroup().addTo(map);
     updateMarkers();
     updateUserLocationOnMap();
+    updateWaypointRoute();
 
     // If no posts have coordinates, pan to defaultArea if specified
     const hasAnyCoords = posts.some((p) => p.lat && p.lng);
@@ -150,6 +159,80 @@
       updateMarkers();
     }
   });
+
+  // Update waypoint navigation route line & halo
+  $effect(() => {
+    const _wp = geolocationManager.activeWaypoint;
+    const _loc = geolocationManager.currentLocation;
+    if (map && leaflet && routeLayer) {
+      updateWaypointRoute();
+    }
+  });
+
+  // Pan and fit bounds to waypoint when focusWaypointTrigger changes
+  $effect(() => {
+    if (focusWaypointTrigger && focusWaypointTrigger > 0 && map && leaflet) {
+      fitToWaypoint();
+    }
+  });
+
+  function updateWaypointRoute() {
+    if (!map || !leaflet || !routeLayer) return;
+    routeLayer.clearLayers();
+
+    const wp = geolocationManager.activeWaypoint;
+    const loc = geolocationManager.currentLocation;
+    if (!wp || !loc) return;
+
+    const latlngs: [number, number][] = [
+      [loc.lat, loc.lng],
+      [wp.lat, wp.lng],
+    ];
+
+    // Dashed navigation vector line
+    leaflet
+      .polyline(latlngs, {
+        color: '#2563eb',
+        weight: 3.5,
+        dashArray: '8, 8',
+        opacity: 0.85,
+      })
+      .addTo(routeLayer);
+
+    // Waypoint target pulsing halo
+    const targetHalo = leaflet.divIcon({
+      className: 'waypoint-target-halo',
+      html: `
+        <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+          <div style="position: absolute; width: 44px; height: 44px; background: rgba(37, 99, 235, 0.35); border-radius: 50%; animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;"></div>
+          <div style="position: absolute; width: 34px; height: 34px; border: 2px dashed #2563eb; border-radius: 50%;"></div>
+        </div>
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
+    });
+
+    leaflet
+      .marker([wp.lat, wp.lng], { icon: targetHalo, zIndexOffset: 900 })
+      .addTo(routeLayer);
+  }
+
+  function fitToWaypoint() {
+    if (!map || !leaflet) return;
+    const wp = geolocationManager.activeWaypoint;
+    const loc = geolocationManager.currentLocation;
+    if (wp && loc) {
+      map.fitBounds(
+        leaflet.latLngBounds([
+          [loc.lat, loc.lng],
+          [wp.lat, wp.lng],
+        ]),
+        { padding: [60, 60], maxZoom: 16 }
+      );
+    } else if (wp) {
+      map.setView([wp.lat, wp.lng], 15);
+    }
+  }
 
   function updateUserLocationOnMap() {
     if (!map || !userLocationLayer || !leaflet) return;

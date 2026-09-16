@@ -89,5 +89,15 @@
   "geo_straight_line": "直線 {dist}",
   "geo_direction": "{cardinal}方向",
   "geo_direction_arrow": "方角: {cardinal} ({deg}°)",
-  "geo_prompt_enable": "現在地を取得して距離順で表示"
+  "geo_prompt_enable": "現在地を取得して距離順で表示",
+  "nav_start": "避難案内",
+  "nav_active": "案内中",
+  "nav_stop": "案内を終了",
+  "nav_arrived": "目的地周辺に到着しました",
+  "nav_approaching": "目的地まで 直線 {dist}",
+  "nav_compass_relative": "進行方向から {angle}°",
+  "nav_view_map": "地図で追従",
+  "nav_hud_title": "避難所・給水所 ナビゲーション",
+  "nav_expand": "コンパス拡大",
+  "nav_collapse": "折りたたむ"
 }

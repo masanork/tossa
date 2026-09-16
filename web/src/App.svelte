@@ -18,6 +18,7 @@
   import AdminModal from './lib/AdminModal.svelte';
   import MessagesModal from './lib/MessagesModal.svelte';
   import OfflineMapModal from './lib/OfflineMapModal.svelte';
+  import WaypointNavHUD from './lib/WaypointNavHUD.svelte';
   import type { MapBounds } from './lib/mapTileCache';
   import {
     List,
@@ -61,6 +62,14 @@
   // Auth state
   let currentUser = $state<User | null>(null);
   let authToken = $state<string | null>(localStorage.getItem('tossa_token'));
+
+  // Waypoint navigation map focus trigger
+  let focusWaypointTrigger = $state(0);
+
+  function handleViewWaypointOnMap() {
+    viewMode = 'map';
+    focusWaypointTrigger += 1;
+  }
 
   // Offline & PWA state
   let isOnline = $state(
@@ -629,6 +638,7 @@
         <MapView
           posts={displayPosts}
           defaultArea={settings.default_area || ''}
+          {focusWaypointTrigger}
           onOpenUpdateStatus={handleOpenUpdateStatus}
           onOpenOfflineMap={handleOpenOfflineMap}
         />
@@ -829,4 +839,7 @@
       onClose={() => handleCloseModal('offline_map')}
     />
   {/if}
+
+  <!-- Emergency Evacuation Waypoint HUD -->
+  <WaypointNavHUD onViewOnMap={handleViewWaypointOnMap} />
 </div>
