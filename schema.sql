@@ -184,3 +184,24 @@ CREATE TABLE IF NOT EXISTS device_user_links (
 
 CREATE INDEX IF NOT EXISTS idx_device_user_links_device ON device_user_links(device_session_id);
 CREATE INDEX IF NOT EXISTS idx_device_user_links_user ON device_user_links(user_id);
+
+-- ================= Web Push Subscriptions =================
+
+-- Web Push 購読情報（PWA・ブラウザ緊急通知）
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id TEXT PRIMARY KEY,
+    endpoint TEXT UNIQUE NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    device_cookie_id TEXT REFERENCES device_sessions(id) ON DELETE SET NULL,
+    area TEXT,                        -- 通知希望地域 (空欄の場合は全地域)
+    alert_types TEXT NOT NULL DEFAULT '["emergency", "evacuation", "messages"]', -- JSON配列
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subs_area ON push_subscriptions(area);
+CREATE INDEX IF NOT EXISTS idx_push_subs_device ON push_subscriptions(device_cookie_id);
+

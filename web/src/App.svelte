@@ -21,6 +21,7 @@
   import WaypointNavHUD from './lib/WaypointNavHUD.svelte';
   import QrCodeModal from './lib/QrCodeModal.svelte';
   import QrScannerModal from './lib/QrScannerModal.svelte';
+  import PushModal from './lib/PushModal.svelte';
   import { decodePostFromQrString } from './lib/qrCodec';
   import {
     getPeerPosts,
@@ -441,6 +442,7 @@
     onOpenCreate={handleOpenCreate}
     onOpenMessages={() => handleOpenMessages()}
     onOpenQrScanner={handleOpenQrScanner}
+    onOpenPush={() => modalManager.open('push')}
   />
 
   <!-- PWA Install Banner -->
@@ -932,6 +934,16 @@
       zIndex={modalManager.getZIndex('qr_scanner')}
       onImportPost={handleImportPost}
       onClose={() => handleCloseModal('qr_scanner')}
+    />
+  {/if}
+
+  {#if modalManager.isOpen('push')}
+    <PushModal
+      isTop={modalManager.isTop('push')}
+      zIndex={modalManager.getZIndex('push')}
+      {availableAreas}
+      token={authToken}
+      onClose={() => handleCloseModal('push')}
     />
   {/if}
 

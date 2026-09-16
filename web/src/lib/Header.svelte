@@ -9,9 +9,12 @@
     MessageSquareLock,
     Globe,
     ScanQrCode,
+    Bell,
+    BellRing,
   } from '@lucide/svelte';
   import { i18n, m, LANGUAGES } from './i18n.svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
+  import { pushManager } from './pushManager.svelte';
 
   interface Props {
     settings: SystemSettings;
@@ -20,6 +23,7 @@
     onOpenCreate: () => void;
     onOpenMessages: () => void;
     onOpenQrScanner?: () => void;
+    onOpenPush?: () => void;
   }
 
   const {
@@ -29,6 +33,7 @@
     onOpenCreate,
     onOpenMessages,
     onOpenQrScanner,
+    onOpenPush,
   }: Props = $props();
 
   let showLangMenu = $state(false);
@@ -190,6 +195,33 @@
       >
         <ScanQrCode class="h-3.5 w-3.5 text-slate-600 dark:text-slate-300" />
         <span class="hidden md:inline">{m.qr_scan_btn()}</span>
+      </button>
+
+      <!-- Web Push Notifications button -->
+      <button
+        type="button"
+        onclick={onOpenPush}
+        class={`relative inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition ${
+          pushManager.isSubscribed
+            ? 'border-blue-300/80 bg-blue-50/80 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+            : 'border-slate-200/80 bg-white/80 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+        }`}
+        title={m.push_modal_title()}
+        aria-label={m.push_modal_title()}
+      >
+        {#if pushManager.isSubscribed}
+          <BellRing class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          <span class="absolute -top-1 -right-1 flex h-2 w-2">
+            <span
+              class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"
+            ></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-blue-600"
+            ></span>
+          </span>
+        {:else}
+          <Bell class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+        {/if}
+        <span class="hidden lg:inline">{m.btn_push_alerts()}</span>
       </button>
 
       <!-- Secure messaging (E2EE) button -->

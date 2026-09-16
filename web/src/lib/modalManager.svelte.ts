@@ -7,7 +7,8 @@ export type ModalName =
   | 'update_status'
   | 'offline_map'
   | 'qr_code'
-  | 'qr_scanner';
+  | 'qr_scanner'
+  | 'push';
 
 class ModalManager {
   stack = $state<ModalName[]>([]);

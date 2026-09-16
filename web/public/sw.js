@@ -163,3 +163,60 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// 5. Web Push Notification Event
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { body: event.data.text() };
+    }
+  }
+
+  const title = data.title || 'tossa 防災情報';
+  const options = {
+    body: data.body || '新しい情報があります。',
+    icon: data.icon || '/favicon.svg',
+    badge: data.badge || '/favicon.svg',
+    tag: data.tag || 'tossa-alert',
+    renotify: true,
+    requireInteraction: data.requireInteraction ?? true,
+    vibrate: data.vibrate || [200, 100, 200, 100, 300],
+    data: {
+      url: data.url || '/',
+      timestamp: Date.now(),
+      ...(data.data || {}),
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// 6. Notification Click Event: Focus existing window or open new window
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Look for an existing open window under the same origin
+        for (const client of clientList) {
+          if ('focus' in client) {
+            if ('navigate' in client && targetUrl !== '/') {
+              client.navigate(targetUrl);
+            }
+            return client.focus();
+          }
+        }
+        // If no open client exists, open a new window
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
+        }
+      })
+  );
+});

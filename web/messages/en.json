@@ -119,5 +119,22 @@
   "qr_import_success": "Saved \"{title}\" to device",
   "qr_already_imported": "This post is already up-to-date on your device",
   "qr_invalid_code": "Not a valid tossa QR code",
-  "peer_badge": "Peer Relay (QR)"
+  "peer_badge": "Peer Relay (QR)",
+  "btn_push_alerts": "Alerts",
+  "push_modal_title": "Web Push Disaster & Emergency Alerts",
+  "push_modal_desc": "Receive real-time push notifications on your device even when the browser or app is closed.",
+  "push_status_active": "Receiving Notifications (Active)",
+  "push_status_inactive": "Notifications are Disabled",
+  "push_status_blocked": "Notifications are blocked by browser settings",
+  "push_enable_btn": "Enable Push Notifications",
+  "push_disable_btn": "Disable Notifications",
+  "push_test_btn": "Send Test Notification",
+  "push_test_success": "Test notification sent! Check your device notification tray.",
+  "push_unsupported": "Web Push notifications are not supported on this browser or device.",
+  "push_pref_area": "Target Notification Area",
+  "push_pref_types": "Alert Categories",
+  "push_type_emergency": "Emergency Evacuation & Broadcasts",
+  "push_type_evacuation": "Shelters & Water Stations Status",
+  "push_type_status": "Facility Status Updates",
+  "push_type_messages": "Encrypted Direct Messages (E2EE)"
 }

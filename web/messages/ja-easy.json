@@ -119,5 +119,22 @@
   "qr_import_success": "「{title}」を スマホに ほぞんしました",
   "qr_already_imported": "このじょうほうは すでにスマホに ほぞんされています",
   "qr_invalid_code": "tossaの ただしいQRコードでは ありません",
-  "peer_badge": "ピアきょうゆう"
+  "peer_badge": "ピアきょうゆう",
+  "btn_push_alerts": "おしらせ",
+  "push_modal_title": "きんきゅう・ぼうさい おしらせの せってい",
+  "push_modal_desc": "アプリを とじていても、たいせつな おしらせや ひなんの じょうほうを とどけます。",
+  "push_status_active": "おしらせを うけとっています",
+  "push_status_inactive": "おしらせは とまっています",
+  "push_status_blocked": "ブラウザの せっていでおしらせが とめられています",
+  "push_enable_btn": "おしらせを うけとる（つける）",
+  "push_disable_btn": "おしらせを とめる",
+  "push_test_btn": "テストの おしらせを おくる",
+  "push_test_success": "テストの おしらせを おくりました。がめんを みてください。",
+  "push_unsupported": "この スマホや パソコンでは おしらせを つかえません。",
+  "push_pref_area": "おしらせを うけとる ちいき",
+  "push_pref_types": "うけとる おしらせの しゅるい",
+  "push_type_emergency": "きんきゅう ひなん・たいせつな おしらせ",
+  "push_type_evacuation": "ひなんじょ・きゅうすいじょの じょうほう",
+  "push_type_status": "ちかくの ばしょの あたらしい じょうほう",
+  "push_type_messages": "あんごうか れんらく（E2EE）"
 }

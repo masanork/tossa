@@ -12,6 +12,7 @@
     fetchAuthStatus,
     fetchUsers,
     updateUserRole,
+    broadcastPushApi,
   } from './api';
   import {
     X,
@@ -29,6 +30,8 @@
     Crown,
     UserCheck,
     Palette,
+    BellRing,
+    Radio,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
@@ -91,6 +94,45 @@
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+
+  // Web Push broadcast state
+  let broadcastTitle = $state('');
+  let broadcastBody = $state('');
+  let broadcastArea = $state('');
+  let isBroadcasting = $state(false);
+  let broadcastResult = $state<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
+  async function handleBroadcastPush() {
+    if (!token || !broadcastTitle || !broadcastBody) return;
+    isBroadcasting = true;
+    broadcastResult = null;
+    const res = await broadcastPushApi(
+      {
+        title: broadcastTitle,
+        body: broadcastBody,
+        area: broadcastArea || undefined,
+        alertType: 'emergency',
+      },
+      token
+    );
+    isBroadcasting = false;
+    if (res.success) {
+      broadcastResult = {
+        type: 'success',
+        text: `配信完了: 送信 ${res.result?.sent ?? 0} 件 (失敗: ${res.result?.failed ?? 0} 件)`,
+      };
+      broadcastTitle = '';
+      broadcastBody = '';
+    } else {
+      broadcastResult = {
+        type: 'error',
+        text: res.error || 'プッシュ一斉配信に失敗しました',
+      };
+    }
+  }
 
   $effect(() => {
     emergencyBanner = settings.emergency_banner || '';
@@ -638,10 +680,82 @@
                   disabled={isSavingSettings}
                   class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <span
-                    >{isSavingSettings ? '保存中...' : '設定を反映する'}</span
-                  >
+                  <span>
+                    {isSavingSettings ? '保存中...' : '設定を反映する'}
+                  </span>
                 </button>
+
+                <!-- Web Push Emergency Broadcast Section -->
+                <div
+                  class="mt-4 rounded-xl border border-red-200 bg-red-50/50 p-3.5 dark:border-red-900/40 dark:bg-red-950/20"
+                >
+                  <div
+                    class="mb-2 flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-400"
+                  >
+                    <Radio class="h-4 w-4" />
+                    <span>緊急プッシュ一斉配信 (Web Push Broadcast)</span>
+                  </div>
+                  <p
+                    class="mb-3 text-[11px] text-slate-600 dark:text-slate-400"
+                  >
+                    購読登録済みの全端末に、画面を閉じていても即座に通知をプッシュ配信します。
+                  </p>
+
+                  <div class="space-y-2.5">
+                    <div>
+                      <input
+                        type="text"
+                        bind:value={broadcastTitle}
+                        placeholder="通知タイトル (例: 【緊急避難】河川水位が警戒水位を超過)"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <textarea
+                        bind:value={broadcastBody}
+                        rows="2"
+                        placeholder="通知本文 (例: ○○川流域にお住まいの方は、速やかに高台や避難所に避難を開始してください。)"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800"
+                      ></textarea>
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        bind:value={broadcastArea}
+                        placeholder="対象地域（空欄の場合は全地域に配信）"
+                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isBroadcasting ||
+                        !broadcastTitle ||
+                        !broadcastBody}
+                      onclick={handleBroadcastPush}
+                      class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-red-700 active:scale-98 disabled:opacity-50"
+                    >
+                      <BellRing class="h-3.5 w-3.5" />
+                      <span
+                        >{isBroadcasting
+                          ? '配信中...'
+                          : '緊急プッシュを一斉配信する'}</span
+                      >
+                    </button>
+
+                    {#if broadcastResult}
+                      <div
+                        class={`rounded-lg p-2 text-xs font-medium ${
+                          broadcastResult.type === 'success'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                        }`}
+                      >
+                        {broadcastResult.text}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
               </div>
 
               <!-- Tab 2: Member role management -->

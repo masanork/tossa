@@ -662,3 +662,133 @@ export async function inviteMemberApi(
     return { success: false, error: err.message || 'Failed to invite member' };
   }
 }
+
+// ================= Web Push API Client =================
+
+export async function fetchVapidPublicKey(): Promise<{
+  success: boolean;
+  publicKey?: string;
+  error?: string;
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/push/vapid-public-key`);
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to fetch VAPID public key',
+    };
+  }
+}
+
+export async function subscribePushApi(
+  subscription: PushSubscriptionJSON,
+  area?: string,
+  alertTypes?: string[],
+  token?: string | null
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_BASE}/push/subscribe`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        subscription,
+        area: area || null,
+        alertTypes: alertTypes || ['emergency', 'evacuation', 'messages'],
+      }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to register push subscription',
+    };
+  }
+}
+
+export async function unsubscribePushApi(
+  endpoint: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/push/unsubscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to unsubscribe push',
+    };
+  }
+}
+
+export async function sendTestPushApi(
+  subscription?: PushSubscriptionJSON,
+  token?: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const bodyPayload = subscription
+      ? {
+          endpoint: subscription.endpoint,
+          p256dh: subscription.keys?.p256dh,
+          auth: subscription.keys?.auth,
+        }
+      : {};
+
+    const res = await fetch(`${API_BASE}/push/test`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(bodyPayload),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to send test push',
+    };
+  }
+}
+
+export async function broadcastPushApi(
+  params: {
+    title: string;
+    body: string;
+    url?: string;
+    area?: string;
+    alertType?: 'emergency' | 'evacuation' | 'status' | 'messages';
+  },
+  token: string
+): Promise<{ success: boolean; result?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/push/broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to broadcast push',
+    };
+  }
+}

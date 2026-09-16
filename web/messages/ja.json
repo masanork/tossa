@@ -119,5 +119,22 @@
   "qr_import_success": "「{title}」を端末に保存しました",
   "qr_already_imported": "この情報は既に最新の状態で保存されています",
   "qr_invalid_code": "有効なtossaのQRコードではありません",
-  "peer_badge": "ピア共有 (QR)"
+  "peer_badge": "ピア共有 (QR)",
+  "btn_push_alerts": "防災通知",
+  "push_modal_title": "Web Push 防災・緊急通知設定",
+  "push_modal_desc": "アプリを閉じていても、避難情報や重要なお知らせを端末にプッシュ通知でお届けします。",
+  "push_status_active": "通知を受信中（有効）",
+  "push_status_inactive": "通知は無効です",
+  "push_status_blocked": "ブラウザ設定で通知がブロックされています",
+  "push_enable_btn": "緊急通知を受け取る（有効化）",
+  "push_disable_btn": "通知を解除（無効化）",
+  "push_test_btn": "テスト通知を送信",
+  "push_test_success": "テスト通知を送信しました。端末の通知欄をご確認ください。",
+  "push_unsupported": "お使いのブラウザまたは端末はWeb Push通知に対応していません。",
+  "push_pref_area": "通知を受け取る地域",
+  "push_pref_types": "通知を受け取る情報カテゴリ",
+  "push_type_emergency": "緊急避難勧告・管理者速報",
+  "push_type_evacuation": "避難所開設・給水所ステータス",
+  "push_type_status": "近隣施設の状況更新",
+  "push_type_messages": "暗号化メッセージ（E2EE）新着"
 }

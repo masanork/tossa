@@ -7,6 +7,9 @@ export interface Bindings {
   RP_ID: string;
   EXPECTED_ORIGIN: string;
   JWT_SECRET?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 export type AppMode = 'normal' | 'disaster';
@@ -161,4 +164,29 @@ export interface EncryptedMessage {
   ciphertext: string;
   iv: string;
   created_at: string;
+}
+
+// ================= Web Push Types =================
+
+export interface PushSubscriptionRecord {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_id?: string | null;
+  device_cookie_id?: string | null;
+  area?: string | null;
+  alert_types: string; // JSON string: ["emergency", "evacuation", "messages"]
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PushNotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  tag?: string;
+  url?: string;
+  data?: Record<string, unknown>;
 }

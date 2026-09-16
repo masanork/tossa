@@ -15,6 +15,7 @@ import {
   updateUserPublicKey,
   getUserById,
 } from '../db/queries';
+import { notifyThreadMembers } from '../services/push';
 
 export const threadsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -212,6 +213,20 @@ threadsRoute.post('/:id/messages', async (c) => {
     ciphertext: body.ciphertext,
     iv: body.iv,
   });
+
+  // Privacy-preserving push notification to other thread members
+  getThreadById(c.env.DB, threadId, session.userId)
+    .then((thread) => {
+      if (thread) {
+        notifyThreadMembers(
+          c.env,
+          threadId,
+          session.userId,
+          thread.title
+        ).catch((err) => console.error('[push] thread notify error:', err));
+      }
+    })
+    .catch(() => {});
 
   return c.json(
     {

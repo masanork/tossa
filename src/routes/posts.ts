@@ -14,6 +14,7 @@ import {
 } from '../db/queries';
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
 import { verifySessionToken } from '../auth/session';
+import { broadcastPushNotification } from '../services/push';
 
 type PostsVariables = { deviceSessionId: string };
 
@@ -166,6 +167,25 @@ postsRoute.post('/', async (c) => {
     ua,
     { postId }
   );
+
+  // Trigger push broadcast for emergency / evacuation posts
+  const postTags: string[] = Array.isArray(body.tags) ? body.tags : [];
+  const isEmergencyPost =
+    postTags.some((t: string) =>
+      ['#避難所', '#給水', '#救急', '#緊急', '避難所', '給水所'].includes(t)
+    ) ||
+    body.currentStatus === 'closed' ||
+    body.currentStatus === 'danger';
+
+  if (isEmergencyPost) {
+    broadcastPushNotification(c.env, {
+      title: `【防災情報】${body.area} ${body.title}`,
+      body: `${body.statusLabel || body.currentStatus}: ${body.note || '最新情報を確認してください'}`,
+      url: `/?post=${postId}`,
+      area: body.area,
+      alertType: 'evacuation',
+    }).catch((err) => console.error('[push] post broadcast failed:', err));
+  }
 
   return c.json(
     {
@@ -344,6 +364,21 @@ postsRoute.post('/:id/status', async (c) => {
     body.note || null,
     ipHash
   );
+
+  // Trigger push broadcast for status change
+  if (
+    body.status === 'closed' ||
+    body.status === 'danger' ||
+    body.status === 'available'
+  ) {
+    broadcastPushNotification(c.env, {
+      title: `【状況更新】${post.area} ${post.title}`,
+      body: `状況: ${body.statusLabel}${body.note ? ' - ' + body.note : ''}`,
+      url: `/?post=${postId}`,
+      area: post.area,
+      alertType: 'status',
+    }).catch((err) => console.error('[push] status broadcast failed:', err));
+  }
 
   return c.json({
     success: true,

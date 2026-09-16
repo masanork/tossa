@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import type { Bindings } from '../types';
 import { getSystemSettings, updateSystemSetting } from '../db/queries';
 import { verifySessionToken } from '../auth/session';
+import { broadcastPushNotification } from '../services/push';
 
 export const settingsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -35,6 +36,18 @@ settingsRoute.post('/', async (c) => {
     if (typeof value === 'string') {
       await updateSystemSetting(c.env.DB, key, value);
     }
+  }
+
+  // Trigger emergency push broadcast if emergency banner was updated with content
+  if (body.emergency_banner && body.emergency_banner.trim().length > 0) {
+    broadcastPushNotification(c.env, {
+      title: '【緊急通知】重要なお知らせ',
+      body: body.emergency_banner.trim(),
+      url: '/',
+      alertType: 'emergency',
+    }).catch((err) =>
+      console.error('[push] settings emergency broadcast error:', err)
+    );
   }
 
   const updated = await getSystemSettings(c.env.DB);
