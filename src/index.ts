@@ -8,6 +8,8 @@ import { postsRoute } from './routes/posts';
 import { settingsRoute } from './routes/settings';
 import { authRoute } from './routes/auth';
 import { federationRoute } from './routes/federation';
+import { threadsRoute } from './routes/threads';
+import { deviceCookieMiddleware } from './middleware/deviceCookie';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -23,11 +25,15 @@ app.use(
   })
 );
 
+// 端末Cookie自動発行ミドルウェア（全APIルートに適用）
+app.use('/api/*', deviceCookieMiddleware);
+
 // APIルーティング
 app.route('/api/categories', categoriesRoute);
 app.route('/api/posts', postsRoute);
 app.route('/api/settings', settingsRoute);
 app.route('/api/auth', authRoute);
+app.route('/api/threads', threadsRoute);
 app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
 

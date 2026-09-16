@@ -7,6 +7,7 @@
     fetchPosts,
     fetchVocabularyTags,
     checkAuth,
+    deletePost,
   } from './lib/api';
   import Header from './lib/Header.svelte';
   import VocabularyFilter from './lib/VocabularyFilter.svelte';
@@ -15,7 +16,9 @@
   import UpdateStatusModal from './lib/UpdateStatusModal.svelte';
   import CreatePostModal from './lib/CreatePostModal.svelte';
   import AdminModal from './lib/AdminModal.svelte';
+  import MessagesModal from './lib/MessagesModal.svelte';
   import { List, Map as MapIcon, Search, Plus, RotateCw } from '@lucide/svelte';
+  import { i18n, m } from './lib/i18n.svelte';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa',
@@ -37,7 +40,10 @@
   // モーダル
   let showAdminModal = $state(false);
   let showCreateModal = $state(false);
+  let showMessagesModal = $state(false);
   let updatingPost = $state<Post | null>(null);
+  let editingPost = $state<Post | null>(null);
+  let messageContextPost = $state<Post | null>(null);
 
   // 認証
   let currentUser = $state<User | null>(null);
@@ -131,10 +137,61 @@
     localStorage.removeItem('tossa_token');
   }
 
+  // 投稿作成オープン（Cookie識別により未ログインでも即座に投稿可能）
+  function handleOpenCreate() {
+    editingPost = null;
+    showCreateModal = true;
+  }
+
+  // 投稿編集オープン
+  function handleEditPost(post: Post) {
+    editingPost = post;
+    showCreateModal = true;
+  }
+
+  // 投稿削除（Cookie所有者またはPasskey本人/管理者）
+  async function handleDeletePost(postId: string) {
+    try {
+      const res = await deletePost(postId, authToken);
+      if (res.success) {
+        await reloadPosts();
+      } else {
+        alert(res.error || '削除に失敗しました');
+      }
+    } catch (err: any) {
+      alert(err.message || '削除中にエラーが発生しました');
+    }
+  }
+
   async function handleSettingsUpdated(newSettings: SystemSettings) {
     settings = newSettings;
     await reloadPosts();
   }
+
+  // E2EEメッセージモーダルを開く
+  function handleOpenMessages() {
+    if (!currentUser || !authToken) {
+      alert(m.e2ee_need_auth());
+      showAdminModal = true;
+      return;
+    }
+    messageContextPost = null;
+    showMessagesModal = true;
+  }
+
+  // 投稿への問い合わせ（メッセージモーダルを特定投稿で開く）
+  function handleContactPost(post: Post) {
+    if (!currentUser || !authToken) {
+      alert(m.e2ee_need_auth());
+      showAdminModal = true;
+      return;
+    }
+    messageContextPost = post;
+    showMessagesModal = true;
+  }
+
+  // Passkey登録促進バナーの非表示状態
+  let hidePasskeyNudge = $state(false);
 </script>
 
 <div class="min-h-screen flex flex-col bg-slate-50">
@@ -143,7 +200,8 @@
     {settings}
     user={currentUser}
     onOpenAdmin={() => { showAdminModal = true; }}
-    onOpenCreate={() => { showCreateModal = true; }}
+    onOpenCreate={handleOpenCreate}
+    onOpenMessages={handleOpenMessages}
   />
 
   <!-- 自発的ボキャブラリ（タグ）メインフィルターバー -->
@@ -153,6 +211,42 @@
     totalCount={totalPosts}
     onSelectTag={handleSelectTag}
   />
+
+  <!-- 未ログイン（端末Cookie識別）ユーザーへのPasskey登録促進バナー -->
+  {#if !currentUser && !hidePasskeyNudge}
+    <div class="max-w-4xl mx-auto px-4 w-full mb-3">
+      <div class="bg-gradient-to-r from-blue-50 via-indigo-50 to-white border border-blue-200/80 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-2xs">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs font-bold text-sm">
+            🔑
+          </div>
+          <div class="text-xs leading-tight">
+            <span class="font-bold text-slate-800">{m.nudge_cookie_title()}</span>
+            <p class="text-[11px] text-slate-500 mt-0.5">
+              {m.nudge_cookie_desc()}
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onclick={() => { showAdminModal = true; }}
+            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer whitespace-nowrap"
+          >
+            {m.nudge_register_btn()}
+          </button>
+          <button
+            type="button"
+            onclick={() => { hidePasskeyNudge = true; }}
+            class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition cursor-pointer"
+            title="閉じる"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- サブバー: 検索・エリア・表示切替 (List ⇄ Map) -->
   <div class="max-w-4xl mx-auto px-4 w-full mb-3 flex flex-col sm:flex-row items-center justify-between gap-2.5">
@@ -164,7 +258,7 @@
           type="text"
           value={searchQuery}
           oninput={handleSearchInput}
-          placeholder="場所名、物資名、タグ、キーワード検索..."
+          placeholder={m.search_placeholder()}
           class="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
         />
       </div>
@@ -176,7 +270,7 @@
           onchange={() => reloadPosts()}
           class="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 shadow-2xs focus:outline-none"
         >
-          <option value="">全地区</option>
+          <option value="">{m.all_areas()}</option>
           {#each availableAreas as a}
             <option value={a}>{a}</option>
           {/each}
@@ -196,7 +290,7 @@
         }`}
       >
         <List class="w-3.5 h-3.5" />
-        <span>リスト</span>
+        <span>{m.btn_list_view()}</span>
       </button>
 
       <button
@@ -209,14 +303,14 @@
         }`}
       >
         <MapIcon class="w-3.5 h-3.5" />
-        <span>地図</span>
+        <span>{m.btn_map_view()}</span>
       </button>
 
       <button
         type="button"
         onclick={() => reloadPosts()}
         class="p-1 text-slate-500 hover:text-slate-800 ml-1 rounded-md transition cursor-pointer"
-        title="最新情報に更新"
+        title={m.btn_refresh()}
       >
         <RotateCw class="w-3.5 h-3.5" />
       </button>
@@ -228,23 +322,23 @@
     {#if isLoading}
       <div class="py-16 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
         <div class="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <span>生活情報を読み込み中...</span>
+        <span>{m.loading_posts()}</span>
       </div>
     {:else if viewMode === 'map'}
       <!-- 地図ビュー -->
       {#if posts.length === 0}
         <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs mb-4">
           <div class="text-3xl mb-2">🗺️</div>
-          <h3 class="text-sm font-bold text-slate-800 mb-1">地図上に表示できる情報がまだありません</h3>
+          <h3 class="text-sm font-bold text-slate-800 mb-1">{m.map_empty_title()}</h3>
           <p class="text-xs text-slate-500 mb-4">
-            「＋ 情報を投稿」から緯度経度や住所を含む生活情報を投稿すると、ここにピンが表示されます。
+            {m.map_empty_desc()}
           </p>
           <button
             type="button"
-            onclick={() => { showCreateModal = true; }}
+            onclick={handleOpenCreate}
             class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-xs cursor-pointer"
           >
-            ＋ 最初の情報を登録する
+            {m.empty_btn()}
           </button>
         </div>
       {:else}
@@ -261,16 +355,16 @@
           <!-- 絞り込みによる0件 -->
           <div class="py-16 text-center bg-white rounded-2xl border border-slate-200 p-8 shadow-xs">
             <div class="text-3xl mb-2">🔍</div>
-            <h3 class="text-sm font-bold text-slate-800 mb-1">条件に一致する情報が見つかりません</h3>
+            <h3 class="text-sm font-bold text-slate-800 mb-1">{m.empty_filter_title()}</h3>
             <p class="text-xs text-slate-500 mb-4">
-              検索条件を変更するか、右上の「＋ 情報を投稿」から新しい生活情報を登録してください。
+              {m.empty_filter_desc()}
             </p>
             <button
               type="button"
               onclick={() => { selectedTag = null; searchQuery = ''; selectedArea = ''; reloadPosts(); }}
               class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition cursor-pointer"
             >
-              条件をクリア
+              {m.btn_clear_filters()}
             </button>
           </div>
         {:else}
@@ -280,42 +374,45 @@
               🌱
             </div>
             <h3 class="text-lg font-black text-slate-900 mb-2">
-              まだ生活情報が登録されていません
+              {m.empty_title()}
             </h3>
             <p class="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mb-6">
-              平時のカフェ・店舗・地域イベントから、有事の給水所・避難所・物資配布まで。<br />
-              あなたの身近な生活情報を投稿して、地域の情報板を一緒に育てましょう。
+              {m.empty_description()}
             </p>
             <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 type="button"
-                onclick={() => { showCreateModal = true; }}
+                onclick={handleOpenCreate}
                 class="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer flex items-center justify-center gap-2"
               >
                 <Plus class="w-4 h-4" />
-                <span>＋ 最初の生活情報を投稿する</span>
+                <span>{m.empty_btn()}</span>
               </button>
             </div>
           </div>
         {/if}
       {:else}
         <div class="flex items-center justify-between text-xs text-slate-500 mb-2 px-1">
-          <span>{totalPosts} 件の生活情報</span>
+          <span>{m.posts_count({ count: totalPosts })}</span>
           {#if selectedTag}
             <span class="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-              #{selectedTag} で絞り込み中
+              {m.filtering_by_tag({ tag: selectedTag })}
               <button type="button" onclick={() => handleSelectTag(null)} class="hover:text-blue-800">×</button>
             </span>
           {/if}
-          <span class="text-[11px] text-slate-400">※ エッジキャッシュにより高速配信</span>
+          <span class="text-[11px] text-slate-400">{m.edge_cache_notice()}</span>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           {#each posts as post (post.id)}
             <PostCard
               {post}
+              currentUser={currentUser}
               onOpenUpdateStatus={(p) => { updatingPost = p; }}
               onSelectTag={handleSelectTag}
+              onEditPost={handleEditPost}
+              onDeletePost={handleDeletePost}
+              onContactPost={handleContactPost}
             />
           {/each}
         </div>
@@ -327,11 +424,11 @@
   <div class="fixed bottom-5 right-5 sm:hidden z-30">
     <button
       type="button"
-      onclick={() => { showCreateModal = true; }}
+      onclick={handleOpenCreate}
       class="flex items-center gap-2 px-5 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white rounded-full font-black text-sm shadow-xl active:scale-95 transition-all cursor-pointer ring-4 ring-blue-500/20"
     >
       <Plus class="w-4 h-4" />
-      <span>情報を投稿</span>
+      <span>{m.btn_post()}</span>
     </button>
   </div>
 
@@ -350,8 +447,11 @@
       defaultArea={settings.default_area || ''}
       availableAreas={availableAreas}
       token={authToken}
-      onClose={() => { showCreateModal = false; }}
+      editingPost={editingPost}
+      onClose={() => { showCreateModal = false; editingPost = null; }}
       onCreated={() => { reloadPosts(); }}
+      onUpdated={() => { reloadPosts(); }}
+      onOpenAuth={() => { showAdminModal = true; }}
     />
   {/if}
 
@@ -364,6 +464,16 @@
       onAuthSuccess={handleAuthSuccess}
       onLogout={handleLogout}
       onSettingsUpdated={handleSettingsUpdated}
+    />
+  {/if}
+
+  {#if showMessagesModal && currentUser && authToken}
+    <MessagesModal
+      currentUser={currentUser}
+      token={authToken}
+      initialPostId={messageContextPost?.id}
+      initialPostTitle={messageContextPost?.title}
+      onClose={() => { showMessagesModal = false; messageContextPost = null; }}
     />
   {/if}
 </div>

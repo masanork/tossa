@@ -11,28 +11,54 @@ import {
   getUserByUsername,
   getUserById,
   getUserCredentials,
+  countUsers,
+  countAdmins,
+  getAllUsers,
+  updateUserRole,
+  linkDeviceToUser,
 } from '../db/queries';
 import { createSessionToken, verifySessionToken } from '../auth/session';
+import { logAccess, getClientIp } from '../middleware/deviceCookie';
 
-export const authRoute = new Hono<{ Bindings: Bindings }>();
+type AuthVariables = { deviceSessionId: string };
+export const authRoute = new Hono<{ Bindings: Bindings; Variables: AuthVariables }>();
+
+// 0. 認証ステータス・初回セットアップ状況取得 (GET /api/auth/status)
+authRoute.get('/status', async (c) => {
+  const total = await countUsers(c.env.DB);
+  const admins = await countAdmins(c.env.DB);
+  return c.json({
+    success: true,
+    totalUsers: total,
+    adminCount: admins,
+    isFirstUserSetup: total === 0 || admins === 0,
+  });
+});
 
 // 1. パスキー登録オプション取得 (POST /api/auth/register-options)
 authRoute.post('/register-options', async (c) => {
-  const body = await c.req.json<{ username: string }>();
+  const body = await c.req.json<{ username: string; displayName?: string }>();
   if (!body.username) {
     return c.json({ success: false, error: 'Username is required' }, 400);
   }
 
-  let user = await getUserByUsername(c.env.DB, body.username);
+  const cleanUsername = body.username.trim();
+  const displayName = body.displayName?.trim() || cleanUsername;
 
-  // ユーザーが存在しない場合、初期ユーザーとして作成を許可（またはシードされたadmin）
+  let user = await getUserByUsername(c.env.DB, cleanUsername);
+
+  // ユーザーが存在しない場合、新規ユーザーを作成
+  // デプロイ後最初の登録者は自動的に 'admin'、2人目以降は 'user'
   if (!user) {
-    // 最初のユーザーまたは指定ユーザーを自動作成
-    const newId = `user_${Date.now()}`;
+    const totalUsers = await countUsers(c.env.DB);
+    const adminCount = await countAdmins(c.env.DB);
+    const role: 'admin' | 'user' = (totalUsers === 0 || adminCount === 0) ? 'admin' : 'user';
+
+    const newId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     await c.env.DB.prepare(
       'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
     )
-      .bind(newId, body.username, body.username, 'admin')
+      .bind(newId, cleanUsername, displayName, role)
       .run();
 
     user = await getUserById(c.env.DB, newId);
@@ -45,7 +71,11 @@ authRoute.post('/register-options', async (c) => {
   const existingCreds = await getUserCredentials(c.env.DB, user.id);
   const options = await createRegOptions(c.env, user, existingCreds);
 
-  return c.json({ success: true, options });
+  return c.json({
+    success: true,
+    options,
+    isFirstAdmin: user.role === 'admin',
+  });
 });
 
 // 2. パスキー登録レスポンス検証 (POST /api/auth/verify-registration)
@@ -55,7 +85,7 @@ authRoute.post('/verify-registration', async (c) => {
     return c.json({ success: false, error: 'Username and response are required' }, 400);
   }
 
-  const user = await getUserByUsername(c.env.DB, body.username);
+  const user = await getUserByUsername(c.env.DB, body.username.trim());
   if (!user) {
     return c.json({ success: false, error: 'User not found' }, 404);
   }
@@ -68,6 +98,20 @@ authRoute.post('/verify-registration', async (c) => {
       { userId: user.id, username: user.username, role: user.role },
       c.env.JWT_SECRET
     );
+
+    // 端末セッションとPasskeyユーザーを紐付け
+    const deviceId: string | undefined = c.get('deviceSessionId');
+    if (deviceId) {
+      await linkDeviceToUser(c.env.DB, deviceId, user.id);
+    }
+
+    // アクセスログ（登録イベント）
+    const ip = getClientIp(c.req.raw);
+    const ua = c.req.header('User-Agent') || '';
+    await logAccess(c.env.DB, 'passkey_register', deviceId || null, user.id, ip, ua, {
+      username: user.username,
+      role: user.role,
+    });
 
     return c.json({
       success: true,
@@ -91,7 +135,7 @@ authRoute.post('/login-options', async (c) => {
   let user: User | null = null;
 
   if (body?.username) {
-    user = await getUserByUsername(c.env.DB, body.username);
+    user = await getUserByUsername(c.env.DB, body.username.trim());
     if (!user) {
       return c.json({ success: false, error: 'User not found' }, 404);
     }
@@ -109,10 +153,9 @@ authRoute.post('/verify-authentication', async (c) => {
     return c.json({ success: false, error: 'Authentication response required' }, 400);
   }
 
-  // response.id (credentialId) からユーザーを逆引き（または指定されたusername）
   let user: User | null = null;
   if (body.username) {
-    user = await getUserByUsername(c.env.DB, body.username);
+    user = await getUserByUsername(c.env.DB, body.username.trim());
   } else {
     // PasskeyのCredential IDからユーザーを特定
     const cred = await c.env.DB.prepare(
@@ -137,6 +180,20 @@ authRoute.post('/verify-authentication', async (c) => {
       { userId: user.id, username: user.username, role: user.role },
       c.env.JWT_SECRET
     );
+
+    // 端末セッションとPasskeyユーザーを紐付け
+    const deviceId: string | undefined = c.get('deviceSessionId');
+    if (deviceId) {
+      await linkDeviceToUser(c.env.DB, deviceId, user.id);
+    }
+
+    // アクセスログ（ログインイベント）
+    const ip = getClientIp(c.req.raw);
+    const ua = c.req.header('User-Agent') || '';
+    await logAccess(c.env.DB, 'passkey_login', deviceId || null, user.id, ip, ua, {
+      username: user.username,
+      role: user.role,
+    });
 
     return c.json({
       success: true,
@@ -181,5 +238,65 @@ authRoute.get('/me', async (c) => {
       displayName: user.display_name,
       role: user.role,
     },
+  });
+});
+
+// 6. ユーザー一覧取得 (GET /api/auth/users) - 管理者のみ
+authRoute.get('/users', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Authorization required' }, 401);
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || session.role !== 'admin') {
+    return c.json({ success: false, error: 'Admin permission required' }, 403);
+  }
+
+  const users = await getAllUsers(c.env.DB);
+  return c.json({
+    success: true,
+    users,
+  });
+});
+
+// 7. ユーザー権限変更・委譲 (PATCH /api/auth/users/:id/role) - 管理者のみ
+authRoute.patch('/users/:id/role', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Authorization required' }, 401);
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || session.role !== 'admin') {
+    return c.json({ success: false, error: 'Admin permission required' }, 403);
+  }
+
+  const targetUserId = c.req.param('id');
+  const targetUser = await getUserById(c.env.DB, targetUserId);
+  if (!targetUser) {
+    return c.json({ success: false, error: 'User not found' }, 404);
+  }
+
+  const body = await c.req.json<{ role: 'admin' | 'moderator' | 'user' }>();
+  if (!['admin', 'moderator', 'user'].includes(body.role)) {
+    return c.json({ success: false, error: 'Invalid role' }, 400);
+  }
+
+  // 最後の1人の管理者を一般ユーザーに格下げできないように保護
+  if (targetUser.role === 'admin' && body.role !== 'admin') {
+    const adminCount = await countAdmins(c.env.DB);
+    if (adminCount <= 1) {
+      return c.json({ success: false, error: '最後の管理者の権限を解除することはできません' }, 400);
+    }
+  }
+
+  await updateUserRole(c.env.DB, targetUserId, body.role);
+
+  return c.json({
+    success: true,
+    message: `User ${targetUser.username} role updated to ${body.role}`,
   });
 });

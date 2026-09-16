@@ -32,6 +32,9 @@ export interface Post {
   attributes: string; // JSON string
   tags?: string; // JSON array string
   is_verified: number;
+  author_id?: string | null;
+  author_cookie_id?: string | null; // Cookie識別ユーザー（Passkey未登録）
+  is_owner?: boolean;               // サーバー側でCookieを照合した結果
   reporter_name: string | null;
   created_at: string;
   updated_at: string;
@@ -80,5 +83,64 @@ export interface User {
   id: string;
   username: string;
   displayName: string;
-  role: 'admin' | 'moderator';
+  role: 'admin' | 'moderator' | 'user';
+  e2ee_public_key?: string | null;
+}
+
+// ================= E2EE Messaging Types =================
+
+export type ThreadType = 'inquiry' | 'admin_chat' | 'direct';
+
+export interface Thread {
+  id: string;
+  title: string;
+  type: ThreadType;
+  post_id?: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  post_title?: string | null;
+  creator_name?: string | null;
+  member_count?: number;
+  my_encrypted_thread_key?: string;
+  my_ephemeral_public_key?: string;
+  last_message_at?: string;
+}
+
+export interface ThreadMember {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  username?: string;
+  display_name?: string;
+  role: 'owner' | 'member';
+  user_role?: 'admin' | 'moderator' | 'user';
+  encrypted_thread_key: string;
+  ephemeral_public_key: string;
+  key_sender_id?: string | null;
+  joined_at: string;
+}
+
+export interface EncryptedMessage {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  sender_username?: string;
+  sender_display_name?: string;
+  sender_role?: 'admin' | 'moderator' | 'user';
+  ciphertext: string;
+  iv: string;
+  created_at: string;
+}
+
+export interface DecryptedMessage {
+  id: string;
+  thread_id: string;
+  sender_id: string;
+  sender_username?: string;
+  sender_display_name?: string;
+  sender_role?: 'admin' | 'moderator' | 'user';
+  text: string;
+  created_at: string;
+  isMine: boolean;
 }

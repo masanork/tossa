@@ -1,13 +1,14 @@
 <!-- web/src/lib/CreatePostModal.svelte -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { TagCount, ImageMeta } from './types';
-  import { createPost } from './api';
+  import { createPost, updatePost } from './api';
+  import type { Post, TagCount, ImageMeta } from './types';
   import { processImageFile } from './media-processor';
   import type * as L from 'leaflet';
   import {
     X,
     Plus,
+    Edit3,
     AlertCircle,
     Sparkles,
     MapPin,
@@ -22,14 +23,18 @@
     Clock,
     Trash2,
   } from '@lucide/svelte';
+  import { i18n, m } from './i18n.svelte';
 
   interface Props {
     vocabularyTags: TagCount[];
     defaultArea?: string;
     availableAreas?: string[];
     token: string | null;
+    editingPost?: Post | null;
     onClose: () => void;
     onCreated: () => void;
+    onUpdated?: () => void;
+    onOpenAuth?: () => void;
   }
 
   let {
@@ -37,8 +42,11 @@
     defaultArea = '',
     availableAreas = [],
     token,
+    editingPost = null,
     onClose,
     onCreated,
+    onUpdated,
+    onOpenAuth,
   }: Props = $props();
 
   let title = $state('');
@@ -212,6 +220,34 @@
   }
 
   onMount(async () => {
+    // 編集モードの場合、既存データの初期値をセット
+    if (editingPost) {
+      title = editingPost.title || '';
+      area = editingPost.area || '';
+      address = editingPost.address || '';
+      currentStatus = editingPost.current_status || 'available';
+      statusLabel = editingPost.status_label || '';
+      note = editingPost.note || '';
+      sourceUrl = editingPost.source_url || '';
+      url = editingPost.url || '';
+      imagePreviewUrl = editingPost.image_url || null;
+      if (editingPost.image_meta) {
+        try {
+          imageMeta = typeof editingPost.image_meta === 'string' ? JSON.parse(editingPost.image_meta) : (editingPost.image_meta as ImageMeta);
+        } catch {}
+      }
+      if (editingPost.tags) {
+        try {
+          selectedTags = typeof editingPost.tags === 'string' ? JSON.parse(editingPost.tags) : editingPost.tags;
+        } catch {}
+      }
+      if (editingPost.attributes) {
+        try {
+          attributes = typeof editingPost.attributes === 'string' ? JSON.parse(editingPost.attributes) : (editingPost.attributes as Record<string, string>);
+        } catch {}
+      }
+    }
+
     // Leaflet の初期化
     leaflet = await import('leaflet');
 
@@ -242,8 +278,10 @@
       pickerMap?.invalidateSize();
     }, 250);
 
-    // defaultArea が設定されていれば、その地域を中心にする
-    if (defaultArea) {
+    // 編集対象に位置情報がある場合はその位置をセット、なければ defaultArea を中心にする
+    if (editingPost && editingPost.lat !== null && editingPost.lng !== null && editingPost.lat !== undefined && editingPost.lng !== undefined) {
+      setCoordinates(editingPost.lat, editingPost.lng, 15);
+    } else if (defaultArea) {
       try {
         const res = await fetch(
           `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(defaultArea)}`
@@ -419,31 +457,61 @@
     errorMessage = '';
 
     try {
-      const res = await createPost(
-        {
-          title: title.trim(),
-          area: area.trim(),
-          address: address.trim() || undefined,
-          lat: lat !== null ? lat : undefined,
-          lng: lng !== null ? lng : undefined,
-          currentStatus,
-          statusLabel,
-          note: note.trim() || undefined,
-          url: url.trim() || undefined,
-          sourceUrl: sourceUrl.trim() || undefined,
-          imageUrl: imagePreviewUrl || undefined,
-          imageMeta: imageMeta ? (imageMeta as any) : undefined,
-          attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
-        },
-        token
-      );
+      if (editingPost) {
+        const res = await updatePost(
+          editingPost.id,
+          {
+            title: title.trim(),
+            area: area.trim(),
+            address: address.trim() || undefined,
+            lat: lat !== null ? lat : null,
+            lng: lng !== null ? lng : null,
+            currentStatus,
+            statusLabel,
+            note: note.trim() || null,
+            url: url.trim() || null,
+            sourceUrl: sourceUrl.trim() || null,
+            imageUrl: imagePreviewUrl || null,
+            imageMeta: imageMeta ? (imageMeta as any) : null,
+            attributes: Object.keys(attributes).length > 0 ? attributes : null,
+            tags: selectedTags.length > 0 ? selectedTags : null,
+          },
+          token
+        );
 
-      if (res.success) {
-        onCreated();
-        onClose();
+        if (res.success) {
+          onUpdated?.();
+          onClose();
+        } else {
+          errorMessage = res.error || '更新に失敗しました';
+        }
       } else {
-        errorMessage = res.error || '作成に失敗しました';
+        const res = await createPost(
+          {
+            title: title.trim(),
+            area: area.trim(),
+            address: address.trim() || undefined,
+            lat: lat !== null ? lat : undefined,
+            lng: lng !== null ? lng : undefined,
+            currentStatus,
+            statusLabel,
+            note: note.trim() || undefined,
+            url: url.trim() || undefined,
+            sourceUrl: sourceUrl.trim() || undefined,
+            imageUrl: imagePreviewUrl || undefined,
+            imageMeta: imageMeta ? (imageMeta as any) : undefined,
+            attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+            tags: selectedTags.length > 0 ? selectedTags : undefined,
+          },
+          token
+        );
+
+        if (res.success) {
+          onCreated();
+          onClose();
+        } else {
+          errorMessage = res.error || '作成に失敗しました';
+        }
       }
     } catch (err: any) {
       errorMessage = err.message || '通信エラーが発生しました';
@@ -458,8 +526,13 @@
     <!-- ヘッダー -->
     <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
       <div class="flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
-        <h2 class="text-base font-black text-slate-900">＋ 情報を投稿</h2>
+        {#if editingPost}
+          <Edit3 class="w-4 h-4 text-blue-600" />
+          <h2 class="text-base font-black text-slate-900">{m.modal_edit_title()}</h2>
+        {:else}
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+          <h2 class="text-base font-black text-slate-900">{m.modal_create_title()}</h2>
+        {/if}
       </div>
       <button
         type="button"
@@ -472,6 +545,27 @@
 
     <!-- フォーム -->
     <form onsubmit={handleSubmit} class="p-4 sm:p-5 flex flex-col gap-4 overflow-y-auto">
+      {#if !token}
+        <div class="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 shadow-2xs">
+          <div class="flex items-start gap-2 text-slate-700">
+            <ShieldCheck class="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
+            <div class="leading-relaxed">
+              <span class="font-bold text-slate-900">{m.modal_cookie_info_title()}</span><br />
+              <span class="text-[11px] text-slate-600">{m.modal_cookie_info_desc()}</span>
+            </div>
+          </div>
+          {#if onOpenAuth}
+            <button
+              type="button"
+              onclick={() => { onClose(); onOpenAuth(); }}
+              class="shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition shadow-2xs cursor-pointer flex items-center gap-1 self-end sm:self-auto"
+            >
+              <span>{m.nudge_register_btn()}</span>
+            </button>
+          {/if}
+        </div>
+      {/if}
+
       {#if errorMessage}
         <div class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs font-medium flex items-center gap-1.5">
           <AlertCircle class="w-4 h-4 shrink-0" />
@@ -484,9 +578,9 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5 text-xs font-bold text-slate-800">
             <Camera class="w-4 h-4 text-blue-600" />
-            <span>現場写真の添付</span>
+            <span>{m.photo_attach()}</span>
           </div>
-          <span class="text-[10px] text-slate-500">EXIF自動抽出・C2PA対応</span>
+          <span class="text-[10px] text-slate-500">{m.photo_subtext()}</span>
         </div>
 
         {#if imagePreviewUrl}
@@ -855,7 +949,7 @@
               onclick={addNewTag}
               class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-2xs shrink-0 cursor-pointer"
             >
-              追加
+              {m.btn_add()}
             </button>
           </div>
         </div>
@@ -868,14 +962,14 @@
           onclick={onClose}
           class="px-4 py-2 text-xs font-bold rounded-lg text-slate-600 hover:bg-slate-100 transition cursor-pointer"
         >
-          キャンセル
+          {m.btn_cancel()}
         </button>
         <button
           type="submit"
           disabled={isSubmitting}
           class="px-5 py-2 text-xs font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 shadow-xs transition active:scale-95 cursor-pointer"
         >
-          {isSubmitting ? '登録中...' : '情報を投稿する'}
+          {isSubmitting ? (editingPost ? m.btn_updating() : m.btn_submitting()) : (editingPost ? m.btn_save() : m.btn_submit_post())}
         </button>
       </div>
     </form>

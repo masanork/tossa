@@ -3,7 +3,8 @@
 interface SessionPayload {
   userId: string;
   username: string;
-  role: 'admin' | 'moderator';
+  displayName?: string;
+  role: 'admin' | 'moderator' | 'user';
   exp: number; // Unix timestamp in seconds
 }
 

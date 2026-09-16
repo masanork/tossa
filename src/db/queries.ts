@@ -1,5 +1,17 @@
 // src/db/queries.ts: Database access layer for Cloudflare D1
-import type { Category, Post, StatusUpdate, SystemSetting, User, Credential, TagCount } from '../types';
+import type {
+  Category,
+  Post,
+  StatusUpdate,
+  SystemSetting,
+  User,
+  Credential,
+  TagCount,
+  Thread,
+  ThreadMember,
+  EncryptedMessage,
+  ThreadType,
+} from '../types';
 
 export async function getSystemSettings(db: D1Database): Promise<Record<string, string>> {
   const result = await db.prepare('SELECT key, value FROM system_settings').all<SystemSetting>();
@@ -124,6 +136,8 @@ export async function createPost(
   db: D1Database,
   post: {
     id: string;
+    authorId?: string | null;
+    authorCookieId?: string | null;
     categoryId?: string;
     title: string;
     area: string;
@@ -140,7 +154,7 @@ export async function createPost(
     attributes?: Record<string, unknown>;
     tags?: string[];
     isVerified?: boolean;
-    reporterName?: string;
+    reporterName?: string | null;
   }
 ): Promise<void> {
   const attrJson = post.attributes ? JSON.stringify(post.attributes) : '{}';
@@ -150,14 +164,16 @@ export async function createPost(
   await db
     .prepare(
       `INSERT INTO posts (
-        id, category_id, title, area, address, lat, lng,
+        id, author_id, author_cookie_id, category_id, title, area, address, lat, lng,
         current_status, status_label, note, url, source_url, image_url, image_meta,
         attributes, tags, is_verified, reporter_name,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
     .bind(
       post.id,
+      post.authorId || null,
+      post.authorCookieId || null,
       post.categoryId || 'general',
       post.title,
       post.area,
@@ -193,6 +209,90 @@ export async function createPost(
       'initial'
     )
     .run();
+}
+
+export async function updatePost(
+  db: D1Database,
+  id: string,
+  post: {
+    title?: string;
+    area?: string;
+    address?: string;
+    lat?: number | null;
+    lng?: number | null;
+    currentStatus?: string;
+    statusLabel?: string;
+    note?: string | null;
+    url?: string | null;
+    sourceUrl?: string | null;
+    imageUrl?: string | null;
+    imageMeta?: Record<string, unknown> | null;
+    attributes?: Record<string, unknown> | null;
+    tags?: string[] | null;
+  }
+): Promise<void> {
+  const existing = await getPostById(db, id);
+  if (!existing) {
+    throw new Error('Post not found');
+  }
+
+  const updatedTitle = post.title !== undefined ? post.title : existing.title;
+  const updatedArea = post.area !== undefined ? post.area : existing.area;
+  const updatedAddress = post.address !== undefined ? post.address : existing.address;
+  const updatedLat = post.lat !== undefined ? post.lat : existing.lat;
+  const updatedLng = post.lng !== undefined ? post.lng : existing.lng;
+  const updatedStatus = post.currentStatus !== undefined ? post.currentStatus : existing.current_status;
+  const updatedStatusLabel = post.statusLabel !== undefined ? post.statusLabel : existing.status_label;
+  const updatedNote = post.note !== undefined ? post.note : existing.note;
+  const updatedUrl = post.url !== undefined ? post.url : existing.url;
+  const updatedSourceUrl = post.sourceUrl !== undefined ? post.sourceUrl : existing.source_url;
+  const updatedImageUrl = post.imageUrl !== undefined ? post.imageUrl : existing.image_url;
+
+  const updatedImageMeta = post.imageMeta !== undefined
+    ? (post.imageMeta ? JSON.stringify(post.imageMeta) : '{}')
+    : existing.image_meta;
+
+  const updatedAttrs = post.attributes !== undefined
+    ? (post.attributes ? JSON.stringify(post.attributes) : '{}')
+    : existing.attributes;
+
+  const updatedTags = post.tags !== undefined
+    ? (post.tags ? JSON.stringify(post.tags) : '[]')
+    : existing.tags;
+
+  await db
+    .prepare(
+      `UPDATE posts SET
+        title = ?, area = ?, address = ?, lat = ?, lng = ?,
+        current_status = ?, status_label = ?, note = ?, url = ?, source_url = ?,
+        image_url = ?, image_meta = ?, attributes = ?, tags = ?,
+        updated_at = datetime('now')
+       WHERE id = ?`
+    )
+    .bind(
+      updatedTitle,
+      updatedArea,
+      updatedAddress || null,
+      updatedLat || null,
+      updatedLng || null,
+      updatedStatus,
+      updatedStatusLabel,
+      updatedNote || null,
+      updatedUrl || null,
+      updatedSourceUrl || null,
+      updatedImageUrl || null,
+      updatedImageMeta || '{}',
+      updatedAttrs || '{}',
+      updatedTags || '[]',
+      id
+    )
+    .run();
+}
+
+export async function deletePost(db: D1Database, id: string): Promise<void> {
+  await db.prepare('DELETE FROM status_updates WHERE post_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM post_verifications WHERE post_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run();
 }
 
 // 自発的に成長するボキャブラリ（直近のアクティビティ・出現頻度順に集計）
@@ -290,6 +390,30 @@ export async function getUserById(db: D1Database, id: string): Promise<User | nu
 export async function getUserCredentials(db: D1Database, userId: string): Promise<Credential[]> {
   const res = await db.prepare('SELECT * FROM credentials WHERE user_id = ?').bind(userId).all<Credential>();
   return res.results || [];
+}
+
+export async function countUsers(db: D1Database): Promise<number> {
+  const row = await db.prepare('SELECT COUNT(*) as count FROM users').first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
+export async function countAdmins(db: D1Database): Promise<number> {
+  const row = await db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").first<{ count: number }>();
+  return row?.count ?? 0;
+}
+
+export async function getAllUsers(db: D1Database): Promise<Omit<User, ''>[]> {
+  const res = await db
+    .prepare('SELECT id, username, display_name, role, created_at FROM users ORDER BY created_at ASC')
+    .all<User>();
+  return res.results || [];
+}
+
+export async function updateUserRole(db: D1Database, userId: string, role: 'admin' | 'moderator' | 'user'): Promise<void> {
+  await db
+    .prepare('UPDATE users SET role = ? WHERE id = ?')
+    .bind(role, userId)
+    .run();
 }
 
 // ================= Federation & Migration Functions =================
@@ -560,4 +684,299 @@ export async function importFederatedPosts(
   }
 
   return { added, updated, skipped };
+}
+
+// ================= E2EE Messaging Database Layer =================
+
+export async function updateUserPublicKey(db: D1Database, userId: string, publicKey: string): Promise<void> {
+  await db
+    .prepare('UPDATE users SET e2ee_public_key = ? WHERE id = ?')
+    .bind(publicKey, userId)
+    .run();
+}
+
+export async function getUsersPublicKeys(
+  db: D1Database,
+  filter?: { userIds?: string[]; role?: string }
+): Promise<Array<Pick<User, 'id' | 'username' | 'display_name' | 'role' | 'e2ee_public_key'>>> {
+  const conditions: string[] = ['e2ee_public_key IS NOT NULL'];
+  const params: unknown[] = [];
+
+  if (filter?.role) {
+    conditions.push('role = ?');
+    params.push(filter.role);
+  }
+
+  if (filter?.userIds && filter.userIds.length > 0) {
+    const placeholders = filter.userIds.map(() => '?').join(',');
+    conditions.push(`id IN (${placeholders})`);
+    params.push(...filter.userIds);
+  }
+
+  const query = `
+    SELECT id, username, display_name, role, e2ee_public_key
+    FROM users
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY role ASC, display_name ASC
+  `;
+
+  const res = await db.prepare(query).bind(...params).all<any>();
+  return res.results || [];
+}
+
+export async function createThread(
+  db: D1Database,
+  thread: {
+    id: string;
+    title: string;
+    type: ThreadType;
+    postId?: string | null;
+    createdBy: string;
+  },
+  initialMembers: Array<{
+    userId: string;
+    encryptedThreadKey: string;
+    ephemeralPublicKey: string;
+    role?: 'owner' | 'member';
+  }>
+): Promise<void> {
+  // 1. スレッド作成
+  await db
+    .prepare(
+      `INSERT INTO threads (id, title, type, post_id, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+    )
+    .bind(thread.id, thread.title, thread.type, thread.postId || null, thread.createdBy)
+    .run();
+
+  // 2. メンバー & エンベロープ暗号鍵を登録
+  for (const m of initialMembers) {
+    await db
+      .prepare(
+        `INSERT INTO thread_members (id, thread_id, user_id, encrypted_thread_key, ephemeral_public_key, key_sender_id, role, joined_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      )
+      .bind(
+        `member_${crypto.randomUUID()}`,
+        thread.id,
+        m.userId,
+        m.encryptedThreadKey,
+        m.ephemeralPublicKey,
+        thread.createdBy,
+        m.role || (m.userId === thread.createdBy ? 'owner' : 'member')
+      )
+      .run();
+  }
+}
+
+export async function getUserThreads(db: D1Database, userId: string): Promise<Thread[]> {
+  const query = `
+    SELECT 
+      t.*,
+      p.title as post_title,
+      u.display_name as creator_name,
+      tm.encrypted_thread_key as my_encrypted_thread_key,
+      tm.ephemeral_public_key as my_ephemeral_public_key,
+      (SELECT COUNT(*) FROM thread_members WHERE thread_id = t.id) as member_count,
+      (SELECT MAX(created_at) FROM messages WHERE thread_id = t.id) as last_message_at
+    FROM threads t
+    INNER JOIN thread_members tm ON t.id = tm.thread_id AND tm.user_id = ?
+    LEFT JOIN posts p ON t.post_id = p.id
+    LEFT JOIN users u ON t.created_by = u.id
+    ORDER BY t.updated_at DESC
+  `;
+
+  const res = await db.prepare(query).bind(userId).all<Thread>();
+  return res.results || [];
+}
+
+export async function getThreadById(db: D1Database, threadId: string, userId?: string): Promise<Thread | null> {
+  const query = `
+    SELECT 
+      t.*,
+      p.title as post_title,
+      u.display_name as creator_name,
+      tm.encrypted_thread_key as my_encrypted_thread_key,
+      tm.ephemeral_public_key as my_ephemeral_public_key,
+      (SELECT COUNT(*) FROM thread_members WHERE thread_id = t.id) as member_count
+    FROM threads t
+    LEFT JOIN thread_members tm ON t.id = tm.thread_id AND tm.user_id = ?
+    LEFT JOIN posts p ON t.post_id = p.id
+    LEFT JOIN users u ON t.created_by = u.id
+    WHERE t.id = ?
+  `;
+
+  return await db.prepare(query).bind(userId || '', threadId).first<Thread>();
+}
+
+export async function isThreadMember(db: D1Database, threadId: string, userId: string): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT 1 FROM thread_members WHERE thread_id = ? AND user_id = ?')
+    .bind(threadId, userId)
+    .first();
+  return Boolean(row);
+}
+
+export async function getThreadMembers(db: D1Database, threadId: string): Promise<ThreadMember[]> {
+  const query = `
+    SELECT 
+      tm.id,
+      tm.thread_id,
+      tm.user_id,
+      tm.encrypted_thread_key,
+      tm.ephemeral_public_key,
+      tm.key_sender_id,
+      tm.role,
+      tm.joined_at,
+      u.username,
+      u.display_name,
+      u.role as user_role
+    FROM thread_members tm
+    LEFT JOIN users u ON tm.user_id = u.id
+    WHERE tm.thread_id = ?
+    ORDER BY tm.joined_at ASC
+  `;
+
+  const res = await db.prepare(query).bind(threadId).all<ThreadMember>();
+  return res.results || [];
+}
+
+export async function addThreadMember(
+  db: D1Database,
+  member: {
+    threadId: string;
+    userId: string;
+    encryptedThreadKey: string;
+    ephemeralPublicKey: string;
+    keySenderId?: string;
+    role?: 'owner' | 'member';
+  }
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT OR REPLACE INTO thread_members (id, thread_id, user_id, encrypted_thread_key, ephemeral_public_key, key_sender_id, role, joined_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+    )
+    .bind(
+      `member_${crypto.randomUUID()}`,
+      member.threadId,
+      member.userId,
+      member.encryptedThreadKey,
+      member.ephemeralPublicKey,
+      member.keySenderId || null,
+      member.role || 'member'
+    )
+    .run();
+}
+
+export async function createMessage(
+  db: D1Database,
+  message: {
+    id: string;
+    threadId: string;
+    senderId: string;
+    ciphertext: string;
+    iv: string;
+  }
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO messages (id, thread_id, sender_id, ciphertext, iv, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now'))`
+    )
+    .bind(message.id, message.threadId, message.senderId, message.ciphertext, message.iv)
+    .run();
+
+  // スレッドの updated_at を更新
+  await db
+    .prepare('UPDATE threads SET updated_at = datetime("now") WHERE id = ?')
+    .bind(message.threadId)
+    .run();
+}
+
+export async function getThreadMessages(
+  db: D1Database,
+  threadId: string,
+  limit = 100
+): Promise<EncryptedMessage[]> {
+  const query = `
+    SELECT 
+      m.id,
+      m.thread_id,
+      m.sender_id,
+      m.ciphertext,
+      m.iv,
+      m.created_at,
+      u.username as sender_username,
+      u.display_name as sender_display_name,
+      u.role as sender_role
+    FROM messages m
+    LEFT JOIN users u ON m.sender_id = u.id
+    WHERE m.thread_id = ?
+    ORDER BY m.created_at ASC
+    LIMIT ?
+  `;
+
+  const res = await db.prepare(query).bind(threadId, limit).all<EncryptedMessage>();
+  return res.results || [];
+}
+
+// ================= Device Sessions & Access Logs =================
+
+/** 端末セッションとPasskeyユーザーを紐付け（N:N） */
+export async function linkDeviceToUser(
+  db: D1Database,
+  deviceSessionId: string,
+  userId: string
+): Promise<void> {
+  await db
+    .prepare(
+      'INSERT OR IGNORE INTO device_user_links (device_session_id, user_id) VALUES (?, ?)'
+    )
+    .bind(deviceSessionId, userId)
+    .run();
+}
+
+/** 端末セッションに紐付いたユーザー一覧 */
+export async function getDeviceUsers(
+  db: D1Database,
+  deviceSessionId: string
+): Promise<{ user_id: string; linked_at: string }[]> {
+  const res = await db
+    .prepare(
+      'SELECT user_id, linked_at FROM device_user_links WHERE device_session_id = ? ORDER BY linked_at DESC'
+    )
+    .bind(deviceSessionId)
+    .all<{ user_id: string; linked_at: string }>();
+  return res.results;
+}
+
+/** 開示請求用: 端末セッションのアクセスログ取得 */
+export async function getAccessLogsByDevice(
+  db: D1Database,
+  deviceSessionId: string,
+  limit = 200
+): Promise<{ event_type: string; ip_address: string | null; user_agent: string | null; metadata: string | null; created_at: string }[]> {
+  const res = await db
+    .prepare(
+      'SELECT event_type, ip_address, user_agent, metadata, created_at FROM access_logs WHERE device_session_id = ? ORDER BY created_at DESC LIMIT ?'
+    )
+    .bind(deviceSessionId, limit)
+    .all<{ event_type: string; ip_address: string | null; user_agent: string | null; metadata: string | null; created_at: string }>();
+  return res.results;
+}
+
+/** 開示請求用: ユーザーIDのアクセスログ取得 */
+export async function getAccessLogsByUser(
+  db: D1Database,
+  userId: string,
+  limit = 200
+): Promise<{ event_type: string; ip_address: string | null; device_session_id: string | null; metadata: string | null; created_at: string }[]> {
+  const res = await db
+    .prepare(
+      'SELECT event_type, ip_address, device_session_id, metadata, created_at FROM access_logs WHERE user_id = ? ORDER BY created_at DESC LIMIT ?'
+    )
+    .bind(userId, limit)
+    .all<{ event_type: string; ip_address: string | null; device_session_id: string | null; metadata: string | null; created_at: string }>();
+  return res.results;
 }
