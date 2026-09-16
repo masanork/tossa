@@ -17,6 +17,8 @@
   import CreatePostModal from './lib/CreatePostModal.svelte';
   import AdminModal from './lib/AdminModal.svelte';
   import MessagesModal from './lib/MessagesModal.svelte';
+  import OfflineMapModal from './lib/OfflineMapModal.svelte';
+  import type { MapBounds } from './lib/mapTileCache';
   import {
     List,
     Map as MapIcon,
@@ -288,6 +290,22 @@
     handleOpenMessages(post);
   }
 
+  // Offline map state & opening handler
+  let currentMapBounds = $state<MapBounds | null>(null);
+  let currentMapZoom = $state<number>(12);
+  let postsMapBounds = $state<MapBounds | null>(null);
+
+  function handleOpenOfflineMap(
+    bounds: MapBounds,
+    zoom: number,
+    postsBounds: MapBounds | null
+  ) {
+    currentMapBounds = bounds;
+    currentMapZoom = zoom;
+    postsMapBounds = postsBounds;
+    modalManager.open('offline_map');
+  }
+
   // Passkey nudge banner dismissed state
   let hidePasskeyNudge = $state(false);
 </script>
@@ -544,6 +562,7 @@
           {posts}
           defaultArea={settings.default_area || ''}
           onOpenUpdateStatus={handleOpenUpdateStatus}
+          onOpenOfflineMap={handleOpenOfflineMap}
         />
       {/if}
     {:else}
@@ -716,6 +735,17 @@
       isTop={modalManager.isTop('messages')}
       zIndex={modalManager.getZIndex('messages')}
       onClose={() => handleCloseModal('messages')}
+    />
+  {/if}
+
+  {#if modalManager.isOpen('offline_map')}
+    <OfflineMapModal
+      currentBounds={currentMapBounds}
+      currentZoom={currentMapZoom}
+      postsBounds={postsMapBounds}
+      isTop={modalManager.isTop('offline_map')}
+      zIndex={modalManager.getZIndex('offline_map')}
+      onClose={() => handleCloseModal('offline_map')}
     />
   {/if}
 </div>

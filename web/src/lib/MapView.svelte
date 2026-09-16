@@ -2,22 +2,45 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import type { Post } from './types';
+  import type { MapBounds } from './mapTileCache';
   import type * as L from 'leaflet';
+  import * as m from '../paraglide/messages.js';
+  import { Download, WifiOff } from '@lucide/svelte';
 
   interface Props {
     posts: Post[];
     defaultArea?: string;
     onOpenUpdateStatus: (post: Post) => void;
+    onOpenOfflineMap?: (
+      currentBounds: MapBounds,
+      currentZoom: number,
+      postsBounds: MapBounds | null
+    ) => void;
   }
 
-  const { posts, defaultArea, onOpenUpdateStatus }: Props = $props();
+  const { posts, defaultArea, onOpenUpdateStatus, onOpenOfflineMap }: Props =
+    $props();
 
   let mapContainer: HTMLDivElement;
   let map: L.Map | null = null;
   let markersLayer: L.LayerGroup | null = null;
   let leaflet: typeof L | null = null;
+  let isOnline = $state(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  function handleOnline() {
+    isOnline = true;
+  }
+
+  function handleOffline() {
+    isOnline = false;
+  }
 
   onMount(async () => {
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
     // Dynamic import for Leaflet (SSR-safe)
     leaflet = await import('leaflet');
 
@@ -30,11 +53,12 @@
 
     leaflet.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // OpenStreetMap tiles
+    // OpenStreetMap tiles (with crossOrigin support for service worker caching)
     leaflet
       .tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap contributors',
+        crossOrigin: true,
       })
       .addTo(map);
 
@@ -60,11 +84,50 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener('online', handleOnline);
+    window.removeEventListener('offline', handleOffline);
     if (map) {
       map.remove();
       map = null;
     }
   });
+
+  function getPostsBounds(): MapBounds | null {
+    const coords = posts.filter((p) => p.lat && p.lng);
+    if (coords.length === 0) return null;
+    let north = -90;
+    let south = 90;
+    let east = -180;
+    let west = 180;
+    for (const p of coords) {
+      if (p.lat! > north) north = p.lat!;
+      if (p.lat! < south) south = p.lat!;
+      if (p.lng! > east) east = p.lng!;
+      if (p.lng! < west) west = p.lng!;
+    }
+    return {
+      north: Math.min(85, north + 0.05),
+      south: Math.max(-85, south - 0.05),
+      east: Math.min(180, east + 0.05),
+      west: Math.max(-180, west - 0.05),
+    };
+  }
+
+  function handleOpenOfflineMap() {
+    if (!map) return;
+    const b = map.getBounds();
+    const currentBounds: MapBounds = {
+      north: b.getNorth(),
+      south: b.getSouth(),
+      east: b.getEast(),
+      west: b.getWest(),
+    };
+    const currentZoom = map.getZoom();
+    const postsBounds = getPostsBounds();
+    if (onOpenOfflineMap) {
+      onOpenOfflineMap(currentBounds, currentZoom, postsBounds);
+    }
+  }
 
   // Re-render markers when posts update
   $effect(() => {
@@ -168,5 +231,27 @@
 <div
   class="relative h-[calc(100vh-210px)] min-h-[420px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-inner"
 >
+  <!-- Offline status badge on map -->
+  {#if !isOnline}
+    <div
+      class="absolute top-3 left-3 z-[400] flex items-center gap-1.5 rounded-lg bg-amber-500/95 px-2.5 py-1 text-xs font-bold text-white shadow-md backdrop-blur-xs"
+    >
+      <WifiOff class="h-3.5 w-3.5" />
+      <span>{m.map_offline_badge()}</span>
+    </div>
+  {/if}
+
+  <!-- Save Offline Map Button -->
+  {#if onOpenOfflineMap}
+    <button
+      type="button"
+      onclick={handleOpenOfflineMap}
+      class="absolute top-3 right-3 z-[400] flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow-md backdrop-blur-xs transition hover:bg-slate-50 hover:text-blue-600 active:scale-95"
+    >
+      <Download class="h-3.5 w-3.5 text-blue-600" />
+      <span>{m.map_offline_btn()}</span>
+    </button>
+  {/if}
+
   <div bind:this={mapContainer} class="z-0 h-full w-full"></div>
 </div>

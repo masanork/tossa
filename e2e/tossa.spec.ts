@@ -150,4 +150,41 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await page.goBack();
     await expect(createModalTitle).not.toBeVisible();
   });
+
+  test('6. Map view and offline map cache modal', async ({ page }) => {
+    await page.goto('/');
+
+    // Switch to Map view
+    const mapToggleBtn = page.locator(
+      'button:has-text("地図"), button:has-text("Map")'
+    );
+    await mapToggleBtn.click();
+
+    // Map container should render
+    const mapContainer = page.locator('.leaflet-container');
+    await expect(mapContainer).toBeVisible({ timeout: 5000 });
+
+    // "地図を保存" button should appear on map
+    const saveMapBtn = page.locator(
+      'button:has-text("地図を保存"), button:has-text("Save Map")'
+    );
+    await expect(saveMapBtn).toBeVisible();
+    await saveMapBtn.click();
+
+    // OfflineMapModal should open
+    const offlineModalTitle = page.locator(
+      'h2:has-text("オフライン地図キャッシュ"), h2:has-text("Offline Map Cache")'
+    );
+    await expect(offlineModalTitle).toBeVisible();
+
+    // Verify area preset button
+    const currentAreaOption = page.locator(
+      'button:has-text("表示中のエリア"), button:has-text("Current View Area")'
+    );
+    await expect(currentAreaOption).toBeVisible();
+
+    // Close modal via Escape
+    await page.keyboard.press('Escape');
+    await expect(offlineModalTitle).not.toBeVisible();
+  });
 });

@@ -62,5 +62,18 @@
   "status_unknown": "確認中",
   "e2ee_need_auth": "暗号化メッセージ（E2EE）を利用するにはPasskey認証（登録またはログイン）が必要です。",
   "offline_banner": "現在オフラインです。直近に取得した情報を表示しています（投稿は電波復旧時に自動送信されます）",
-  "offline_sync_success": "{count}件のオフライン投稿を送信しました"
+  "offline_sync_success": "{count}件のオフライン投稿を送信しました",
+  "map_offline_btn": "地図を保存",
+  "map_offline_title": "オフライン地図キャッシュ",
+  "map_offline_desc": "電波が届かない災害現場でも地図を閲覧できるよう、端末内に地図タイルを事前に保存します。",
+  "map_offline_badge": "オフライン表示中（キャッシュ）",
+  "map_offline_target_view": "表示中のエリア（ズーム {minZ}〜{maxZ}）",
+  "map_offline_target_posts": "投稿・避難所のある全エリア",
+  "map_offline_stats": "現在保存中: {count} 枚（約 {size} MB）",
+  "map_offline_start_download": "ダウンロード開始",
+  "map_offline_downloading": "地図タイル取得中... {loaded} / {total}（{percent}%）",
+  "map_offline_success": "地図タイルの保存が完了しました。",
+  "map_offline_clear_btn": "キャッシュを全消去",
+  "map_offline_clear_confirm": "保存した地図タイルをすべて消去しますか？",
+  "map_offline_cancel": "中止"
 }

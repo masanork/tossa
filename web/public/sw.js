@@ -1,6 +1,7 @@
 // web/public/sw.js: tossa Service Worker for Offline & Disaster Resilience
 const CACHE_NAME = 'tossa-shell-v1';
 const API_CACHE_NAME = 'tossa-api-v1';
+const TILE_CACHE_NAME = 'tossa-tiles-v1';
 
 const STATIC_PRECACHE = [
   '/',
@@ -27,7 +28,11 @@ self.addEventListener('activate', (event) => {
       .then((cacheNames) =>
         Promise.all(
           cacheNames.map((name) => {
-            if (name !== CACHE_NAME && name !== API_CACHE_NAME) {
+            if (
+              name !== CACHE_NAME &&
+              name !== API_CACHE_NAME &&
+              name !== TILE_CACHE_NAME
+            ) {
               return caches.delete(name);
             }
           })
@@ -101,7 +106,47 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Static assets (assets/*.js, assets/*.css, images, fonts) -> Stale-while-revalidate / Cache-first
+  // 3. Map tile requests (OpenStreetMap & GSI) -> Cache-first with offline fallback tile
+  const isTileRequest =
+    url.hostname.includes('tile.openstreetmap.org') ||
+    url.hostname.includes('cyberjapandata.gsi.go.jp');
+
+  if (isTileRequest) {
+    event.respondWith(
+      caches.open(TILE_CACHE_NAME).then(async (tileCache) => {
+        const cached = await tileCache.match(request);
+        if (cached) {
+          return cached;
+        }
+
+        try {
+          const networkResponse = await fetch(request);
+          if (
+            networkResponse.status === 200 ||
+            networkResponse.type === 'opaque'
+          ) {
+            tileCache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch {
+          // Offline fallback tile: subtle checkered or clean grey tile indicating offline
+          return new Response(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256"><rect width="256" height="256" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/><path d="M0 0 L256 256 M256 0 L0 256" stroke="#f1f5f9" stroke-width="1"/><text x="128" y="128" text-anchor="middle" dominant-baseline="middle" fill="#94a3b8" font-size="12" font-family="system-ui, -apple-system, sans-serif">Offline</text></svg>',
+            {
+              status: 200,
+              headers: {
+                'Content-Type': 'image/svg+xml',
+                'Cache-Control': 'no-store',
+              },
+            }
+          );
+        }
+      })
+    );
+    return;
+  }
+
+  // 4. Static assets (assets/*.js, assets/*.css, images, fonts) -> Stale-while-revalidate / Cache-first
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)

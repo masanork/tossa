@@ -62,5 +62,18 @@
   "status_unknown": "Checking",
   "e2ee_need_auth": "Passkey authentication is required to use End-to-End Encrypted (E2EE) messaging.",
   "offline_banner": "You are currently offline. Showing cached information. Posts will be sent automatically when connectivity returns.",
-  "offline_sync_success": "Sent {count} pending offline posts"
+  "offline_sync_success": "Sent {count} pending offline posts",
+  "map_offline_btn": "Save Map",
+  "map_offline_title": "Offline Map Cache",
+  "map_offline_desc": "Pre-cache map tiles on your device so you can view local maps even during network blackouts in a disaster.",
+  "map_offline_badge": "Offline Mode (Cached Map)",
+  "map_offline_target_view": "Current View Area (Zoom {minZ}-{maxZ})",
+  "map_offline_target_posts": "All Post & Shelter Areas",
+  "map_offline_stats": "Currently cached: {count} tiles (~{size} MB)",
+  "map_offline_start_download": "Start Download",
+  "map_offline_downloading": "Downloading tiles... {loaded} / {total} ({percent}%)",
+  "map_offline_success": "Map tiles saved successfully.",
+  "map_offline_clear_btn": "Clear Map Cache",
+  "map_offline_clear_confirm": "Are you sure you want to delete all saved map tiles?",
+  "map_offline_cancel": "Cancel"
 }
