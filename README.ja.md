@@ -6,7 +6,7 @@
 > 日常の地域・店舗情報から発災時の避難・給水情報まで、投稿から自発的に成長するボキャブラリでシームレスに対応。  
 > EXIF GPS自動ピン配置、C2PA真正性認証、E2EE暗号化連絡、多言語対応（日本語・やさしい日本語・英語）、コミュニティ現地確認を完備した Cloudflare ネイティブ構成。
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/masanork/tossa)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MasKusuno/tossa)
 
 ---
 

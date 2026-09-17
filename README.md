@@ -6,7 +6,7 @@
 > Seamlessly bridges everyday municipal and commercial updates with emergency crisis communications through an organically emergent vocabulary.  
 > Cloudflare-native architecture featuring automated EXIF GPS location pinning, C2PA authenticity verification, hardware-backed E2EE messaging, multi-language internationalization, and decentralized community verification.
 
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/masanork/tossa)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MasKusuno/tossa)
 
 ---
 
