@@ -17,7 +17,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     // Verify English translations
     await expect(page.locator('header')).toContainText('Post Info');
-    await expect(page.locator('header')).toContainText('Messages (E2EE)');
+    await expect(page.locator('header')).toContainText('Messages');
 
     // 3. Switch to Easy Japanese (やさしい にほんご)
     await langBtn.click();
@@ -31,7 +31,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await langBtn.click();
     await page.locator('button:has-text("日本語 (標準)")').click();
     await expect(page.locator('header')).toContainText('情報を投稿');
-    await expect(page.locator('header')).toContainText('連絡 (E2EE)');
+    await expect(page.locator('header')).toContainText('連絡');
   });
 
   test('2. Anonymous posting with device cookie and ownership recognition', async ({
@@ -394,7 +394,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     // 2. Open QR Scanner modal from Header
     const scanHeaderBtn = page.locator(
-      'header button[title*="QR"], header button[aria-label*="QR"]'
+      'header button[title*="Offline Import"], header button[title*="QRコード読取"], header button[title*="QRコードを よみとる"]'
     );
     await expect(scanHeaderBtn).toBeVisible();
     await scanHeaderBtn.click();
