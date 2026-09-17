@@ -7,6 +7,7 @@
     getRelativeAngle,
   } from './geoDistance';
   import { i18n, m } from './i18n.svelte';
+  import { announcer } from './announcer.svelte';
   import {
     Navigation,
     X,
@@ -45,6 +46,17 @@
   );
 
   const isArrived = $derived(geolocationManager.isWaypointArrived);
+
+  let prevArrived = $state(false);
+  $effect(() => {
+    if (isArrived && !prevArrived && target) {
+      announcer.announce(
+        `目的地 ${target.title} 付近に到着しました`,
+        'assertive'
+      );
+    }
+    prevArrived = isArrived;
+  });
 </script>
 
 {#if target}
@@ -61,7 +73,10 @@
     >
       <!-- Expanded Giant Compass Dial View -->
       {#if isExpanded}
-        <div class="border-b border-slate-100 p-5 dark:border-slate-800">
+        <div
+          id="compass-dial-view"
+          class="border-b border-slate-100 p-5 dark:border-slate-800"
+        >
           <div class="mb-3 flex items-center justify-between">
             <div
               class="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400"
@@ -220,6 +235,9 @@
           <button
             type="button"
             onclick={() => (isExpanded = !isExpanded)}
+            aria-expanded={isExpanded}
+            aria-controls="compass-dial-view"
+            aria-label={isExpanded ? m.nav_collapse() : m.nav_expand()}
             class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-2xs transition hover:bg-slate-100 active:scale-95 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             title={isExpanded ? m.nav_collapse() : m.nav_expand()}
           >
@@ -234,6 +252,7 @@
           <button
             type="button"
             onclick={() => geolocationManager.stopNavigation()}
+            aria-label={m.nav_stop()}
             class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 shadow-2xs transition hover:bg-rose-100 active:scale-95 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300 dark:hover:bg-rose-900/60"
             title={m.nav_stop()}
           >

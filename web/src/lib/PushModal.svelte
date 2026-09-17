@@ -1,6 +1,7 @@
 <!-- web/src/lib/PushModal.svelte -->
 <script lang="ts">
   import { swipeDown } from './swipeToDismiss';
+  import { focusTrap } from './focusTrap';
   import { pushManager } from './pushManager.svelte';
   import * as m from '../paraglide/messages.js';
   import {
@@ -123,7 +124,9 @@
   style="z-index: {zIndex + 1};"
   inert={!isTop}
   use:swipeDown={onClose}
+  use:focusTrap={{ onEscape: onClose }}
   role="dialog"
+  aria-modal="true"
   aria-labelledby="push-modal-title"
 >
   <!-- Mobile drag handle indicator -->
@@ -160,7 +163,7 @@
     <button
       type="button"
       onclick={onClose}
-      class="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+      class="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
       aria-label="閉じる"
     >
       <X class="h-5 w-5" />

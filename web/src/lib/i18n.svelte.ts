@@ -42,12 +42,20 @@ class I18nState {
       }
       try {
         void setParaglideLocale(this.current, { reload: false });
+        this.updateHtmlLang(this.current);
       } catch {}
+    }
+  }
+
+  private updateHtmlLang(lang: Locale) {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang === 'ja-easy' ? 'ja' : lang;
     }
   }
 
   setLanguage(lang: Locale) {
     this.current = lang;
+    this.updateHtmlLang(lang);
     if (typeof window !== 'undefined') {
       localStorage.setItem('tossa_locale', lang);
       try {

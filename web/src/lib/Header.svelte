@@ -116,6 +116,8 @@
       <div class="relative hidden sm:block">
         <button
           type="button"
+          aria-haspopup="true"
+          aria-expanded={showThemeMenu}
           onclick={() => {
             showThemeMenu = !showThemeMenu;
             showLangMenu = false;
@@ -173,6 +175,8 @@
       <div class="relative hidden sm:block">
         <button
           type="button"
+          aria-haspopup="true"
+          aria-expanded={showLangMenu}
           onclick={() => {
             showLangMenu = !showLangMenu;
             showThemeMenu = false;
@@ -308,6 +312,8 @@
       <div class="relative sm:hidden">
         <button
           type="button"
+          aria-haspopup="true"
+          aria-expanded={showMoreMenu}
           onclick={() => {
             showMoreMenu = !showMoreMenu;
             showThemeMenu = false;

@@ -195,5 +195,10 @@
   "card_history_title": "Status History & Updates",
   "duplicate_warning_title": "Duplicate Check",
   "duplicate_warning_desc": "Please check if this facility or shelter has already been posted nearby.",
-  "btn_close": "Close"
+  "btn_close": "Close",
+  "skip_to_main": "Skip to main content",
+  "help_tab_a11y": "Accessibility",
+  "a11y_title": "Web Accessibility Statement",
+  "a11y_standards": "JIS X 8341-3:2016 Level AA (WCAG 2.1/2.2 AA)",
+  "a11y_desc": "tossa is dedicated to ensuring digital inclusion for everyone, including seniors, people with disabilities, non-native speakers, and children. The application is designed and implemented to conform with JIS X 8341-3:2016 Level AA (WCAG 2.1/2.2 AA)."
 }

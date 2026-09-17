@@ -2,6 +2,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { swipeDown } from './swipeToDismiss';
+  import { focusTrap } from './focusTrap';
   import {
     getTilesForBounds,
     getTileCacheStats,
@@ -156,9 +157,12 @@
     : 'opacity-80'}"
 >
   <div
-    use:swipeDown={() => {
-      if (!isDownloading) onClose();
-    }}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="offline-map-modal-title"
+    tabindex="-1"
+    use:focusTrap={{ onEscape: onClose }}
+    use:swipeDown={onClose}
     class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {isTop
       ? 'scale-100 opacity-100'
       : 'pointer-events-none scale-[0.97] opacity-85'}"
@@ -179,7 +183,10 @@
           <Download class="h-5 w-5" />
         </div>
         <div>
-          <h2 class="text-base font-black text-slate-900 dark:text-white">
+          <h2
+            id="offline-map-modal-title"
+            class="text-base font-black text-slate-900 dark:text-white"
+          >
             {m.map_offline_title()}
           </h2>
           <p class="text-[11px] text-slate-500 dark:text-slate-400">

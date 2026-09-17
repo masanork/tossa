@@ -775,6 +775,8 @@
       <button
         type="button"
         onclick={handleToggleUpdatesTimeline}
+        aria-expanded={showUpdatesTimeline}
+        aria-controls="updates-timeline-{post.id}"
         class={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition ${
           showUpdatesTimeline
             ? 'border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
@@ -809,6 +811,7 @@
   <!-- Micro-updates & History Accordion -->
   {#if showUpdatesTimeline}
     <div
+      id="updates-timeline-{post.id}"
       class="animate-in fade-in mt-3 flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/40 p-3 text-xs duration-200 dark:border-blue-900/40 dark:bg-slate-800/80"
     >
       <div

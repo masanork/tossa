@@ -4,6 +4,7 @@
   import { createPost, updatePost } from './api';
   import { enqueuePost } from './offlineQueue';
   import { swipeDown } from './swipeToDismiss';
+  import { focusTrap } from './focusTrap';
   import type { Post, TagCount, ImageMeta } from './types';
   import { processImageFile } from './media-processor';
   import type * as L from 'leaflet';
@@ -645,6 +646,10 @@
     : 'opacity-80'}"
 >
   <div
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="create-post-modal-title"
+    use:focusTrap={{ onEscape: onClose }}
     use:swipeDown={onClose}
     class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900 {isTop
       ? 'scale-100 opacity-100'
@@ -662,13 +667,19 @@
       <div class="flex items-center gap-2">
         {#if editingPost}
           <Edit3 class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <h2 class="text-base font-black text-slate-900 dark:text-slate-100">
+          <h2
+            id="create-post-modal-title"
+            class="text-base font-black text-slate-900 dark:text-slate-100"
+          >
             {m.modal_edit_title()}
           </h2>
         {:else}
           <span class="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-600"
           ></span>
-          <h2 class="text-base font-black text-slate-900 dark:text-slate-100">
+          <h2
+            id="create-post-modal-title"
+            class="text-base font-black text-slate-900 dark:text-slate-100"
+          >
             {m.modal_create_title()}
           </h2>
         {/if}
@@ -676,6 +687,7 @@
       <button
         type="button"
         onclick={onClose}
+        aria-label={m.btn_close()}
         class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
       >
         <X class="h-5 w-5" />
@@ -742,6 +754,8 @@
 
       {#if errorMessage}
         <div
+          role="alert"
+          aria-live="assertive"
           class="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
         >
           <AlertCircle class="h-4 w-4 shrink-0" />

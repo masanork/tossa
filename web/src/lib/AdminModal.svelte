@@ -2,6 +2,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { swipeDown } from './swipeToDismiss';
+  import { focusTrap } from './focusTrap';
   import type { SystemSettings, User } from './types';
   import {
     registerPasskey,
@@ -520,6 +521,10 @@
     : 'opacity-80'}"
 >
   <div
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="admin-modal-title"
+    use:focusTrap={{ onEscape: onClose }}
     use:swipeDown={onClose}
     class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {isTop
       ? 'scale-100 opacity-100'
@@ -536,13 +541,17 @@
     >
       <div class="flex items-center gap-2">
         <KeyRound class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <h2 class="text-base font-black text-slate-900 dark:text-white">
+        <h2
+          id="admin-modal-title"
+          class="text-base font-black text-slate-900 dark:text-white"
+        >
           Passkey 認証・設定
         </h2>
       </div>
       <button
         type="button"
         onclick={onClose}
+        aria-label="閉じる"
         class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
       >
         <X class="h-5 w-5" />

@@ -4,6 +4,7 @@
   import { updatePostStatus } from './api';
   import { enqueueStatusUpdate } from './offlineQueue';
   import { swipeDown } from './swipeToDismiss';
+  import { focusTrap } from './focusTrap';
   import { X, Check, Clock, Coffee, XCircle, HelpCircle } from '@lucide/svelte';
 
   interface Props {
@@ -145,6 +146,10 @@
       : 'opacity-80'}"
   >
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="update-status-title"
+      use:focusTrap={{ onEscape: onClose }}
       use:swipeDown={onClose}
       class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border-t border-slate-200 bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl sm:border dark:border-slate-800 dark:bg-slate-900 {isTop
         ? 'scale-100 opacity-100'
@@ -165,7 +170,8 @@
             >状況の報告・更新</span
           >
           <h2
-            class="max-w-xs truncate text-base font-black text-slate-900 sm:max-w-md dark:text-slate-100"
+            id="update-status-title"
+            class="mt-0.5 text-base font-black text-slate-900 dark:text-slate-100"
           >
             {post.title}
           </h2>
@@ -173,6 +179,7 @@
         <button
           type="button"
           onclick={onClose}
+          aria-label="閉じる"
           class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
         >
           <X class="h-5 w-5" />

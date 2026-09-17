@@ -475,7 +475,11 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(page.locator('a[href="/feed.xml"]')).toBeVisible();
 
     // 5. Close Help Modal
-    const closeBtn = page.locator('button[aria-label="閉じる"]').first();
+    const closeBtn = page
+      .locator(
+        'button[data-close-modal], button[aria-label="閉じる"], button[aria-label="Close"], button[aria-label="とじる"]'
+      )
+      .first();
     await closeBtn.click();
     await expect(helpModalTitle).not.toBeVisible();
   });
@@ -485,47 +489,42 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
   }) => {
     await page.goto('/');
 
-    // 1. Post a test card
+    // 1. Post a new item to favorite
     const createBtn = page.locator('header button:has-text("＋")');
     await createBtn.click();
-    const testTitle = `マイページテスト避難所 ${Date.now()}`;
+
+    const testTitle = `マイページ・お気に入りテスト ${Date.now()}`;
     await page.fill('#post-title', testTitle);
-    await page.fill('#post-area', '東区');
+    await page.fill('#post-area', '本町中央地区');
     await page.locator('button[type="submit"]').click();
 
     const postCard = page.locator(`article:has-text("${testTitle}")`);
     await expect(postCard).toBeVisible({ timeout: 10000 });
 
-    // 2. Test Bookmark / Favorite button
+    // 2. Bookmark / Favorite the post
     const starBtn = postCard.locator(
-      'button[title*="お気に入り"], button[title*="Favorite"], button[title*="保存"]'
+      'button[aria-label*="お気に入り"], button[aria-label*="Favorite"], button[aria-label*="保存"]'
     );
     await expect(starBtn).toBeVisible();
     await starBtn.click();
 
-    // 3. Test MyPage Modal opening via Header
-    const myPageBtn = page
-      .locator(
-        'header button:has-text("マイページ"), header button:has-text("My Page"), header button[title*="マイページ"]'
-      )
-      .first();
+    // Verify star is filled (amber color)
+    await expect(postCard.locator('svg.fill-amber-400')).toBeVisible();
+
+    // 3. Open MyPage Modal from Header
+    const myPageBtn = page.locator(
+      'header button:has-text("マイページ"), header button:has-text("My Page")'
+    );
     await expect(myPageBtn).toBeVisible();
     await myPageBtn.click();
 
-    // Verify MyPage modal opened
-    const myPageTitle = page.locator(
-      'h2:has-text("マイページ"), h2:has-text("My Page")'
-    );
+    const myPageTitle = page.locator('#mypage-modal-title');
     await expect(myPageTitle).toBeVisible();
 
-    // Verify both tabs (My Posts and Favorites) are present
-    const myPostsTab = page
-      .locator('button:has-text("自分の投稿"), button:has-text("My Posts")')
-      .first();
-    const favsTab = page
-      .locator('button:has-text("お気に入り"), button:has-text("Favorites")')
-      .first();
-    await expect(myPostsTab).toBeVisible();
+    // Check tabs: My Posts and Favorites
+    const postsTab = page.locator('#tab-my-posts');
+    const favsTab = page.locator('#tab-favorites');
+    await expect(postsTab).toBeVisible();
     await expect(favsTab).toBeVisible();
 
     // Verify our post appears in My Posts
@@ -540,7 +539,12 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     ).toBeVisible();
 
     // Close MyPage Modal
-    await page.locator('button[aria-label="閉じる"]').first().click();
+    await page
+      .locator(
+        'button[data-close-modal], button[aria-label="閉じる"], button[aria-label="Close"], button[aria-label="とじる"]'
+      )
+      .first()
+      .click();
     await expect(myPageTitle).not.toBeVisible();
 
     // 4. Test "Open Only" quick filter toggle
@@ -573,5 +577,85 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
         'span:has-text("現地確認: 水タンク残り20本。順調に配布中。")'
       )
     ).toBeVisible({ timeout: 5000 });
+  });
+
+  test('13. Web Accessibility (JIS X 8341-3 / WCAG 2.1/2.2 AA) compliance', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // 1. Skip Link to Main Content (WCAG 2.4.1)
+    const skipLink = page.locator('a[href="#main-content"]');
+    await expect(skipLink).toBeAttached();
+    // Focus skip link via keyboard Tab
+    await page.keyboard.press('Tab');
+    await expect(skipLink).toBeFocused();
+    // Activate skip link
+    await page.keyboard.press('Enter');
+    const mainContent = page.locator('main#main-content');
+    await expect(mainContent).toBeVisible();
+
+    // 2. Dynamic HTML lang attribute synchronization (WCAG 3.1.1 / 3.1.2)
+    const html = page.locator('html');
+    const initialLang = await html.getAttribute('lang');
+    expect(['ja', 'en']).toContain(initialLang);
+
+    const langBtn = page.locator(
+      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
+    );
+    await langBtn.click();
+    await page.locator('button:has-text("English")').click();
+    await expect(html).toHaveAttribute('lang', 'en');
+
+    await langBtn.click();
+    await page.locator('button:has-text("やさしい にほんご")').click();
+    await expect(html).toHaveAttribute('lang', 'ja');
+
+    // Switch back to standard Japanese
+    await langBtn.click();
+    await page.locator('button:has-text("日本語 (標準)")').click();
+    await expect(html).toHaveAttribute('lang', 'ja');
+
+    // 3. Modal Accessibility: role="dialog", aria-modal="true", and Escape key dismiss
+    const createBtn = page.locator('header button:has-text("＋")');
+    await createBtn.click();
+
+    const createDialog = page.locator(
+      'div[role="dialog"][aria-labelledby="create-post-modal-title"]'
+    );
+    await expect(createDialog).toBeVisible();
+    await expect(createDialog).toHaveAttribute('aria-modal', 'true');
+
+    // Close with Escape key
+    await page.keyboard.press('Escape');
+    await expect(createDialog).not.toBeVisible();
+
+    // 4. Help Modal: Accessibility Statement tab (JIS X 8341-3 Level AA)
+    const helpBtn = page
+      .locator('header button[title*="ヘルプ"], header button[title*="Help"]')
+      .first();
+    await helpBtn.click();
+
+    const helpDialog = page.locator(
+      'div[role="dialog"][aria-labelledby="help-modal-title"]'
+    );
+    await expect(helpDialog).toBeVisible();
+
+    // Switch to Accessibility tab
+    const a11yTab = page.locator('button#tab-help-a11y');
+    await expect(a11yTab).toBeVisible();
+    await a11yTab.click();
+
+    // Verify accessibility statement & JIS X 8341-3 Level AA notice
+    await expect(page.locator('#panel-help-a11y')).toContainText(
+      'JIS X 8341-3:2016'
+    );
+    await expect(page.locator('#panel-help-a11y')).toContainText(
+      'ウェブアクセシビリティ方針'
+    );
+
+    // Close Help Modal
+    await page.keyboard.press('Escape');
+    await expect(helpDialog).not.toBeVisible();
   });
 });

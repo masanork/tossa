@@ -48,6 +48,7 @@
   import { modalManager, type ModalName } from './lib/modalManager.svelte';
   import { geolocationManager } from './lib/geolocation.svelte';
   import { calculateDistance } from './lib/geoDistance';
+  import { announcer } from './lib/announcer.svelte';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa',
@@ -188,6 +189,7 @@
       pendingCount = getPendingQueueCount();
       if (res.succeeded > 0) {
         offlineNotice = m.offline_sync_success({ count: res.succeeded });
+        announcer.announce(offlineNotice);
         setTimeout(() => {
           offlineNotice = null;
         }, 4000);
@@ -200,12 +202,14 @@
 
   function handleOnline() {
     isOnline = true;
+    announcer.announce('オンラインに復帰しました');
     void syncOfflineQueue();
   }
 
   function handleOffline() {
     isOnline = false;
     pendingCount = getPendingQueueCount();
+    announcer.announce('オフラインモードに切り替わりました', 'assertive');
   }
 
   function handleBeforeInstallPrompt(e: Event) {
@@ -488,6 +492,22 @@
 <div
   class="flex min-h-screen flex-col bg-slate-50 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100"
 >
+  <!-- Accessibility: Skip Link to Main Content (WCAG 2.4.1) -->
+  <a
+    href="#main-content"
+    class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded-xl focus:bg-blue-600 focus:px-4 focus:py-2.5 focus:text-xs focus:font-bold focus:text-white focus:shadow-xl focus:ring-2 focus:ring-white focus:outline-none"
+  >
+    {m.skip_to_main()}
+  </a>
+
+  <!-- Accessibility: Screen Reader Live Announcements (WCAG 4.1.3) -->
+  <div class="sr-only" aria-live="polite" aria-atomic="true">
+    {announcer.politeMessage}
+  </div>
+  <div class="sr-only" aria-live="assertive" aria-atomic="true">
+    {announcer.assertiveMessage}
+  </div>
+
   <!-- Header -->
   <Header
     {settings}
@@ -755,7 +775,11 @@
   </div>
 
   <!-- Main content -->
-  <main class="mx-auto w-full max-w-4xl flex-1 px-4 pb-16">
+  <main
+    id="main-content"
+    tabindex="-1"
+    class="mx-auto w-full max-w-4xl flex-1 px-4 pb-16 focus:outline-none"
+  >
     {#if isLoading}
       <div
         class="flex flex-col items-center gap-2 py-16 text-center text-xs text-slate-400"

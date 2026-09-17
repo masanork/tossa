@@ -28,9 +28,10 @@
    - Leverages WebAuthn PRF (Pseudo-Random Function) extension to derive encryption keys directly from biometric authenticators.
    - Facilitates confidential, zero-knowledge inquiries between shelter managers and citizens that cannot be intercepted even by the server host.
 
-5. **Multi-Language & Inclusive Accessibility (i18n)**
-   - Instant language switching powered by Inlang Paraglide JS integrated with reactive Svelte 5 Runes.
-   - First-class support for English, Japanese, and Plain Japanese ("やさしい日本語", Easy Japanese) for international residents and accessibility.
+5. **Multi-Language & Web Accessibility (JIS X 8341-3:2016 Level AA / WCAG 2.1/2.2 AA)**
+   - Conforms with Japan's Digital Society standards (DS-600 series / Web Accessibility Guidelines) and the Digital Agency Design System.
+   - First-class support for English, standard Japanese, and Plain Japanese ("やさしい日本語", Easy Japanese) for international residents, children, and cognitive accessibility, with dynamic `lang` attribute switching.
+   - Fully keyboard operable, with skip-to-main link, accessible modal focus traps and returns, screen reader live regions, unconstrained pinch-to-zoom, and `prefers-reduced-motion` compliance.
 
 6. **Source Domain Credibility Badging & Community Peer Verification**
    - Automatic classification and trust badges for municipal authorities (`.go.jp`, `.lg.jp`), universities (`.ac.jp`), news agencies, and official SNS channels.
