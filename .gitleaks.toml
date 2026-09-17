@@ -1,0 +1,5 @@
+[allowlist]
+description = "Ignore mock secrets and fixtures in test files"
+paths = [
+  '''test/.*''',
+]
