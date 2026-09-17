@@ -69,7 +69,76 @@
 15. **RFC 8291/8292 Web Push Notifications (VAPID)**
     - Real-time browser push alerts even when the app is closed or in the background, using standards-compliant VAPID signing and AES-128-GCM encrypted payloads — 100% Cloudflare Workers compatible (no Node.js).
     - Auto-broadcast on emergency banner updates, critical disaster posts, and shelter/water status changes; area and alert-type filtering so citizens receive only relevant local events.
-    - Privacy-preserving E2EE thread notifications (notifies without revealing message content); admin broadcast panel and animated bell button with one-tap subscribe/unsubscribe.
+16. **Model Context Protocol (MCP) Remote Server (`/mcp`, `/api/mcp`)**
+    - Connect AI tools (Claude Desktop, Cursor, Windsurf, Gemini CLI) to tossa via standard Streamable HTTP JSON-RPC 2.0 / SSE to search relief supplies, query shelter occupancy, generate situation briefings, or submit field reports.
+    - Protected by Bearer API tokens issued with one click from the Admin Passkey panel. Public endpoints allow safe read-only queries by unauthenticated AI agents.
+17. **AI Discovery & Findability (`/llms.txt`, GeoRSS, SSR JSON-LD/OGP)**
+    - `/llms.txt`: Concise system briefing and API specifications tailored for LLMs (Perplexity, SearchGPT, Claude, Gemini).
+    - `/feed.xml`: GeoRSS (W3C Basic Geo) / RSS 2.0 feed with geographic coordinates for location-aware newsreaders and emergency bots.
+    - `/robots.txt`, `/sitemap.xml`: Search engine and web crawler guidance.
+    - Dynamic SSR: Cloudflare edge renders rich OGP social meta tags and Schema.org structured data (`DisasterReport`, `Place`, `EmergencyService`).
+18. **Offline Map Tile Cache (IndexedDB & Cache API)**
+    - Pre-download map tiles for your city or evacuation zones (GSI & OpenStreetMap) into browser storage.
+    - Seamlessly inspect map pins, facilities, and routes during total cellular blackout.
+19. **Inter-Municipality Disaster Federation Sync (`/api/federation/sync`)**
+    - Bidirectional replication between neighboring tossa instances to share emergency relief data across municipal boundaries.
+20. **Comprehensive In-App Help & Guides**
+    - Instant access via the header "?" icon to citizen guides, offline emergency tools, security & E2EE mechanisms, and one-click copyable MCP configuration JSON.
+21. **Multi-Layered Edge Security (Security Headers, Body Limit & Rate Limiting)**
+    - Strict Content Security Policy (CSP), `X-Content-Type-Options: nosniff`, and Frame Protection.
+    - 2MB request payload size cap and sliding-window edge rate limiters protecting against automated spam and DoS attacks.
+
+---
+
+## 🤖 Model Context Protocol (MCP) & AI Integration
+
+tossa features a native **Model Context Protocol (MCP)** remote endpoint. AI agents can seamlessly interact with community updates and emergency facilities using natural language.
+
+### Claude Desktop Configuration (`claude_desktop_config.json`)
+
+```json
+{
+  "mcpServers": {
+    "tossa": {
+      "url": "https://tossa.sorane.dev/mcp"
+    }
+  }
+}
+```
+
+_For authorized operations (such as publishing verified official announcements), issue an API Token from the Admin Panel and specify the Authorization header:_
+
+```json
+{
+  "mcpServers": {
+    "tossa": {
+      "url": "https://tossa.sorane.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+- `search_posts`: Search facilities, water stations, shelters, open shops, and community events
+- `get_post`: Retrieve full details, community verification count, and status update timeline
+- `get_emergency_summary`: Aggregate real-time facility counts and status breakdowns for any area
+- `create_post`: Submit new community/disaster posts directly from AI agents
+- `update_post_status`: One-tap status updates (available, crowded, low stock, closed)
+- `get_categories` / `get_vocabulary_tags` / `get_areas`: Query system taxonomies and dynamic tags
+
+---
+
+## 🔍 AI Discovery & Machine Findability
+
+- **AI Engine Briefing**: [`/llms.txt`](/llms.txt)
+- **GeoRSS 2.0 Feed**: [`/feed.xml`](/feed.xml)
+- **Sitemap**: [`/sitemap.xml`](/sitemap.xml)
+- **Robots Policy**: [`/robots.txt`](/robots.txt)
+- **Edge SSR & JSON-LD**: Instant metadata rendering for search engines, LLM scrapers, and SNS previews
 
 ---
 

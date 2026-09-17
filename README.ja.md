@@ -61,6 +61,76 @@
     - アプリを閉じているときや画面外でも届くブラウザプッシュ通知。VAPID署名＋AES-128-GCM暗号化ペイロードで完全標準準拠、Cloudflare Workers ネイティブ（Node.js不要）。
     - 緊急バナー更新・重要投稿・避難所/給水所ステータス変化を自動ブロードキャスト。地区別・通知種別フィルターにより必要な人に必要な情報のみ配信。
     - E2EEスレッドへのメッセージ到着も内容を一切送らずプライバシーを保護したまま通知。管理者向けブロードキャストパネルとアニメーション付きベルボタンで一発購読/解除。
+16. **Model Context Protocol (MCP) リモートサーバー連携 (`/mcp`, `/api/mcp`)**
+    - Claude Desktop、Cursor、Windsurf、Gemini CLI などの AI エージェントから、自然言語で生活・災害情報をリアルタイム検索・投稿・災害サマリー取得できる標準プロトコル（Streamable HTTP JSON-RPC 2.0 / SSE 対応）。
+    - 管理画面（Passkey 認証）から Bearer API トークンを即座に発行可能。未認証エージェントでも災害情報の検索・サマリー作成を安全に利用可能。
+17. **AI Discovery & Findability (`/llms.txt`, GeoRSS, SSR JSON-LD/OGP)**
+    - `/llms.txt`: Perplexity、SearchGPT、Claude、Gemini 等の AI エンジン向け簡潔な要約と API 仕様書。
+    - `/feed.xml`: GeoRSS (W3C Basic Geo) / RSS 2.0 フィード。位置情報付きニュースリーダーや防災ボットへ自動配信。
+    - `/robots.txt`, `/sitemap.xml`: 検索エンジン・クローラー案内。
+    - Dynamic SSR: 検索エンジンや SNS シェア向けに OGP および Schema.org (`DisasterReport`, `Place`, `EmergencyService`) を Cloudflare エッジで動的サーバーサイドレンダリング。
+18. **オフライン地図タイルキャッシュ (IndexedDB & Cache API)**
+    - 避難予定地や市街地の地図タイル（国土地理院・OpenStreetMap）を端末ローカルに事前ダウンロード。
+    - 基地局停電時や完全圏外でも、地図上の避難所・給水所ピンをスムーズに閲覧可能。
+19. **自治体・広域フェデレーション同期 (`/api/federation/sync`)**
+    - 広域災害時に隣接自治体や他地域の tossa インスタンス同士で避難・被害状況を相互レプリケーション。
+20. **体系的ヘルプ & ガイド機能（UI 組み込み）**
+    - ヘッダーの「？」ボタンから、住民・避難者向け操作ガイド、オフライン防災ツール、セキュリティ解説、AI/MCP 設定 JSON のワンクリックコピーをいつでも閲覧可能。
+21. **多層セキュリティガード (Security Headers, Body Limit & Edge Rate Limiting)**
+    - 厳格な Content Security Policy (CSP)、`X-Content-Type-Options: nosniff`、Frame Protection。
+    - 2MB ペイロードサイズ制限、悪意あるスパム投稿や DoS を遮断するエッジスライディングウィンドウ型レート制限。
+
+---
+
+## 🤖 Model Context Protocol (MCP) & AI エージェント連携
+
+tossa は **Model Context Protocol (MCP)** のリモートサーバーを標準提供しています。Claude Desktop や Cursor、Gemini CLI などの AI クライアントから、自然言語で直接地域情報の検索や災害状況ブリーフィングの作成を行えます。
+
+### Claude Desktop の設定 (`claude_desktop_config.json`)
+
+```json
+{
+  "mcpServers": {
+    "tossa": {
+      "url": "https://tossa.sorane.dev/mcp"
+    }
+  }
+}
+```
+
+※ 認証が必要な操作（管理者権限での公式投稿など）を行う場合は、管理画面の「APIトークン発行」からトークンを取得し、以下のようにヘッダーを指定します：
+
+```json
+{
+  "mcpServers": {
+    "tossa": {
+      "url": "https://tossa.sorane.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_API_TOKEN"
+      }
+    }
+  }
+}
+```
+
+### 提供ツール一覧
+
+- `search_posts`: 給水所、避難所、物資、店舗、イベントなどの検索（キーワード、エリア、カテゴリ、ステータス、タグ）
+- `get_post`: 投稿の詳細、コミュニティ現地確認数、ステータス更新履歴の取得
+- `get_emergency_summary`: 指定地域または全域の避難所・給水所・物資状況と内訳の即時集計
+- `create_post`: 現場情報の新規投稿（AI による現場レポート連携）
+- `update_post_status`: 施設の稼働・混雑・在庫状況の即時更新
+- `get_categories` / `get_vocabulary_tags` / `get_areas`: カテゴリ・自律集約タグ・地区一覧の取得
+
+---
+
+## 🔍 AI Discovery & Findability (機械可読性)
+
+- **AI エンジン向け要約**: [`/llms.txt`](/llms.txt)
+- **位置情報付き GeoRSS**: [`/feed.xml`](/feed.xml)
+- **サイトマップ**: [`/sitemap.xml`](/sitemap.xml)
+- **クローラー設定**: [`/robots.txt`](/robots.txt)
+- **動的 SSR & JSON-LD**: 検索エンジンや SNS クローラー向けにエッジでメタタグ・構造化データを即時展開
 
 ---
 

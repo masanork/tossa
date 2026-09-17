@@ -23,6 +23,7 @@
   import QrCodeModal from './lib/QrCodeModal.svelte';
   import QrScannerModal from './lib/QrScannerModal.svelte';
   import PushModal from './lib/PushModal.svelte';
+  import HelpModal from './lib/HelpModal.svelte';
   import { decodePostFromQrString } from './lib/qrCodec';
   import {
     getPeerPosts,
@@ -483,6 +484,7 @@
     onOpenMessages={() => handleOpenMessages()}
     onOpenQrScanner={handleOpenQrScanner}
     onOpenPush={() => modalManager.open('push')}
+    onOpenHelp={() => modalManager.open('help')}
   />
 
   <!-- PWA Install Banner -->
@@ -984,6 +986,14 @@
       {availableAreas}
       token={authToken}
       onClose={() => handleCloseModal('push')}
+    />
+  {/if}
+
+  {#if modalManager.isOpen('help')}
+    <HelpModal
+      isTop={modalManager.isTop('help')}
+      zIndex={modalManager.getZIndex('help')}
+      onClose={() => handleCloseModal('help')}
     />
   {/if}
 

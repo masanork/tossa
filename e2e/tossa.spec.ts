@@ -444,4 +444,39 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     const peerBadge = peerCard.locator('span:has-text("📡")');
     await expect(peerBadge).toBeVisible();
   });
+
+  test('11. Comprehensive Help & User Guide Modal with MCP config', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // 1. Open Help Modal via header button
+    const helpBtn = page
+      .locator('header button[title*="ヘルプ"], header button[title*="Help"]')
+      .first();
+    await expect(helpBtn).toBeVisible();
+    await helpBtn.click();
+
+    // 2. Verify Help Modal appears with title
+    const helpModalTitle = page.locator(
+      'h2:has-text("ご利用ガイド"), h2:has-text("User Guide")'
+    );
+    await expect(helpModalTitle).toBeVisible();
+
+    // 3. Switch to AI & Developers tab
+    const aiTabBtn = page.locator('button:has-text("AI")').first();
+    await expect(aiTabBtn).toBeVisible();
+    await aiTabBtn.click();
+
+    // 4. Verify MCP config snippet and findability endpoints are visible
+    const mcpPre = page.locator('pre:has-text("mcpServers")');
+    await expect(mcpPre).toBeVisible();
+    await expect(page.locator('a[href="/llms.txt"]')).toBeVisible();
+    await expect(page.locator('a[href="/feed.xml"]')).toBeVisible();
+
+    // 5. Close Help Modal
+    const closeBtn = page.locator('button[aria-label="閉じる"]').first();
+    await closeBtn.click();
+    await expect(helpModalTitle).not.toBeVisible();
+  });
 });
