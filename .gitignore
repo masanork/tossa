@@ -9,4 +9,5 @@ dist/
 web/src/paraglide/
 test-results/
 playwright-report/
+*.sarif
 

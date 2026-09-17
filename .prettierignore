@@ -8,3 +8,4 @@ web/package-lock.json
 web/project.inlang
 test-results
 playwright-report
+*.sarif
