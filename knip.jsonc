@@ -2,7 +2,12 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["src/db/queries.ts", "src/types.ts", "e2e/**/*.spec.ts"],
+      "entry": [
+        "src/db/queries.ts",
+        "src/types.ts",
+        "src/routes/seo.ts",
+        "e2e/**/*.spec.ts"
+      ],
     },
     "web": {
       "entry": [
