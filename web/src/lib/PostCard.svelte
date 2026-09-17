@@ -1,7 +1,7 @@
 <!-- web/src/lib/PostCard.svelte -->
 <script lang="ts">
-  import type { Post, ImageMeta, User } from './types';
-  import { verifyPost } from './api';
+  import type { Post, ImageMeta, User, StatusUpdate } from './types';
+  import { verifyPost, fetchPostDetail, updatePostStatus } from './api';
   import {
     MapPin,
     Clock,
@@ -17,9 +17,15 @@
     X,
     Navigation,
     QrCode,
+    Star,
+    MessageSquareText,
+    ChevronDown,
+    ChevronUp,
+    Send,
   } from '@lucide/svelte';
   import { i18n, m } from './i18n.svelte';
   import { geolocationManager } from './geolocation.svelte';
+  import { favoritesManager } from './favorites.svelte';
   import {
     formatDistance,
     getCardinalDirection,
@@ -70,6 +76,66 @@
     verificationCount = post.verification_count || 0;
     lastVerifiedAt = post.last_verified_at || null;
   });
+
+  // Micro-update timeline state
+  let showUpdatesTimeline = $state(false);
+  let updatesList = $state<StatusUpdate[]>([]);
+  let isLoadingUpdates = $state(false);
+  let newUpdateNote = $state('');
+  let isSubmittingNote = $state(false);
+  let noteSubmitSuccess = $state(false);
+
+  async function handleToggleUpdatesTimeline() {
+    showUpdatesTimeline = !showUpdatesTimeline;
+    if (showUpdatesTimeline && updatesList.length === 0) {
+      isLoadingUpdates = true;
+      try {
+        const detail = await fetchPostDetail(post.id);
+        updatesList = detail.history || [];
+      } catch (err) {
+        console.error('Failed to load updates history:', err);
+      } finally {
+        isLoadingUpdates = false;
+      }
+    }
+  }
+
+  async function handleSubmitUpdateNote() {
+    const trimmed = newUpdateNote.trim();
+    if (!trimmed || isSubmittingNote) return;
+
+    isSubmittingNote = true;
+    try {
+      const res = await updatePostStatus(
+        post.id,
+        undefined,
+        undefined,
+        trimmed
+      );
+      if (res.success) {
+        updatesList = [
+          {
+            id: `temp_${Date.now()}`,
+            post_id: post.id,
+            status: post.current_status,
+            status_label: post.status_label,
+            note: trimmed,
+            created_at: new Date().toISOString(),
+          },
+          ...updatesList,
+        ];
+        newUpdateNote = '';
+        noteSubmitSuccess = true;
+        setTimeout(() => {
+          noteSubmitSuccess = false;
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Failed to submit update note:', err);
+    } finally {
+      isSubmittingNote = false;
+    }
+  }
 
   // Parse image metadata (EXIF & C2PA)
   const parsedImageMeta = $derived.by<ImageMeta | null>(() => {
@@ -428,11 +494,33 @@
       </a>
     </h3>
 
-    <span
-      class={`shrink-0 rounded-lg px-3 py-1 text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}
-    >
-      {i18n.translateStatus(post.current_status, post.status_label)}
-    </span>
+    <div class="flex shrink-0 items-center gap-1.5">
+      <span
+        class={`rounded-lg px-3 py-1 text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}
+      >
+        {i18n.translateStatus(post.current_status, post.status_label)}
+      </span>
+
+      <button
+        type="button"
+        onclick={() => favoritesManager.toggle(post.id)}
+        class="cursor-pointer rounded-lg p-1 transition hover:bg-slate-100 dark:hover:bg-slate-800"
+        title={favoritesManager.isFavorite(post.id)
+          ? m.btn_favorited()
+          : m.btn_favorite()}
+        aria-label={favoritesManager.isFavorite(post.id)
+          ? m.btn_favorited()
+          : m.btn_favorite()}
+      >
+        {#if favoritesManager.isFavorite(post.id)}
+          <Star class="h-4 w-4 fill-amber-400 text-amber-500" />
+        {:else}
+          <Star
+            class="h-4 w-4 text-slate-300 transition hover:text-amber-500 dark:text-slate-600"
+          />
+        {/if}
+      </button>
+    </div>
   </div>
 
   <!-- Address & Distance / Compass direction -->
@@ -683,6 +771,28 @@
         <span>{m.qr_share_btn()}</span>
       </button>
 
+      <!-- Add comment / Micro-update toggle button -->
+      <button
+        type="button"
+        onclick={handleToggleUpdatesTimeline}
+        class={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition ${
+          showUpdatesTimeline
+            ? 'border-blue-400 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+            : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+        }`}
+        title="現場の最新状況を追記・履歴を確認"
+      >
+        <MessageSquareText
+          class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+        />
+        <span>{m.card_comment_btn()}</span>
+        {#if showUpdatesTimeline}
+          <ChevronUp class="h-3 w-3 text-slate-400" />
+        {:else}
+          <ChevronDown class="h-3 w-3 text-slate-400" />
+        {/if}
+      </button>
+
       <!-- Report status button -->
       <button
         type="button"
@@ -695,6 +805,92 @@
       </button>
     </div>
   </div>
+
+  <!-- Micro-updates & History Accordion -->
+  {#if showUpdatesTimeline}
+    <div
+      class="animate-in fade-in mt-3 flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/40 p-3 text-xs duration-200 dark:border-blue-900/40 dark:bg-slate-800/80"
+    >
+      <div
+        class="flex items-center justify-between font-bold text-slate-700 dark:text-slate-200"
+      >
+        <span class="flex items-center gap-1.5">
+          <Clock class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          {m.card_history_title()}
+        </span>
+        {#if noteSubmitSuccess}
+          <span
+            class="text-xs font-bold text-emerald-600 dark:text-emerald-400"
+          >
+            ✓ {m.card_comment_success()}
+          </span>
+        {/if}
+      </div>
+
+      <!-- Micro-update input form (Anyone can add factual updates) -->
+      <form
+        onsubmit={(e) => {
+          e.preventDefault();
+          void handleSubmitUpdateNote();
+        }}
+        class="flex items-center gap-1.5"
+      >
+        <input
+          type="text"
+          bind:value={newUpdateNote}
+          placeholder={m.card_comment_placeholder()}
+          disabled={isSubmittingNote}
+          class="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 shadow-2xs focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500"
+        />
+        <button
+          type="submit"
+          disabled={!newUpdateNote.trim() || isSubmittingNote}
+          class="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 disabled:opacity-50"
+        >
+          <Send class="h-3 w-3" />
+          <span>{isSubmittingNote ? '...' : m.card_comment_submit()}</span>
+        </button>
+      </form>
+
+      <!-- History timeline items -->
+      {#if isLoadingUpdates}
+        <div class="flex items-center justify-center py-4 text-slate-400">
+          <RefreshCw class="h-4 w-4 animate-spin text-blue-600" />
+        </div>
+      {:else if updatesList.length > 0}
+        <div class="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-1">
+          {#each updatesList as item (item.id)}
+            <div
+              class="flex items-start justify-between gap-2 rounded-lg border border-slate-200/60 bg-white/80 p-2 text-[11px] dark:border-slate-700/60 dark:bg-slate-900/60"
+            >
+              <div class="flex-1 leading-snug">
+                {#if item.note}
+                  <span class="font-medium text-slate-800 dark:text-slate-200">
+                    {item.note}
+                  </span>
+                {:else}
+                  <span class="text-slate-500 dark:text-slate-400">
+                    ステータスを「{item.status_label || item.status}」に変更
+                  </span>
+                {/if}
+              </div>
+              <div
+                class="flex shrink-0 items-center gap-1 text-[10px] text-slate-400"
+              >
+                <span>{item.status_label || item.status}</span>
+                <span>•</span>
+                <span>{formatRelativeTime(item.created_at)}</span>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="py-2 text-center text-[11px] text-slate-400">
+          まだ追記がありません。現場の状況を追記してみましょう。
+        </p>
+      {/if}
+    </div>
+  {/if}
 </article>
 
 <!-- Image zoom modal -->

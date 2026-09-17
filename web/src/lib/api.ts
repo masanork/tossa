@@ -69,6 +69,8 @@ export async function fetchPosts(
     status?: string;
     tag?: string;
     q?: string;
+    mine?: boolean;
+    ids?: string[];
   } = {}
 ): Promise<{ posts: Post[]; total: number }> {
   const query = new URLSearchParams();
@@ -77,6 +79,9 @@ export async function fetchPosts(
   if (params.status) query.set('status', params.status);
   if (params.tag) query.set('tag', params.tag);
   if (params.q) query.set('q', params.q);
+  if (params.mine) query.set('mine', 'true');
+  if (params.ids && params.ids.length > 0)
+    query.set('ids', params.ids.join(','));
 
   const res = await fetch(`${API_BASE}/posts?${query.toString()}`);
   const data = await res.json();
@@ -186,8 +191,8 @@ export async function deletePost(
 
 export async function updatePostStatus(
   postId: string,
-  status: string,
-  statusLabel: string,
+  status?: string,
+  statusLabel?: string,
   note?: string
 ): Promise<{ success: boolean; error?: string }> {
   const res = await fetch(`${API_BASE}/posts/${postId}/status`, {

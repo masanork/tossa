@@ -230,4 +230,120 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
       .first();
     expect(postAfter).toBeNull();
   });
+
+  it('filters posts by mine=true and ids list in GET /api/posts', async () => {
+    const { request } = createTestContext();
+    const myDevice = 'my_device_filter_test';
+    const otherDevice = 'other_device_filter_test';
+
+    // Create 2 posts for myDevice
+    const res1 = await request('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `${DEVICE_COOKIE}=${myDevice}`,
+      },
+      body: JSON.stringify({
+        title: '自分の投稿 1',
+        area: '中央区',
+        currentStatus: 'available',
+        statusLabel: '利用可能',
+      }),
+    });
+    const post1 = await res1.json();
+
+    const res2 = await request('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `${DEVICE_COOKIE}=${myDevice}`,
+      },
+      body: JSON.stringify({
+        title: '自分の投稿 2',
+        area: '東区',
+        currentStatus: 'crowded',
+        statusLabel: '混雑',
+      }),
+    });
+    const post2 = await res2.json();
+
+    // Create 1 post for otherDevice
+    const res3 = await request('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `${DEVICE_COOKIE}=${otherDevice}`,
+      },
+      body: JSON.stringify({
+        title: '他人の投稿 3',
+        area: '西区',
+        currentStatus: 'closed',
+        statusLabel: '配布終了',
+      }),
+    });
+    const post3 = await res3.json();
+
+    // 1. Test mine=true
+    const mineRes = await request('/api/posts?mine=true', {
+      headers: {
+        Cookie: `${DEVICE_COOKIE}=${myDevice}`,
+      },
+    });
+    const mineData = await mineRes.json();
+    expect(mineData.success).toBe(true);
+    expect(mineData.posts.length).toBe(2);
+    expect(mineData.posts.every((p: any) => p.is_owner === true)).toBe(true);
+    const mineIds = mineData.posts.map((p: any) => p.id);
+    expect(mineIds).toContain(post1.id);
+    expect(mineIds).toContain(post2.id);
+    expect(mineIds).not.toContain(post3.id);
+
+    // 2. Test ids=... (favorites / bookmarks filter)
+    const idsRes = await request(`/api/posts?ids=${post1.id},${post3.id}`);
+    const idsData = await idsRes.json();
+    expect(idsData.success).toBe(true);
+    expect(idsData.posts.length).toBe(2);
+    const queriedIds = idsData.posts.map((p: any) => p.id);
+    expect(queriedIds).toContain(post1.id);
+    expect(queriedIds).toContain(post3.id);
+    expect(queriedIds).not.toContain(post2.id);
+  });
+
+  it('allows note-only micro-updates to post status history', async () => {
+    const { request } = createTestContext();
+
+    // Create a post
+    const createRes = await request('/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '給水所マイクロアップデートテスト',
+        area: '南区',
+        currentStatus: 'available',
+        statusLabel: '給水中',
+      }),
+    });
+    const { id: postId } = await createRes.json();
+
+    // Post a note-only micro-update (without changing status)
+    const updateRes = await request(`/api/posts/${postId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        note: '現在ポリタンク待ち列なし。スムーズです。',
+      }),
+    });
+    expect(updateRes.status).toBe(200);
+
+    // Verify detail returns the update history and current status was preserved
+    const detailRes = await request(`/api/posts/${postId}`);
+    const detail = await detailRes.json();
+    expect(detail.success).toBe(true);
+    expect(detail.post.current_status).toBe('available');
+    expect(detail.post.status_label).toBe('給水中');
+    expect(detail.history.length).toBeGreaterThanOrEqual(2);
+    expect(detail.history[0].note).toBe(
+      '現在ポリタンク待ち列なし。スムーズです。'
+    );
+  });
 });

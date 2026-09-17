@@ -24,6 +24,7 @@
   import QrScannerModal from './lib/QrScannerModal.svelte';
   import PushModal from './lib/PushModal.svelte';
   import HelpModal from './lib/HelpModal.svelte';
+  import MyPageModal from './lib/MyPageModal.svelte';
   import { decodePostFromQrString } from './lib/qrCodec';
   import {
     getPeerPosts,
@@ -63,6 +64,7 @@
   let selectedTag = $state<string | null>(null);
   let searchQuery = $state('');
   let selectedArea = $state<string>('');
+  let filterAvailableOnly = $state(false);
   let viewMode = $state<'list' | 'map'>('list');
 
   // Modal context state
@@ -130,18 +132,23 @@
     Array.from(new Set(posts.map((p) => p.area).filter(Boolean)))
   );
 
-  // Sorted posts (newest vs closest by GPS straight-line distance)
+  // Sorted posts (newest vs closest by GPS straight-line distance, filtered by status)
   const displayPosts = $derived.by(() => {
+    let list = posts;
+    if (filterAvailableOnly) {
+      list = list.filter((p) => p.current_status === 'available');
+    }
+
     if (
       !geolocationManager.sortByDistance ||
       !geolocationManager.currentLocation
     ) {
-      return posts;
+      return list;
     }
     const userLat = geolocationManager.currentLocation.lat;
     const userLng = geolocationManager.currentLocation.lng;
 
-    return [...posts].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const hasA =
         a.lat !== null &&
         a.lat !== undefined &&
@@ -353,6 +360,7 @@
         fetchPosts({
           area: selectedArea || undefined,
           tag: selectedTag || undefined,
+          status: filterAvailableOnly ? 'available' : undefined,
           q: searchQuery || undefined,
         }),
         fetchVocabularyTags(),
@@ -365,6 +373,11 @@
     } catch (err) {
       console.error('Failed to reload posts:', err);
     }
+  }
+
+  function handleToggleAvailableOnly() {
+    filterAvailableOnly = !filterAvailableOnly;
+    void reloadPosts();
   }
 
   // Tag (vocabulary) selection handler
@@ -485,6 +498,7 @@
     onOpenQrScanner={handleOpenQrScanner}
     onOpenPush={() => modalManager.open('push')}
     onOpenHelp={() => modalManager.open('help')}
+    onOpenMyPage={() => modalManager.open('mypage')}
   />
 
   <!-- PWA Install Banner -->
@@ -674,6 +688,24 @@
             {m.sort_newest()}
           {/if}
         </span>
+      </button>
+
+      <!-- Available only quick filter toggle (Imacoco-navi style) -->
+      <button
+        type="button"
+        onclick={handleToggleAvailableOnly}
+        class={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold shadow-2xs transition-all ${
+          filterAvailableOnly
+            ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-emerald-500/10 dark:border-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300'
+            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+        }`}
+        title={m.filter_available_only()}
+      >
+        <span class="text-xs">{filterAvailableOnly ? '✅' : '⚪'}</span>
+        <span class="hidden min-[480px]:inline"
+          >{m.filter_available_only()}</span
+        >
+        <span class="inline min-[480px]:hidden">営業中</span>
       </button>
     </div>
 
@@ -994,6 +1026,19 @@
       isTop={modalManager.isTop('help')}
       zIndex={modalManager.getZIndex('help')}
       onClose={() => handleCloseModal('help')}
+    />
+  {/if}
+
+  {#if modalManager.isOpen('mypage')}
+    <MyPageModal
+      isTop={modalManager.isTop('mypage')}
+      zIndex={modalManager.getZIndex('mypage')}
+      {currentUser}
+      onClose={() => handleCloseModal('mypage')}
+      onEditPost={handleEditPost}
+      onDeletePost={handleDeletePost}
+      onOpenQrShare={handleOpenQrShare}
+      onContactPost={handleContactPost}
     />
   {/if}
 

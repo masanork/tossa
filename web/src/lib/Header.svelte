@@ -14,10 +14,12 @@
     Ellipsis,
     Palette,
     HelpCircle,
+    User as UserIcon,
   } from '@lucide/svelte';
   import { i18n, m, LANGUAGES } from './i18n.svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import { pushManager } from './pushManager.svelte';
+  import { favoritesManager } from './favorites.svelte';
 
   interface Props {
     settings: SystemSettings;
@@ -28,6 +30,7 @@
     onOpenQrScanner?: () => void;
     onOpenPush?: () => void;
     onOpenHelp?: () => void;
+    onOpenMyPage?: () => void;
   }
 
   const {
@@ -39,6 +42,7 @@
     onOpenQrScanner,
     onOpenPush,
     onOpenHelp,
+    onOpenMyPage,
   }: Props = $props();
 
   let showLangMenu = $state(false);
@@ -278,7 +282,29 @@
         <span class="hidden xl:inline">{m.btn_help()}</span>
       </button>
 
-      <!-- 6. Mobile only: More (...) menu dropdown for Theme, Language, QR, Push, Help -->
+      <!-- 6. Desktop: My Page (Own posts & Favorites) button -->
+      <button
+        type="button"
+        onclick={() => {
+          closeAllMenus();
+          onOpenMyPage?.();
+        }}
+        class="hidden cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-blue-50/60 hover:text-blue-700 sm:inline-flex dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        title={m.mypage_subtitle()}
+        aria-label={m.btn_mypage()}
+      >
+        <UserIcon class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+        <span class="hidden lg:inline">{m.btn_mypage()}</span>
+        {#if favoritesManager.count > 0}
+          <span
+            class="py-0.2 rounded-full bg-amber-100 px-1.5 text-[10px] font-black text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+          >
+            ★{favoritesManager.count}
+          </span>
+        {/if}
+      </button>
+
+      <!-- 7. Mobile only: More (...) menu dropdown for Theme, Language, QR, Push, Help, MyPage -->
       <div class="relative sm:hidden">
         <button
           type="button"
@@ -292,11 +318,11 @@
               ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300'
               : 'border-slate-200/80 bg-white/80 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
           }`}
-          title="その他の機能（通知・QR・言語・テーマ・ヘルプ）"
+          title="その他の機能（マイページ・通知・QR・言語・テーマ・ヘルプ）"
           aria-label="その他のメニュー"
         >
           <Ellipsis class="h-4 w-4" />
-          {#if pushManager.isSubscribed}
+          {#if pushManager.isSubscribed || favoritesManager.count > 0}
             <span
               class="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-600 ring-2 ring-white dark:ring-slate-900"
             ></span>
@@ -308,6 +334,28 @@
             data-dropdown
             class="absolute right-0 z-50 mt-1.5 w-60 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xl dark:border-slate-700 dark:bg-slate-900"
           >
+            <!-- My Page -->
+            <button
+              type="button"
+              onclick={() => {
+                closeAllMenus();
+                onOpenMyPage?.();
+              }}
+              class="flex w-full cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              <div class="flex items-center gap-2.5">
+                <UserIcon class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <span>{m.btn_mypage()}</span>
+              </div>
+              {#if favoritesManager.count > 0}
+                <span
+                  class="py-0.2 rounded-full bg-amber-100 px-1.5 text-[10px] font-black text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                >
+                  ★{favoritesManager.count}
+                </span>
+              {/if}
+            </button>
+
             <!-- Help & Guide -->
             <button
               type="button"

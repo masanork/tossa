@@ -479,4 +479,99 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await closeBtn.click();
     await expect(helpModalTitle).not.toBeVisible();
   });
+
+  test('12. MyPage, Favorites Bookmark, "Open Only" Quick Filter, and Micro-update Comments', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // 1. Post a test card
+    const createBtn = page.locator('header button:has-text("＋")');
+    await createBtn.click();
+    const testTitle = `マイページテスト避難所 ${Date.now()}`;
+    await page.fill('#post-title', testTitle);
+    await page.fill('#post-area', '東区');
+    await page.locator('button[type="submit"]').click();
+
+    const postCard = page.locator(`article:has-text("${testTitle}")`);
+    await expect(postCard).toBeVisible({ timeout: 10000 });
+
+    // 2. Test Bookmark / Favorite button
+    const starBtn = postCard.locator(
+      'button[title*="お気に入り"], button[title*="Favorite"], button[title*="保存"]'
+    );
+    await expect(starBtn).toBeVisible();
+    await starBtn.click();
+
+    // 3. Test MyPage Modal opening via Header
+    const myPageBtn = page
+      .locator(
+        'header button:has-text("マイページ"), header button:has-text("My Page"), header button[title*="マイページ"]'
+      )
+      .first();
+    await expect(myPageBtn).toBeVisible();
+    await myPageBtn.click();
+
+    // Verify MyPage modal opened
+    const myPageTitle = page.locator(
+      'h2:has-text("マイページ"), h2:has-text("My Page")'
+    );
+    await expect(myPageTitle).toBeVisible();
+
+    // Verify both tabs (My Posts and Favorites) are present
+    const myPostsTab = page
+      .locator('button:has-text("自分の投稿"), button:has-text("My Posts")')
+      .first();
+    const favsTab = page
+      .locator('button:has-text("お気に入り"), button:has-text("Favorites")')
+      .first();
+    await expect(myPostsTab).toBeVisible();
+    await expect(favsTab).toBeVisible();
+
+    // Verify our post appears in My Posts
+    await expect(
+      page.locator(`div:has-text("${testTitle}")`).first()
+    ).toBeVisible();
+
+    // Switch to Favorites tab
+    await favsTab.click();
+    await expect(
+      page.locator(`div:has-text("${testTitle}")`).first()
+    ).toBeVisible();
+
+    // Close MyPage Modal
+    await page.locator('button[aria-label="閉じる"]').first().click();
+    await expect(myPageTitle).not.toBeVisible();
+
+    // 4. Test "Open Only" quick filter toggle
+    const quickFilterBtn = page.locator(
+      'button:has-text("開いている場所だけ"), button:has-text("Open Only"), button:has-text("営業中")'
+    );
+    await expect(quickFilterBtn).toBeVisible();
+    await quickFilterBtn.click();
+    // Toggle again to return to all
+    await quickFilterBtn.click();
+
+    // 5. Test Micro-update comment timeline
+    const commentBtn = postCard.locator(
+      'button:has-text("追記する"), button:has-text("Add Update")'
+    );
+    await expect(commentBtn).toBeVisible();
+    await commentBtn.click();
+
+    // Verify micro-update form is visible
+    const commentInput = postCard.locator(
+      'input[placeholder*="事実"], input[placeholder*="factual"]'
+    );
+    await expect(commentInput).toBeVisible();
+    await commentInput.fill('現地確認: 水タンク残り20本。順調に配布中。');
+    await postCard.locator('button[type="submit"]').click();
+
+    // Verify submitted comment appears in the accordion timeline
+    await expect(
+      postCard.locator(
+        'span:has-text("現地確認: 水タンク残り20本。順調に配布中。")'
+      )
+    ).toBeVisible({ timeout: 5000 });
+  });
 });

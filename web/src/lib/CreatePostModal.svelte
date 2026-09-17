@@ -22,6 +22,7 @@
     Link,
     Clock,
     Trash2,
+    AlertTriangle,
   } from '@lucide/svelte';
   import { m } from './i18n.svelte';
   import { geolocationManager } from './geolocation.svelte';
@@ -686,6 +687,26 @@
       onsubmit={handleSubmit}
       class="flex flex-col gap-4 overflow-y-auto p-4 sm:p-5"
     >
+      {#if !editingPost}
+        <div
+          class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs dark:border-amber-900/50 dark:bg-amber-950/30"
+        >
+          <AlertTriangle
+            class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
+          />
+          <div class="leading-relaxed">
+            <span class="font-bold text-amber-900 dark:text-amber-200">
+              {m.duplicate_warning_title()}
+            </span>
+            <p
+              class="mt-0.5 text-[11px] text-amber-800/90 dark:text-amber-300/80"
+            >
+              {m.duplicate_warning_desc()}
+            </p>
+          </div>
+        </div>
+      {/if}
+
       {#if !token}
         <div
           class="flex flex-col items-start justify-between gap-2.5 rounded-xl border border-blue-200/80 bg-blue-50/80 p-3 text-xs shadow-2xs sm:flex-row sm:items-center dark:border-blue-900/50 dark:bg-blue-950/30"

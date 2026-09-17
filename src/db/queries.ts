@@ -53,6 +53,9 @@ export async function getPosts(
     status?: string;
     search?: string;
     tag?: string;
+    ids?: string[];
+    authorId?: string;
+    authorCookieId?: string;
     limit?: number;
     offset?: number;
   } = {}
@@ -78,6 +81,23 @@ export async function getPosts(
   if (filter.tag) {
     conditions.push('EXISTS (SELECT 1 FROM json_each(p.tags) WHERE value = ?)');
     params.push(filter.tag);
+  }
+
+  if (filter.ids && filter.ids.length > 0) {
+    const placeholders = filter.ids.map(() => '?').join(', ');
+    conditions.push(`p.id IN (${placeholders})`);
+    params.push(...filter.ids);
+  }
+
+  if (filter.authorId && filter.authorCookieId) {
+    conditions.push('(p.author_id = ? OR p.author_cookie_id = ?)');
+    params.push(filter.authorId, filter.authorCookieId);
+  } else if (filter.authorId) {
+    conditions.push('p.author_id = ?');
+    params.push(filter.authorId);
+  } else if (filter.authorCookieId) {
+    conditions.push('p.author_cookie_id = ?');
+    params.push(filter.authorCookieId);
   }
 
   if (filter.search) {
@@ -149,7 +169,7 @@ export async function getStatusUpdatesByPostId(
 ): Promise<StatusUpdate[]> {
   const result = await db
     .prepare(
-      'SELECT * FROM status_updates WHERE post_id = ? ORDER BY created_at DESC LIMIT 20'
+      'SELECT * FROM status_updates WHERE post_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 20'
     )
     .bind(postId)
     .all<StatusUpdate>();

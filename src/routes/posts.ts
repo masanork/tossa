@@ -48,11 +48,51 @@ postsRoute.get('/', async (c) => {
   const status = c.req.query('status');
   const search = c.req.query('q');
   const tag = c.req.query('tag');
+  const mine = c.req.query('mine');
+  const idsParam = c.req.query('ids');
   const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
   const offset = c.req.query('offset')
     ? parseInt(c.req.query('offset')!, 10)
     : 0;
   const deviceId = c.get('deviceSessionId') || null;
+  const session = await getOptionalSession(c);
+
+  let ids: string[] | undefined = undefined;
+  if (idsParam !== undefined) {
+    ids = idsParam
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 100);
+    if (ids.length === 0) {
+      c.header('Cache-Control', 'no-store');
+      return c.json({
+        success: true,
+        posts: [],
+        total: 0,
+        limit,
+        offset,
+      });
+    }
+  }
+
+  let authorId: string | undefined = undefined;
+  let authorCookieId: string | undefined = undefined;
+
+  if (mine === 'true') {
+    if (!session?.userId && !deviceId) {
+      c.header('Cache-Control', 'no-store');
+      return c.json({
+        success: true,
+        posts: [],
+        total: 0,
+        limit,
+        offset,
+      });
+    }
+    authorId = session?.userId;
+    authorCookieId = deviceId || undefined;
+  }
 
   const result = await getPosts(c.env.DB, {
     categoryId,
@@ -60,17 +100,22 @@ postsRoute.get('/', async (c) => {
     status,
     search,
     tag,
+    ids,
+    authorId,
+    authorCookieId,
     limit,
     offset,
   });
 
-  // Attach is_owner based on device cookie verification on server
+  // Attach is_owner based on device cookie, Passkey user session, or admin
   const posts = result.posts.map((post: any) => ({
     ...post,
     is_owner: !!(
-      deviceId &&
-      post.author_cookie_id &&
-      post.author_cookie_id === deviceId
+      (deviceId &&
+        post.author_cookie_id &&
+        post.author_cookie_id === deviceId) ||
+      (session && post.author_id && post.author_id === session.userId) ||
+      session?.role === 'admin'
     ),
   }));
 
@@ -336,11 +381,13 @@ postsRoute.post('/:id/status', async (c) => {
   }
 
   const body = await c.req.json();
-  if (!body.status || !body.statusLabel) {
-    return c.json(
-      { success: false, error: 'Status and statusLabel are required' },
-      400
-    );
+  const status = body.status || post.current_status;
+  const statusLabel =
+    body.statusLabel || (body.status ? body.status : post.status_label);
+  const note = body.note ? String(body.note).trim() : null;
+
+  if (!body.status && !note) {
+    return c.json({ success: false, error: 'Status or note is required' }, 400);
   }
 
   // Generate anonymized hash from IP for spam rate limiting and privacy
@@ -356,14 +403,7 @@ postsRoute.post('/:id/status', async (c) => {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  await updatePostStatus(
-    c.env.DB,
-    postId,
-    body.status,
-    body.statusLabel,
-    body.note || null,
-    ipHash
-  );
+  await updatePostStatus(c.env.DB, postId, status, statusLabel, note, ipHash);
 
   // Trigger push broadcast for status change
   if (
