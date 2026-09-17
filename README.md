@@ -28,9 +28,11 @@
    - Leverages WebAuthn PRF (Pseudo-Random Function) extension to derive encryption keys directly from biometric authenticators.
    - Facilitates confidential, zero-knowledge inquiries between shelter managers and citizens that cannot be intercepted even by the server host.
 
-5. **Multi-Language & Web Accessibility (JIS X 8341-3:2016 Level AA / WCAG 2.1/2.2 AA)**
+5. **Multi-Language, Speech Synthesis & Web Accessibility (JIS X 8341-3:2016 Level AA / WCAG 2.1/2.2 AA)**
    - Conforms with Japan's Digital Society standards (DS-600 series / Web Accessibility Guidelines) and the Digital Agency Design System.
    - First-class support for English, standard Japanese, and Plain Japanese ("やさしい日本語", Easy Japanese) for international residents, children, and cognitive accessibility, with dynamic `lang` attribute switching.
+   - **Web Speech API Audio Readout**: One-tap text-to-speech voice narration of post titles, locations, statuses, and notes in Japanese and English (for seniors, visually impaired, or listening hands-free while evacuating).
+   - **Accessible Font Scaling**: Cycle through Standard (100%), Large (115%), and X-Large (130%) font scale options.
    - Fully keyboard operable, with skip-to-main link, accessible modal focus traps and returns, screen reader live regions, unconstrained pinch-to-zoom, and `prefers-reduced-motion` compliance.
 
 6. **Source Domain Credibility Badging & Community Peer Verification**

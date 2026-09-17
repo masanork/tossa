@@ -6,6 +6,19 @@
 @layer base {
   :root {
     color-scheme: light;
+    font-size: 16px;
+  }
+
+  :root.text-scale-normal {
+    font-size: 16px;
+  }
+
+  :root.text-scale-large {
+    font-size: 18.4px;
+  }
+
+  :root.text-scale-xlarge {
+    font-size: 20.8px;
   }
 
   :root.dark {

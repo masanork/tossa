@@ -657,5 +657,25 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     // Close Help Modal
     await page.keyboard.press('Escape');
     await expect(helpDialog).not.toBeVisible();
+
+    // 5. Font Scaling: Standard -> Large -> X-Large
+    const fontScaleBtn = page
+      .locator(
+        'header button[title*="文字サイズ"], header button[title*="Font Size"], header button[title*="もじの おおきさ"]'
+      )
+      .first();
+    if (await fontScaleBtn.isVisible()) {
+      // Click once: normal -> large
+      await fontScaleBtn.click();
+      await expect(page.locator('html')).toHaveClass(/text-scale-large/);
+
+      // Click again: large -> xlarge
+      await fontScaleBtn.click();
+      await expect(page.locator('html')).toHaveClass(/text-scale-xlarge/);
+
+      // Click again: xlarge -> normal
+      await fontScaleBtn.click();
+      await expect(page.locator('html')).toHaveClass(/text-scale-normal/);
+    }
   });
 });

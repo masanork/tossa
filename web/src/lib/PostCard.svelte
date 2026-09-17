@@ -22,10 +22,13 @@
     ChevronDown,
     ChevronUp,
     Send,
+    Volume2,
+    VolumeX,
   } from '@lucide/svelte';
   import { i18n, m } from './i18n.svelte';
   import { geolocationManager } from './geolocation.svelte';
   import { favoritesManager } from './favorites.svelte';
+  import { speechManager } from './speech.svelte';
   import {
     formatDistance,
     getCardinalDirection,
@@ -520,6 +523,32 @@
           />
         {/if}
       </button>
+
+      {#if speechManager.isSupported}
+        <button
+          type="button"
+          onclick={() => speechManager.speakPost(post, i18n.current)}
+          class={`cursor-pointer rounded-lg p-1 transition ${
+            speechManager.isSpeaking && speechManager.activePostId === post.id
+              ? 'animate-pulse bg-blue-100 text-blue-600 dark:bg-blue-900/60 dark:text-blue-400'
+              : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300'
+          }`}
+          title={speechManager.isSpeaking &&
+          speechManager.activePostId === post.id
+            ? m.stop_speech()
+            : m.read_aloud()}
+          aria-label={speechManager.isSpeaking &&
+          speechManager.activePostId === post.id
+            ? m.stop_speech()
+            : m.read_aloud()}
+        >
+          {#if speechManager.isSpeaking && speechManager.activePostId === post.id}
+            <VolumeX class="h-4 w-4" />
+          {:else}
+            <Volume2 class="h-4 w-4" />
+          {/if}
+        </button>
+      {/if}
     </div>
   </div>
 
@@ -770,6 +799,35 @@
         <QrCode class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
         <span>{m.qr_share_btn()}</span>
       </button>
+
+      <!-- Speech Read-Aloud button -->
+      {#if speechManager.isSupported}
+        <button
+          type="button"
+          onclick={() => speechManager.speakPost(post, i18n.current)}
+          class={`inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-2xs transition ${
+            speechManager.isSpeaking && speechManager.activePostId === post.id
+              ? 'animate-pulse border-blue-400 bg-blue-100 text-blue-700 dark:border-blue-700 dark:bg-blue-950/80 dark:text-blue-300'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+          }`}
+          title={speechManager.isSpeaking &&
+          speechManager.activePostId === post.id
+            ? m.stop_speech()
+            : m.read_aloud()}
+          aria-label={speechManager.isSpeaking &&
+          speechManager.activePostId === post.id
+            ? m.stop_speech()
+            : m.read_aloud()}
+        >
+          {#if speechManager.isSpeaking && speechManager.activePostId === post.id}
+            <VolumeX class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>{m.stop_speech()}</span>
+          {:else}
+            <Volume2 class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>{m.read_aloud()}</span>
+          {/if}
+        </button>
+      {/if}
 
       <!-- Add comment / Micro-update toggle button -->
       <button

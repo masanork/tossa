@@ -15,9 +15,11 @@
     Palette,
     HelpCircle,
     User as UserIcon,
+    Type,
   } from '@lucide/svelte';
   import { i18n, m, LANGUAGES } from './i18n.svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
+  import { fontSizeManager, FONT_SCALE_OPTIONS } from './fontSize.svelte';
   import { pushManager } from './pushManager.svelte';
   import { favoritesManager } from './favorites.svelte';
 
@@ -170,6 +172,32 @@
           </div>
         {/if}
       </div>
+
+      <!-- 1.5 Desktop only: Font Size Scaler -->
+      <button
+        type="button"
+        onclick={() => fontSizeManager.cycleScale()}
+        class="hidden cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-blue-700 sm:inline-flex dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        title="{m.font_size()}: {fontSizeManager.scale === 'normal'
+          ? m.font_size_normal()
+          : fontSizeManager.scale === 'large'
+            ? m.font_size_large()
+            : m.font_size_xlarge()}"
+        aria-label="{m.font_size()}: {fontSizeManager.scale === 'normal'
+          ? m.font_size_normal()
+          : fontSizeManager.scale === 'large'
+            ? m.font_size_large()
+            : m.font_size_xlarge()}"
+      >
+        <Type class="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+        <span class="text-xs font-bold">
+          {fontSizeManager.scale === 'normal'
+            ? 'A'
+            : fontSizeManager.scale === 'large'
+              ? 'A+'
+              : 'A++'}
+        </span>
+      </button>
 
       <!-- 2. Desktop only: Language selector -->
       <div class="relative hidden sm:block">
@@ -478,6 +506,40 @@
                   >
                     <span class="text-xs">{opt.icon}</span>
                     <span class="mt-0.5 scale-90">{opt.shortLabel}</span>
+                  </button>
+                {/each}
+              </div>
+            </div>
+
+            <div
+              class="my-1.5 border-t border-slate-100 dark:border-slate-800"
+            ></div>
+
+            <!-- Font Size -->
+            <div class="px-1 py-1">
+              <div
+                class="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500"
+              >
+                <Type class="h-3 w-3" />
+                <span>{m.font_size()} / FONT SIZE</span>
+              </div>
+              <div class="grid grid-cols-3 gap-1">
+                {#each FONT_SCALE_OPTIONS as opt (opt.id)}
+                  <button
+                    type="button"
+                    onclick={() => {
+                      fontSizeManager.setScale(opt.id);
+                    }}
+                    class={`rounded-lg py-1.5 text-center text-xs font-bold transition ${
+                      fontSizeManager.scale === opt.id
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>{opt.labelJa}</span>
+                    <span class="ml-0.5 text-[10px] opacity-75"
+                      >({opt.scalePercent})</span
+                    >
                   </button>
                 {/each}
               </div>
