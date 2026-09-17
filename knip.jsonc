@@ -6,7 +6,7 @@
         "src/db/queries.ts",
         "src/types.ts",
         "src/routes/seo.ts",
-        "e2e/**/*.spec.ts"
+        "e2e/**/*.spec.ts",
       ],
     },
     "web": {
