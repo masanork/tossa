@@ -6,6 +6,7 @@
     fetchSettings,
     fetchPosts,
     fetchVocabularyTags,
+    fetchPostDetail,
     checkAuth,
     deletePost,
   } from './lib/api';
@@ -256,6 +257,10 @@
     // 4. URL Hash QR Code Auto-Import check & listener
     await checkHashForQrImport();
     window.addEventListener('hashchange', checkHashForQrImport);
+
+    // 5. Deep link check for /posts/:id
+    await checkPathnameForPostDeepLink();
+    window.addEventListener('popstate', checkPathnameForPostDeepLink);
   });
 
   onDestroy(() => {
@@ -267,8 +272,39 @@
         handleBeforeInstallPrompt
       );
       window.removeEventListener('hashchange', checkHashForQrImport);
+      window.removeEventListener('popstate', checkPathnameForPostDeepLink);
     }
   });
+
+  async function checkPathnameForPostDeepLink() {
+    if (typeof window === 'undefined') return;
+    const match = window.location.pathname.match(/^\/posts\/([a-zA-Z0-9_-]+)/);
+    if (!match || !match[1]) return;
+    const targetPostId = match[1];
+
+    const existing = posts.find((p) => p.id === targetPostId);
+    if (!existing) {
+      try {
+        const detail = await fetchPostDetail(targetPostId);
+        if (detail && detail.post) {
+          posts = [detail.post, ...posts];
+        }
+      } catch (err) {
+        console.warn('Failed to load deep-linked post:', err);
+      }
+    }
+
+    setTimeout(() => {
+      const el = document.getElementById(`post-${targetPostId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-blue-500');
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-blue-500');
+        }, 3000);
+      }
+    }, 150);
+  }
 
   async function checkHashForQrImport() {
     if (

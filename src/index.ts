@@ -11,6 +11,7 @@ import { federationRoute } from './routes/federation';
 import { threadsRoute } from './routes/threads';
 import { pushRoute } from './routes/push';
 import { mcpRoute } from './routes/mcp';
+import { seoRoute } from './routes/seo';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -41,6 +42,9 @@ app.route('/api/mcp', mcpRoute);
 app.route('/mcp', mcpRoute);
 app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
+
+// SEO, AI Discovery & SSR Routes
+app.route('/', seoRoute);
 
 // Health check endpoint
 app.get('/api/health', (c) => {

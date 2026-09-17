@@ -290,6 +290,7 @@
 </script>
 
 <article
+  id="post-{post.id}"
   class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-100 dark:hover:border-slate-700"
 >
   <!-- Top: Area, tags, official badge, last updated -->
@@ -411,7 +412,20 @@
   <!-- Title & status badge -->
   <div class="flex items-start justify-between gap-3">
     <h3 class="text-base leading-snug font-bold text-slate-900 dark:text-white">
-      {post.title}
+      <a
+        href="/posts/{post.id}"
+        class="transition hover:text-blue-600 hover:underline focus:outline-none dark:hover:text-blue-400"
+        onclick={(e) => {
+          if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
+            e.preventDefault();
+            history.pushState(null, '', `/posts/${post.id}`);
+            const el = document.getElementById(`post-${post.id}`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }}
+      >
+        {post.title}
+      </a>
     </h3>
 
     <span
