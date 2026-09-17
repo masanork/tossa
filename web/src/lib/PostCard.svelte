@@ -293,23 +293,23 @@
     return `${Math.floor(diffSec / 86400)}日前`;
   }
 
-  // Color mapping by status
+  // Color mapping by status (ensuring WCAG 2.1 AA 4.5:1 contrast on white text)
   function getStatusBadgeClass(status: string): string {
     switch (status) {
       case 'available':
       case 'open':
-        return 'bg-emerald-500 text-white';
+        return 'bg-emerald-700 text-white';
       case 'crowded':
       case 'few':
       case 'low_stock':
-        return 'bg-amber-500 text-white';
+        return 'bg-amber-700 text-white';
       case 'closed':
       case 'danger':
       case 'out_of_stock':
-        return 'bg-rose-600 text-white';
+        return 'bg-rose-700 text-white';
       case 'unknown':
       default:
-        return 'bg-slate-500 text-white';
+        return 'bg-slate-700 text-white';
     }
   }
 
@@ -417,7 +417,7 @@
 
     <!-- Last updated time -->
     <div
-      class="flex shrink-0 items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500"
+      class="flex shrink-0 items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400"
     >
       <Clock class="h-3 w-3" />
       <span>{formatRelativeTime(post.updated_at)}</span>

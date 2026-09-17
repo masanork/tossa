@@ -43,7 +43,7 @@
     <!-- Organic vocabulary tags derived from community posts -->
     {#if tags.length === 0}
       <div
-        class="flex items-center gap-1.5 pl-2 text-xs text-slate-400 select-none dark:text-slate-500"
+        class="flex items-center gap-1.5 pl-2 text-xs text-slate-600 select-none dark:text-slate-400"
       >
         <Sparkles class="h-3.5 w-3.5 shrink-0 text-amber-500" />
         <span>投稿にタグをつけると、ここにフィルターが自発的に並びます</span>

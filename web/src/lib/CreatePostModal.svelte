@@ -803,7 +803,7 @@
           {#if availableAreas.length > 0}
             <div class="mt-1.5 flex flex-wrap gap-1">
               <span
-                class="py-0.5 text-[10px] text-slate-400 dark:text-slate-500"
+                class="py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-400"
                 >候補:</span
               >
               {#each availableAreas.slice(0, 5) as a (a)}
@@ -949,7 +949,8 @@
                   }`}
                 >
                   <span>#{vt.name}</span>
-                  <span class="text-[9px] text-slate-400 dark:text-slate-500"
+                  <span
+                    class="text-[9px] font-medium text-slate-600 dark:text-slate-400"
                     >({vt.count})</span
                   >
                 </button>
@@ -967,7 +968,7 @@
           <div class="flex items-center gap-1.5">
             <div class="relative flex-1">
               <span
-                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-400 dark:text-slate-500"
+                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-600 dark:text-slate-400"
                 >#</span
               >
               <input
@@ -1141,7 +1142,7 @@
                 写真を撮影または選択
               </div>
               <p
-                class="text-center text-[10px] leading-tight text-slate-400 dark:text-slate-500"
+                class="text-center text-[10px] leading-tight text-slate-600 dark:text-slate-400"
               >
                 写真の位置情報（EXIF GPS）からピンが自動配置されます。<br />
                 C2PA来歴署名も自動検知し真正性を担保します。
@@ -1264,7 +1265,7 @@
               <span>ピンを解除</span>
             </button>
           {:else}
-            <span class="text-[10px] text-slate-400 dark:text-slate-500">
+            <span class="text-[10px] text-slate-600 dark:text-slate-400">
               ※
               地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
             </span>

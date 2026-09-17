@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 
 test.describe('tossa Disaster & Community Platform E2E Tests', () => {
   test('1. Page load and i18n language switching', async ({ page }) => {
@@ -677,5 +678,41 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
       await fontScaleBtn.click();
       await expect(page.locator('html')).toHaveClass(/text-scale-normal/);
     }
+  });
+
+  test('14. Automated accessibility audit with axe-core (WCAG 2.1 Level AA)', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // 1. Initial page load
+    await expect(page.locator('header')).toBeVisible();
+
+    // 2. Audit main dashboard view
+    const mainScanResults = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .exclude('.leaflet-container')
+      .analyze();
+
+    expect(mainScanResults.violations).toEqual([]);
+
+    // 3. Open Create Post modal and audit dialog accessibility
+    const createBtn = page.locator('header button:has-text("＋")');
+    await createBtn.click();
+    const createDialog = page.locator(
+      'div[role="dialog"][aria-labelledby="create-post-modal-title"]'
+    );
+    await expect(createDialog).toBeVisible();
+
+    const modalScanResults = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .exclude('.leaflet-container')
+      .analyze();
+
+    expect(modalScanResults.violations).toEqual([]);
+
+    // Close modal
+    await page.keyboard.press('Escape');
+    await expect(createDialog).not.toBeVisible();
   });
 });

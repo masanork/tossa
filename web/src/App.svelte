@@ -671,6 +671,7 @@
         <select
           bind:value={selectedArea}
           onchange={() => reloadPosts()}
+          aria-label={m.all_areas()}
           class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
         >
           <option value="">{m.all_areas()}</option>
@@ -909,7 +910,8 @@
               >
             </span>
           {/if}
-          <span class="text-[11px] text-slate-400">{m.edge_cache_notice()}</span
+          <span class="text-[11px] text-slate-600 dark:text-slate-400"
+            >{m.edge_cache_notice()}</span
           >
         </div>
 
