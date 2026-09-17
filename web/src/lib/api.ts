@@ -71,6 +71,7 @@ export async function fetchPosts(
     q?: string;
     mine?: boolean;
     ids?: string[];
+    bypassCache?: boolean;
   } = {}
 ): Promise<{ posts: Post[]; total: number }> {
   const query = new URLSearchParams();
@@ -82,6 +83,7 @@ export async function fetchPosts(
   if (params.mine) query.set('mine', 'true');
   if (params.ids && params.ids.length > 0)
     query.set('ids', params.ids.join(','));
+  if (params.bypassCache) query.set('_t', String(Date.now()));
 
   const res = await fetch(`${API_BASE}/posts?${query.toString()}`);
   const data = await res.json();

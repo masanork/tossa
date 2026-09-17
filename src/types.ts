@@ -2,6 +2,7 @@
 
 export interface Bindings {
   DB: D1Database;
+  IMAGES_BUCKET?: R2Bucket;
   ASSETS?: Fetcher;
   RP_NAME: string;
   RP_ID: string;

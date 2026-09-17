@@ -38,6 +38,7 @@
     getRelativeAngle,
   } from './geoDistance';
   import { isPeerPostId } from './peerPosts';
+  import { isMyPost } from './myPosts';
 
   interface Props {
     post: Post;
@@ -67,8 +68,8 @@
     // Original author with Passkey
     if (currentUser && post.author_id && post.author_id === currentUser.id)
       return true;
-    // Original author identified by cookie (verified on server)
-    if (post.is_owner) return true;
+    // Original author identified by cookie (verified on server) or client-side storage
+    if (post.is_owner || isMyPost(post.id)) return true;
     return false;
   });
 

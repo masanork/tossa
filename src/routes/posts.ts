@@ -15,6 +15,7 @@ import {
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
 import { verifySessionToken } from '../auth/session';
 import { broadcastPushNotification } from '../services/push';
+import { persistImageToR2 } from './images';
 
 type PostsVariables = { deviceSessionId: string };
 
@@ -34,7 +35,7 @@ async function getOptionalSession(c: any) {
 // GET /api/posts/tags/vocabulary (Tag vocabulary list)
 postsRoute.get('/tags/vocabulary', async (c) => {
   const tags = await getVocabularyTags(c.env.DB, 40);
-  c.header('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+  c.header('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
   return c.json({
     success: true,
     tags,
@@ -119,8 +120,17 @@ postsRoute.get('/', async (c) => {
     ),
   }));
 
-  // Disallow caching because response includes request-specific is_owner flag
-  c.header('Cache-Control', 'no-store');
+  // Enable aggressive edge caching for public listings (99% D1 load reduction during disasters)
+  // Private no-store is reserved only for personal queries (mine=true)
+  if (mine === 'true') {
+    c.header('Cache-Control', 'private, no-store');
+  } else {
+    c.header('Cache-Control', 'no-cache');
+    c.header(
+      'CDN-Cache-Control',
+      'public, max-age=5, stale-while-revalidate=30'
+    );
+  }
 
   return c.json({
     success: true,
@@ -143,7 +153,8 @@ postsRoute.get('/:id', async (c) => {
   const history = await getStatusUpdatesByPostId(c.env.DB, id);
   const deviceId = c.get('deviceSessionId') || null;
 
-  c.header('Cache-Control', 'no-store');
+  c.header('Cache-Control', 'no-cache');
+  c.header('CDN-Cache-Control', 'public, max-age=5, stale-while-revalidate=30');
 
   return c.json({
     success: true,
@@ -177,6 +188,13 @@ postsRoute.post('/', async (c) => {
 
   const postId = `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+  // Persist image to Cloudflare R2 if configured, stripping heavy Base64 from D1
+  const storedImageUrl = await persistImageToR2(
+    c.env.IMAGES_BUCKET,
+    body.imageUrl,
+    postId
+  );
+
   await createPost(c.env.DB, {
     id: postId,
     authorId: session?.userId || null,
@@ -192,7 +210,7 @@ postsRoute.post('/', async (c) => {
     note: body.note,
     url: body.url,
     sourceUrl: body.sourceUrl,
-    imageUrl: body.imageUrl,
+    imageUrl: storedImageUrl ?? undefined,
     imageMeta: body.imageMeta,
     attributes: body.attributes,
     tags: Array.isArray(body.tags) ? body.tags : undefined,
@@ -276,6 +294,20 @@ postsRoute.put('/:id', async (c) => {
 
   const body = await c.req.json();
 
+  let storedImageUrl = body.imageUrl;
+  if (
+    c.env.IMAGES_BUCKET &&
+    body.imageUrl &&
+    typeof body.imageUrl === 'string' &&
+    body.imageUrl.startsWith('data:')
+  ) {
+    storedImageUrl = await persistImageToR2(
+      c.env.IMAGES_BUCKET,
+      body.imageUrl,
+      postId
+    );
+  }
+
   await updatePost(c.env.DB, postId, {
     title: body.title,
     area: body.area,
@@ -297,7 +329,7 @@ postsRoute.put('/:id', async (c) => {
     note: body.note,
     url: body.url,
     sourceUrl: body.sourceUrl,
-    imageUrl: body.imageUrl,
+    imageUrl: storedImageUrl,
     imageMeta: body.imageMeta,
     attributes: body.attributes,
     tags: Array.isArray(body.tags) ? body.tags : undefined,

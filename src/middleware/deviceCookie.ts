@@ -58,9 +58,30 @@ export async function logAccess(
 }
 
 /**
+ * Ensures device session record exists in D1 (called only on state-mutating requests).
+ */
+export async function ensureDeviceSession(
+  db: D1Database,
+  deviceId: string,
+  ip: string,
+  ua: string
+): Promise<void> {
+  try {
+    await db
+      .prepare(
+        'INSERT OR IGNORE INTO device_sessions (id, created_ip, created_ua) VALUES (?, ?, ?)'
+      )
+      .bind(deviceId, ip, ua.slice(0, 500))
+      .run();
+  } catch (err) {
+    console.error('[device_session] ensure failed:', err);
+  }
+}
+
+/**
  * Device Cookie Middleware
- * - Issues new cookie if none exists, records to device_sessions + access_logs
- * - If already issued, ensures record exists in DB and updates last_seen_at
+ * - Issues new cookie if none exists (zero-DB-write on read traffic)
+ * - State-mutating requests (POST/PUT/DELETE) ensure DB session existence to satisfy foreign keys
  * - Makes deviceSessionId available to all handlers via c.get('deviceSessionId')
  */
 export const deviceCookieMiddleware = createMiddleware<{
@@ -68,23 +89,10 @@ export const deviceCookieMiddleware = createMiddleware<{
   Variables: { deviceSessionId: string };
 }>(async (c, next) => {
   let deviceId = getCookie(c, DEVICE_COOKIE);
-
-  const ip = getClientIp(c.req.raw);
-  const ua = c.req.header('User-Agent') || '';
+  const isHttps = c.req.url.startsWith('https');
 
   if (!deviceId) {
     deviceId = generateDeviceId();
-
-    // New device: DB record + Set-Cookie + audit log
-    await c.env.DB.prepare(
-      'INSERT OR IGNORE INTO device_sessions (id, created_ip, created_ua) VALUES (?, ?, ?)'
-    )
-      .bind(deviceId, ip, ua.slice(0, 500))
-      .run();
-
-    await logAccess(c.env.DB, 'cookie_issued', deviceId, null, ip, ua);
-
-    const isHttps = c.req.url.startsWith('https');
     setCookie(c, DEVICE_COOKIE, deviceId, {
       path: '/',
       httpOnly: true,
@@ -92,21 +100,16 @@ export const deviceCookieMiddleware = createMiddleware<{
       maxAge: COOKIE_MAX_AGE,
       secure: isHttps,
     });
-  } else {
-    // Existing device: update last_seen_at asynchronously
-    c.env.DB.prepare(
-      'INSERT OR IGNORE INTO device_sessions (id, created_ip, created_ua) VALUES (?, ?, ?)'
-    )
-      .bind(deviceId, ip, ua.slice(0, 500))
-      .run()
-      .then(() => {
-        return c.env.DB.prepare(
-          "UPDATE device_sessions SET last_seen_at = datetime('now') WHERE id = ?"
-        )
-          .bind(deviceId)
-          .run();
-      })
-      .catch(() => {});
+  }
+
+  // Zero-DB-write optimization for read traffic (GET/HEAD/OPTIONS).
+  // Under disaster traffic spikes, millions of view requests must NEVER write to D1.
+  // We only persist device sessions on state-mutating write requests.
+  const isStateMutating = !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method);
+  if (isStateMutating) {
+    const ip = getClientIp(c.req.raw);
+    const ua = c.req.header('User-Agent') || '';
+    await ensureDeviceSession(c.env.DB, deviceId, ip, ua);
   }
 
   c.set('deviceSessionId', deviceId);

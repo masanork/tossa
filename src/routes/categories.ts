@@ -9,8 +9,12 @@ export const categoriesRoute = new Hono<{ Bindings: Bindings }>();
 categoriesRoute.get('/', async (c) => {
   const categories = await getCategories(c.env.DB);
 
-  // 1-minute edge cache
-  c.header('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+  // 5-minute CDN edge cache (rarely modified)
+  c.header('Cache-Control', 'no-cache');
+  c.header(
+    'CDN-Cache-Control',
+    'public, max-age=300, stale-while-revalidate=600'
+  );
 
   return c.json({
     success: true,

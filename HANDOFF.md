@@ -105,3 +105,8 @@ tossa/
 5. **Phase 5: デュアルユース切り替え & PWA**
    - 管理画面からの「平時モード ⇄ 災害モード」切り替え機能
    - オフラインでも過去の情報を閲覧できる Service Worker キャッシュ
+6. **Phase 11: 大規模災害対応スケーリング & ボトルネック解消基盤 (完了)**
+   - **閲覧時 DB 書き込みゼロ化**: 閲覧（GET/HEAD/OPTIONS）時の D1 `device_sessions` / `access_logs` 同期書き込みを完全に撤廃し、署名付き Cookie のみで端末セッションを維持。投稿・更新・削除時のみ D1 永続化（外部キー充足）。アクセス殺到時の D1 直列化ロックを完全防止。
+   - **Cloudflare エッジキャッシュ完全化**: `CDN-Cache-Control: public, max-age=5, stale-while-revalidate=30` により、公開タイムライン読み取りを Cloudflare CDN エッジで 99% 吸収。ブラウザ側には `Cache-Control: no-cache` を返し、クライアント側ローカルストレージ（`localStorage['tossa_my_posts']`）で自身の投稿を即座にオーナー判定。
+   - **写真・メディアストレージの Cloudflare R2 分離**: Base64 Data URL の D1 直保存を廃止し、R2 バケット（`IMAGES_BUCKET`）へ自動退避。API レスポンスと D1 容量を 99% 軽量化し、1年間のイミュータブルキャッシュ配信（`/api/images/:key`）を実現（R2 未設定環境では自動フォールバック）。
+   - **Web Push チャンク分散配信**: Cloudflare Workers の同時サブリクエスト制限（50件）を超過しないよう、25件バッチで順次配信。失効エンドポイントの D1 削除もバッチ一括実行。

@@ -31,6 +31,7 @@
     savePeerPost,
     mergePostsWithPeer,
   } from './lib/peerPosts';
+  import { removeMyPost } from './lib/myPosts';
   import type { MapBounds } from './lib/mapTileCache';
   import {
     List,
@@ -389,7 +390,7 @@
     }
   }
 
-  async function reloadPosts() {
+  async function reloadPosts(bypassCache = false) {
     try {
       const [postRes, tags] = await Promise.all([
         fetchPosts({
@@ -397,6 +398,7 @@
           tag: selectedTag || undefined,
           status: filterAvailableOnly ? 'available' : undefined,
           q: searchQuery || undefined,
+          bypassCache,
         }),
         fetchVocabularyTags(),
       ]);
@@ -466,7 +468,8 @@
     try {
       const res = await deletePost(postId, authToken);
       if (res.success) {
-        await reloadPosts();
+        removeMyPost(postId);
+        await reloadPosts(true);
       } else {
         alert(res.error || '削除に失敗しました');
       }
@@ -937,7 +940,7 @@
 
       <button
         type="button"
-        onclick={() => reloadPosts()}
+        onclick={() => reloadPosts(true)}
         class="ml-1 cursor-pointer rounded-md p-1 text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
         title={m.btn_refresh()}
       >
@@ -1124,7 +1127,7 @@
       zIndex={modalManager.getZIndex('update_status')}
       onClose={() => handleCloseModal('update_status')}
       onUpdated={() => {
-        reloadPosts();
+        reloadPosts(true);
       }}
     />
   {/if}
@@ -1141,11 +1144,11 @@
       onClose={() => handleCloseModal('create')}
       onCreated={() => {
         pendingCount = getPendingQueueCount();
-        reloadPosts();
+        reloadPosts(true);
       }}
       onUpdated={() => {
         pendingCount = getPendingQueueCount();
-        reloadPosts();
+        reloadPosts(true);
       }}
       onOpenAuth={() => {
         modalManager.open('admin');

@@ -329,33 +329,48 @@ export async function broadcastPushNotification(
   let failed = 0;
   let cleaned = 0;
   const expiredEndpoints: string[] = [];
+  const PUSH_BATCH_SIZE = 25;
 
-  // Concurrently dispatch notifications
-  await Promise.allSettled(
-    targetSubs.map(async (sub) => {
-      const res = await sendPushNotification(
-        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-        payload,
-        vapid
-      );
+  // Process push delivery in chunks to respect Cloudflare Workers subrequest limits (max 50 concurrent)
+  for (let i = 0; i < targetSubs.length; i += PUSH_BATCH_SIZE) {
+    const chunk = targetSubs.slice(i, i + PUSH_BATCH_SIZE);
+    await Promise.allSettled(
+      chunk.map(async (sub) => {
+        const res = await sendPushNotification(
+          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+          payload,
+          vapid
+        );
 
-      if (res.success) {
-        sent++;
-      } else {
-        failed++;
-        // If push endpoint is expired / unsubscribed (404 or 410 Gone)
-        if (res.statusCode === 404 || res.statusCode === 410) {
-          expiredEndpoints.push(sub.endpoint);
+        if (res.success) {
+          sent++;
+        } else {
+          failed++;
+          // If push endpoint is expired / unsubscribed (404 or 410 Gone)
+          if (res.statusCode === 404 || res.statusCode === 410) {
+            expiredEndpoints.push(sub.endpoint);
+          }
         }
-      }
-    })
-  );
+      })
+    );
+  }
 
-  // Clean up expired subscriptions from D1
+  // Clean up expired subscriptions from D1 in batches
   if (expiredEndpoints.length > 0) {
-    for (const ep of expiredEndpoints) {
-      await removePushSubscription(env.DB, ep);
-      cleaned++;
+    for (let i = 0; i < expiredEndpoints.length; i += 50) {
+      const chunk = expiredEndpoints.slice(i, i + 50);
+      try {
+        await env.DB.batch(
+          chunk.map((ep) =>
+            env.DB.prepare(
+              'DELETE FROM push_subscriptions WHERE endpoint = ?'
+            ).bind(ep)
+          )
+        );
+        cleaned += chunk.length;
+      } catch (e) {
+        console.error('Failed to clean expired push subscriptions batch:', e);
+      }
     }
   }
 
@@ -406,33 +421,37 @@ export async function notifyThreadMembers(
 
   let sent = 0;
   let failed = 0;
-  await Promise.allSettled(
-    subs.map(async (sub) => {
-      if (sub.alert_types) {
-        try {
-          const types = JSON.parse(sub.alert_types) as string[];
-          if (Array.isArray(types) && !types.includes('messages')) {
-            return;
+  const PUSH_BATCH_SIZE = 25;
+  for (let i = 0; i < subs.length; i += PUSH_BATCH_SIZE) {
+    const chunk = subs.slice(i, i + PUSH_BATCH_SIZE);
+    await Promise.allSettled(
+      chunk.map(async (sub) => {
+        if (sub.alert_types) {
+          try {
+            const types = JSON.parse(sub.alert_types) as string[];
+            if (Array.isArray(types) && !types.includes('messages')) {
+              return;
+            }
+          } catch {
+            // Default allow
           }
-        } catch {
-          // Default allow
         }
-      }
-      const res = await sendPushNotification(
-        { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
-        payload,
-        vapid
-      );
-      if (res.success) {
-        sent++;
-      } else {
-        failed++;
-        if (res.statusCode === 404 || res.statusCode === 410) {
-          await removePushSubscription(env.DB, sub.endpoint).catch(() => {});
+        const res = await sendPushNotification(
+          { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+          payload,
+          vapid
+        );
+        if (res.success) {
+          sent++;
+        } else {
+          failed++;
+          if (res.statusCode === 404 || res.statusCode === 410) {
+            await removePushSubscription(env.DB, sub.endpoint).catch(() => {});
+          }
         }
-      }
-    })
-  );
+      })
+    );
+  }
 
   return { sent, failed };
 }

@@ -14,6 +14,7 @@ import { threadsRoute } from './routes/threads';
 import { pushRoute } from './routes/push';
 import { mcpRoute } from './routes/mcp';
 import { seoRoute } from './routes/seo';
+import { imagesRoute } from './routes/images';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 import { rateLimiter } from './middleware/rateLimit';
 
@@ -180,6 +181,7 @@ app.route('/api/mcp', mcpRoute);
 app.route('/mcp', mcpRoute);
 app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
+app.route('/api/images', imagesRoute);
 
 // SEO, AI Discovery & SSR Routes
 app.route('/', seoRoute);

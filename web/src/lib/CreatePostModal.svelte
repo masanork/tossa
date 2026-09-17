@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { createPost, updatePost } from './api';
   import { enqueuePost } from './offlineQueue';
+  import { recordMyPost } from './myPosts';
   import { swipeDown } from './swipeToDismiss';
   import { focusTrap } from './focusTrap';
   import type { Post, TagCount, ImageMeta } from './types';
@@ -667,6 +668,9 @@
         );
 
         if (res.success) {
+          if (res.id) {
+            recordMyPost(res.id);
+          }
           onCreated();
           onClose();
         } else {

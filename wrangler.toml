@@ -22,3 +22,8 @@ database_id = "5c2c9eea-b0f2-428c-843f-fbd5e2ecf0d0"
 RP_NAME = "tossa"
 RP_ID = "tossa.sorane.dev"
 EXPECTED_ORIGIN = "https://tossa.sorane.dev"
+
+# Cloudflare R2 Storage (High-Traffic Media & Image Storage)
+[[r2_buckets]]
+binding = "IMAGES_BUCKET"
+bucket_name = "tossa-images"

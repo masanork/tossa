@@ -554,27 +554,33 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     );
     await expect(quickFilterBtn).toBeVisible();
     await quickFilterBtn.click();
+    await page.waitForTimeout(400);
     // Toggle again to return to all
     await quickFilterBtn.click();
+    await page.waitForTimeout(400);
 
     // 5. Test Micro-update comment timeline
-    const commentBtn = postCard.locator(
+    const activePostCard = page.locator(`article:has-text("${testTitle}")`);
+    await expect(activePostCard).toBeVisible();
+
+    const commentBtn = activePostCard.locator(
       'button:has-text("追記する"), button:has-text("Add Update")'
     );
     await expect(commentBtn).toBeVisible();
+    await commentBtn.scrollIntoViewIfNeeded();
     await commentBtn.click();
 
     // Verify micro-update form is visible
-    const commentInput = postCard.locator(
+    const commentInput = activePostCard.locator(
       'input[placeholder*="事実"], input[placeholder*="factual"]'
     );
     await expect(commentInput).toBeVisible();
     await commentInput.fill('現地確認: 水タンク残り20本。順調に配布中。');
-    await postCard.locator('button[type="submit"]').click();
+    await activePostCard.locator('button[type="submit"]').click();
 
     // Verify submitted comment appears in the accordion timeline
     await expect(
-      postCard.locator(
+      activePostCard.locator(
         'span:has-text("現地確認: 水タンク残り20本。順調に配布中。")'
       )
     ).toBeVisible({ timeout: 5000 });
