@@ -20,6 +20,10 @@
     RotateCw,
     MessageSquareLock,
     ExternalLink,
+    CheckCircle,
+    AlertTriangle,
+    XCircle,
+    HelpCircle,
   } from '@lucide/svelte';
 
   interface Props {
@@ -120,15 +124,19 @@
   function getStatusBadgeClass(status: string): string {
     switch (status) {
       case 'available':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300';
+      case 'open':
+        return 'bg-emerald-700 text-white';
       case 'crowded':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300';
+      case 'few':
+      case 'low_stock':
+        return 'bg-amber-700 text-white';
       case 'closed':
-        return 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300';
+      case 'out_of_stock':
+        return 'bg-rose-700 text-white';
       case 'danger':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300';
+        return 'bg-purple-700 text-white';
       default:
-        return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300';
+        return 'bg-slate-700 text-white';
     }
   }
 </script>
@@ -303,14 +311,41 @@
                           {post.title}
                         </span>
                         <span
-                          class={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${getStatusBadgeClass(
+                          class={`inline-flex shrink-0 items-center gap-1 rounded-md border border-white/20 px-2 py-0.5 text-[11px] font-bold ${getStatusBadgeClass(
                             post.current_status
                           )}`}
                         >
-                          {i18n.translateStatus(
-                            post.current_status,
-                            post.status_label
-                          )}
+                          {#if post.current_status === 'available' || post.current_status === 'open'}
+                            <CheckCircle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[○]</span>
+                          {:else if post.current_status === 'crowded' || post.current_status === 'few' || post.current_status === 'low_stock'}
+                            <AlertTriangle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[▲]</span>
+                          {:else if post.current_status === 'closed' || post.current_status === 'danger' || post.current_status === 'out_of_stock'}
+                            <XCircle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[✕]</span>
+                          {:else}
+                            <HelpCircle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[?]</span>
+                          {/if}
+                          <span>
+                            {i18n.translateStatus(
+                              post.current_status,
+                              post.status_label
+                            )}
+                          </span>
                         </span>
                       </div>
                       {#if post.address || post.area}
@@ -455,14 +490,41 @@
                           {post.title}
                         </span>
                         <span
-                          class={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${getStatusBadgeClass(
+                          class={`inline-flex shrink-0 items-center gap-1 rounded-md border border-white/20 px-2 py-0.5 text-[11px] font-bold ${getStatusBadgeClass(
                             post.current_status
                           )}`}
                         >
-                          {i18n.translateStatus(
-                            post.current_status,
-                            post.status_label
-                          )}
+                          {#if post.current_status === 'available' || post.current_status === 'open'}
+                            <CheckCircle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[○]</span>
+                          {:else if post.current_status === 'crowded' || post.current_status === 'few' || post.current_status === 'low_stock'}
+                            <AlertTriangle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[▲]</span>
+                          {:else if post.current_status === 'closed' || post.current_status === 'danger' || post.current_status === 'out_of_stock'}
+                            <XCircle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[✕]</span>
+                          {:else}
+                            <HelpCircle
+                              class="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
+                            <span class="sr-only">[?]</span>
+                          {/if}
+                          <span>
+                            {i18n.translateStatus(
+                              post.current_status,
+                              post.status_label
+                            )}
+                          </span>
                         </span>
                       </div>
                       {#if post.address || post.area}

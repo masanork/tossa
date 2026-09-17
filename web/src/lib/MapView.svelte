@@ -304,36 +304,52 @@
         hasCoords = true;
         bounds.extend([post.lat, post.lng]);
 
-        // Generate pin icon styled by status
-        const pinColor =
+        // Generate pin icon styled by status with CUD (Color Universal Design) symbols
+        let pinColor = '#047857'; // emerald-700
+        let pinSymbol = '✔';
+        let statusTextPrefix = '[○]';
+
+        if (
           post.current_status === 'danger' ||
           post.current_status === 'closed' ||
           post.current_status === 'out_of_stock'
-            ? '#dc2626'
-            : post.current_status === 'crowded' ||
-                post.current_status === 'few' ||
-                post.current_status === 'low_stock'
-              ? '#d97706'
-              : post.current_status === 'unknown'
-                ? '#64748b'
-                : '#2563eb';
+        ) {
+          pinColor = '#be123c'; // rose-700
+          pinSymbol = '✖';
+          statusTextPrefix = '[✕]';
+        } else if (
+          post.current_status === 'crowded' ||
+          post.current_status === 'few' ||
+          post.current_status === 'low_stock'
+        ) {
+          pinColor = '#b45309'; // amber-700
+          pinSymbol = '▲';
+          statusTextPrefix = '[▲]';
+        } else if (post.current_status === 'unknown') {
+          pinColor = '#334155'; // slate-700
+          pinSymbol = '?';
+          statusTextPrefix = '[?]';
+        }
 
         const customIcon = leaflet!.divIcon({
           className: 'custom-map-pin',
           html: `
             <div style="
               background-color: ${pinColor};
-              width: 30px;
-              height: 30px;
+              width: 32px;
+              height: 32px;
               border-radius: 50%;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 15px;
-              box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-              border: 2px solid white;
-            ">
-              📍
+              font-size: 14px;
+              font-weight: 900;
+              color: white;
+              box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+              border: 2.5px solid white;
+              line-height: 1;
+            " role="img" aria-label="${post.status_label || ''}">
+              ${pinSymbol}
             </div>
           `,
           iconSize: [32, 32],
@@ -367,8 +383,8 @@
             <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
               ${post.area}
             </span>
-            <span style="background: #2563eb; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
-              ${post.status_label}
+            <span style="background: ${pinColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.2);">
+              ${statusTextPrefix} ${post.status_label || ''}
             </span>
           </div>
           ${distBadgeHtml}

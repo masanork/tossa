@@ -40,6 +40,7 @@
   const statusOptions = [
     {
       status: 'available',
+      symbol: '○',
       label: '受付中 / 利用可能',
       desc: '現在利用・利用受付が可能です',
       color:
@@ -48,6 +49,7 @@
     },
     {
       status: 'crowded',
+      symbol: '▲',
       label: '混雑中 / 順番待ち',
       desc: '利用可能ですが、待ち時間が発生しています',
       color:
@@ -56,6 +58,7 @@
     },
     {
       status: 'few',
+      symbol: '▲',
       label: '残りわずか',
       desc: '物資や定員が残り少なくなっています',
       color:
@@ -64,6 +67,7 @@
     },
     {
       status: 'closed',
+      symbol: '✕',
       label: '終了 / 休止中',
       desc: '本日の受付終了、または一時休止中です',
       color:
@@ -72,6 +76,7 @@
     },
     {
       status: 'unknown',
+      symbol: '?',
       label: '確認中 / 不明',
       desc: '状況を確認中、または詳細不明です',
       color:
@@ -215,7 +220,7 @@
               >
                 <div class="flex items-center gap-1.5 text-xs">
                   <Icon class="h-4 w-4 shrink-0" />
-                  <span class="font-bold">{opt.label}</span>
+                  <span class="font-bold">[{opt.symbol}] {opt.label}</span>
                 </div>
                 <span
                   class="line-clamp-2 text-[11px] leading-tight text-slate-500 dark:text-slate-400"

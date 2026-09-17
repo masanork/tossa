@@ -16,8 +16,9 @@
    - No rigid or pre-imposed categories. Tags posted by citizens and local staff (such as `#water`, `#shelter`, `#cafe`, `#wifi`) are automatically aggregated and ranked by recency and frequency.
    - Eliminates artificial barriers between daily living and emergency modes, autonomously adapting to shifting local needs.
 
-2. **Photo-Driven Posting with Automated EXIF GPS Pinning**
+2. **Photo-Driven Posting & EXIF GPS Pinning with Manual Micro-Nudge**
    - Uploading on-site photos extracts GPS latitude and longitude directly from EXIF metadata, pinning the exact location to the map automatically.
+   - Expandable map picker (`h-48` to `h-80`), ~10m directional nudge controls, and reverse-geocoded address suggestions for precise pinpointing.
    - Client-side Canvas downscaling (max 1200px / WebP) ensures ultra-fast uploads even over degraded or congested mobile networks.
 
 3. **C2PA Content Authenticity & EXIF Recency Verification**
@@ -28,8 +29,9 @@
    - Leverages WebAuthn PRF (Pseudo-Random Function) extension to derive encryption keys directly from biometric authenticators.
    - Facilitates confidential, zero-knowledge inquiries between shelter managers and citizens that cannot be intercepted even by the server host.
 
-5. **Multi-Language, Speech Synthesis & Web Accessibility (JIS X 8341-3:2016 Level AA / WCAG 2.1/2.2 AA)**
+5. **Multi-Language, Color Universal Design (CUD) & Web Accessibility (JIS X 8341-3:2016 Level AA / WCAG 2.1/2.2 AA)**
    - Conforms with Japan's Digital Society standards (DS-600 series / Web Accessibility Guidelines) and the Digital Agency Design System.
+   - **Color Universal Design (CUD)**: Incorporates explicit symbols (✔/○ Available, ▲ Crowded/Low, ✖/✕ Closed, ? Unknown) and high-contrast borders across all badges and map markers, accommodating color vision deficiency (P/D types) and direct sunlight glare.
    - First-class support for English, standard Japanese, and Plain Japanese ("やさしい日本語", Easy Japanese) for international residents, children, and cognitive accessibility, with dynamic `lang` attribute switching.
    - **Web Speech API Audio Readout**: One-tap text-to-speech voice narration of post titles, locations, statuses, and notes in Japanese and English (for seniors, visually impaired, or listening hands-free while evacuating).
    - **Accessible Font Scaling**: Cycle through Standard (100%), Large (115%), and X-Large (130%) font scale options.
@@ -47,9 +49,10 @@
    - Unified Cloudflare Workers + D1 (SQLite) + Workers Static Assets architecture.
    - Aggressive edge caching withstands extreme traffic spikes during large-scale emergencies at near-zero operating costs.
 
-9. **Progressive Web App (PWA) & Offline Disaster Resilience**
+9. **Progressive Web App (PWA) & Offline Disaster Resilience (Outbox Queue Management)**
    - Built-in Service Worker caches the SPA shell and latest community updates.
    - Offline Outbox automatically queues local posts and status reports when connectivity drops, auto-syncing when signal returns.
+   - In-app queue inspection, individual item discard, and detailed retry error feedback for pending updates.
 
 10. **Mobile-First Multi-Modal Architecture & Native Bottom Sheets**
     - Seamless layered modal management (non-destructive Passkey auth layering while retaining draft post content).

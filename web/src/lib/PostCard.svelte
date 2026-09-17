@@ -24,6 +24,9 @@
     Send,
     Volume2,
     VolumeX,
+    AlertTriangle,
+    XCircle,
+    HelpCircle,
   } from '@lucide/svelte';
   import { i18n, m } from './i18n.svelte';
   import { geolocationManager } from './geolocation.svelte';
@@ -499,9 +502,24 @@
 
     <div class="flex shrink-0 items-center gap-1.5">
       <span
-        class={`rounded-lg px-3 py-1 text-xs font-black tracking-wide shadow-xs ${getStatusBadgeClass(post.current_status)}`}
+        class={`inline-flex items-center gap-1 rounded-lg border border-white/20 px-2.5 py-1 text-xs font-black tracking-wide shadow-xs dark:border-white/20 ${getStatusBadgeClass(post.current_status)}`}
       >
-        {i18n.translateStatus(post.current_status, post.status_label)}
+        {#if post.current_status === 'available' || post.current_status === 'open'}
+          <CheckCircle class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span class="sr-only">[○]</span>
+        {:else if post.current_status === 'crowded' || post.current_status === 'few' || post.current_status === 'low_stock'}
+          <AlertTriangle class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span class="sr-only">[▲]</span>
+        {:else if post.current_status === 'closed' || post.current_status === 'danger' || post.current_status === 'out_of_stock'}
+          <XCircle class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span class="sr-only">[✕]</span>
+        {:else}
+          <HelpCircle class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span class="sr-only">[?]</span>
+        {/if}
+        <span
+          >{i18n.translateStatus(post.current_status, post.status_label)}</span
+        >
       </span>
 
       <button

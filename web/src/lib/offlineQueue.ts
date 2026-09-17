@@ -22,17 +22,26 @@ export interface QueuedStatusUpdate {
   createdAt: string;
 }
 
-type QueuedItem = QueuedPost | QueuedStatusUpdate;
+export type QueuedItem = QueuedPost | QueuedStatusUpdate;
 
 const STORAGE_KEY = 'tossa_offline_outbox';
 
-function getOfflineQueue(): QueuedItem[] {
+export function getOfflineQueue(): QueuedItem[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
+}
+
+export function removeQueuedItem(id: string): void {
+  const queue = getOfflineQueue().filter((item) => item.id !== id);
+  saveOfflineQueue(queue);
+}
+
+export function clearOfflineQueue(): void {
+  saveOfflineQueue([]);
 }
 
 function saveOfflineQueue(queue: QueuedItem[]): void {

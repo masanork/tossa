@@ -42,9 +42,20 @@
     Check,
     Smartphone,
     Navigation,
+    AlertTriangle,
+    Trash2,
+    ChevronDown,
+    ChevronUp,
+    X,
   } from '@lucide/svelte';
   import { m } from './lib/i18n.svelte';
-  import { getPendingQueueCount, flushOfflineQueue } from './lib/offlineQueue';
+  import {
+    getPendingQueueCount,
+    flushOfflineQueue,
+    getOfflineQueue,
+    removeQueuedItem,
+    type QueuedItem,
+  } from './lib/offlineQueue';
   import { modalManager, type ModalName } from './lib/modalManager.svelte';
   import { geolocationManager } from './lib/geolocation.svelte';
   import { calculateDistance } from './lib/geoDistance';
@@ -124,9 +135,24 @@
   );
   let pendingCount = $state(0);
   let offlineNotice = $state<string | null>(null);
+  let offlineError = $state<string | null>(null);
+  let showQueueDetails = $state(false);
+  let queuedItems = $state<QueuedItem[]>([]);
   let isSyncing = $state(false);
   let deferredInstallPrompt = $state<any>(null);
   let showInstallBanner = $state(false);
+
+  function refreshQueue() {
+    pendingCount = getPendingQueueCount();
+    queuedItems = getOfflineQueue();
+  }
+
+  function handleDiscardQueueItem(id: string) {
+    if (confirm(m.offline_discard_confirm())) {
+      removeQueuedItem(id);
+      refreshQueue();
+    }
+  }
 
   // Candidate areas (extracted from posts)
   const availableAreas = $derived(
@@ -180,20 +206,25 @@
   }
 
   async function syncOfflineQueue() {
-    pendingCount = getPendingQueueCount();
+    refreshQueue();
     if (pendingCount === 0 || isSyncing) return;
 
     isSyncing = true;
+    offlineError = null;
     try {
       const res = await flushOfflineQueue(authToken);
-      pendingCount = getPendingQueueCount();
+      refreshQueue();
       if (res.succeeded > 0) {
         offlineNotice = m.offline_sync_success({ count: res.succeeded });
         announcer.announce(offlineNotice);
         setTimeout(() => {
           offlineNotice = null;
-        }, 4000);
+        }, 5000);
         await reloadPosts();
+      }
+      if (res.failed > 0) {
+        offlineError = m.offline_sync_failed({ count: res.failed });
+        announcer.announce(offlineError, 'assertive');
       }
     } finally {
       isSyncing = false;
@@ -208,7 +239,7 @@
 
   function handleOffline() {
     isOnline = false;
-    pendingCount = getPendingQueueCount();
+    refreshQueue();
     announcer.announce('オフラインモードに切り替わりました', 'assertive');
   }
 
@@ -555,36 +586,176 @@
   <!-- Offline status & Sync notification banners -->
   {#if !isOnline}
     <div
-      class="flex items-center justify-center gap-2 bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition"
+      class="flex flex-col border-b border-amber-700 bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs"
     >
-      <WifiOff class="h-4 w-4 shrink-0" />
-      <span>{m.offline_banner()}</span>
-      {#if pendingCount > 0}
-        <span
-          class="shrink-0 rounded-full bg-amber-800 px-2 py-0.5 font-mono text-[11px]"
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <WifiOff class="h-4 w-4 shrink-0" />
+          <span>{m.offline_banner()}</span>
+        </div>
+        {#if pendingCount > 0}
+          <button
+            type="button"
+            onclick={() => (showQueueDetails = !showQueueDetails)}
+            class="flex shrink-0 cursor-pointer items-center gap-1 rounded-full bg-amber-800/80 px-2.5 py-0.5 font-mono text-[11px] transition hover:bg-amber-900"
+          >
+            <span>未送信: {pendingCount}件</span>
+            {#if showQueueDetails}
+              <ChevronUp class="h-3 w-3" />
+            {:else}
+              <ChevronDown class="h-3 w-3" />
+            {/if}
+          </button>
+        {/if}
+      </div>
+
+      {#if showQueueDetails && queuedItems.length > 0}
+        <div
+          class="mt-2 divide-y divide-amber-600/60 rounded-lg bg-amber-700/60 p-2 text-xs text-amber-50"
         >
-          未送信: {pendingCount}件
-        </span>
+          <div class="mb-1 text-[11px] font-bold text-amber-200">
+            {m.offline_queue_details()}
+          </div>
+          {#each queuedItems as item (item.id)}
+            <div class="flex items-center justify-between gap-2 py-1.5">
+              <div class="min-w-0 flex-1">
+                {#if item.type === 'create_post'}
+                  <span
+                    class="mr-1.5 inline-block rounded bg-amber-900/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-200"
+                    >{m.offline_new_post()}</span
+                  >
+                  <span class="truncate font-bold"
+                    >{item.data.title || '（無題）'}</span
+                  >
+                  <span class="ml-1 text-[10px] text-amber-200"
+                    >({item.data.area || ''})</span
+                  >
+                {:else}
+                  <span
+                    class="mr-1.5 inline-block rounded bg-amber-900/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-200"
+                    >{m.offline_status_update()}</span
+                  >
+                  <span class="font-bold">{item.data.statusLabel}</span>
+                {/if}
+              </div>
+              <button
+                type="button"
+                onclick={() => handleDiscardQueueItem(item.id)}
+                class="flex cursor-pointer items-center gap-1 rounded bg-amber-800/80 px-1.5 py-0.5 text-[11px] text-amber-200 hover:bg-amber-900 hover:text-white"
+                title={m.offline_discard_item()}
+              >
+                <Trash2 class="h-3 w-3" />
+                <span>{m.offline_discard_item()}</span>
+              </button>
+            </div>
+          {/each}
+        </div>
       {/if}
     </div>
   {:else if pendingCount > 0}
     <div
-      class="animate-in fade-in flex items-center justify-between gap-2 bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs duration-200"
+      class="animate-in fade-in flex flex-col border-b border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs duration-200"
+    >
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <RotateCw
+            class="h-3.5 w-3.5 shrink-0 {isSyncing ? 'animate-spin' : ''}"
+          />
+          <span>未送信の投稿・更新が {pendingCount} 件あります</span>
+          <button
+            type="button"
+            onclick={() => (showQueueDetails = !showQueueDetails)}
+            class="ml-1 flex cursor-pointer items-center gap-0.5 rounded bg-blue-700 px-2 py-0.5 text-[11px] text-blue-100 hover:bg-blue-800"
+          >
+            <span>内訳</span>
+            {#if showQueueDetails}
+              <ChevronUp class="h-3 w-3" />
+            {:else}
+              <ChevronDown class="h-3 w-3" />
+            {/if}
+          </button>
+        </div>
+        <button
+          type="button"
+          onclick={() => syncOfflineQueue()}
+          disabled={isSyncing}
+          class="cursor-pointer rounded bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-white/30 disabled:opacity-50"
+        >
+          {isSyncing ? '送信中...' : '今すぐ送信'}
+        </button>
+      </div>
+
+      {#if showQueueDetails && queuedItems.length > 0}
+        <div
+          class="mt-2 divide-y divide-blue-500/50 rounded-lg bg-blue-700/60 p-2 text-xs text-blue-50"
+        >
+          <div class="mb-1 text-[11px] font-bold text-blue-200">
+            {m.offline_queue_details()}
+          </div>
+          {#each queuedItems as item (item.id)}
+            <div class="flex items-center justify-between gap-2 py-1.5">
+              <div class="min-w-0 flex-1">
+                {#if item.type === 'create_post'}
+                  <span
+                    class="mr-1.5 inline-block rounded bg-blue-900/80 px-1.5 py-0.5 text-[10px] font-bold text-blue-200"
+                    >{m.offline_new_post()}</span
+                  >
+                  <span class="truncate font-bold"
+                    >{item.data.title || '（無題）'}</span
+                  >
+                  <span class="ml-1 text-[10px] text-blue-200"
+                    >({item.data.area || ''})</span
+                  >
+                {:else}
+                  <span
+                    class="mr-1.5 inline-block rounded bg-blue-900/80 px-1.5 py-0.5 text-[10px] font-bold text-blue-200"
+                    >{m.offline_status_update()}</span
+                  >
+                  <span class="font-bold">{item.data.statusLabel}</span>
+                {/if}
+              </div>
+              <button
+                type="button"
+                onclick={() => handleDiscardQueueItem(item.id)}
+                class="flex cursor-pointer items-center gap-1 rounded bg-blue-800/80 px-1.5 py-0.5 text-[11px] text-blue-200 hover:bg-blue-900 hover:text-white"
+                title={m.offline_discard_item()}
+              >
+                <Trash2 class="h-3 w-3" />
+                <span>{m.offline_discard_item()}</span>
+              </button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {#if offlineError}
+    <div
+      class="animate-in fade-in flex items-center justify-between gap-2 bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-xs duration-200"
     >
       <div class="flex items-center gap-2">
-        <RotateCw
-          class="h-3.5 w-3.5 shrink-0 {isSyncing ? 'animate-spin' : ''}"
-        />
-        <span>未送信の投稿・更新が {pendingCount} 件あります</span>
+        <AlertTriangle class="h-4 w-4 shrink-0" />
+        <span>{offlineError}</span>
       </div>
-      <button
-        type="button"
-        onclick={() => syncOfflineQueue()}
-        disabled={isSyncing}
-        class="cursor-pointer rounded bg-white/20 px-2.5 py-1 text-[11px] font-bold text-white transition hover:bg-white/30 disabled:opacity-50"
-      >
-        {isSyncing ? '送信中...' : '今すぐ送信'}
-      </button>
+      <div class="flex items-center gap-1.5">
+        <button
+          type="button"
+          onclick={() => syncOfflineQueue()}
+          disabled={isSyncing}
+          class="cursor-pointer rounded bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-white/30"
+        >
+          再試行
+        </button>
+        <button
+          type="button"
+          onclick={() => (offlineError = null)}
+          class="cursor-pointer rounded p-0.5 text-white/80 hover:text-white"
+          aria-label="閉じる"
+        >
+          <X class="h-4 w-4" />
+        </button>
+      </div>
     </div>
   {:else if offlineNotice}
     <div

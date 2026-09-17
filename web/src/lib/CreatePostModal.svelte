@@ -24,6 +24,12 @@
     Clock,
     Trash2,
     AlertTriangle,
+    Maximize2,
+    Minimize2,
+    ChevronUp,
+    ChevronDown,
+    ChevronLeft,
+    ChevronRight,
   } from '@lucide/svelte';
   import { m } from './i18n.svelte';
   import { geolocationManager } from './geolocation.svelte';
@@ -66,11 +72,11 @@
   let url = $state('');
 
   const STATUS_PRESETS = [
-    { value: 'available', label: '受付中 / 利用可能' },
-    { value: 'crowded', label: '混雑中 / 順番待ち' },
-    { value: 'few', label: '残りわずか' },
-    { value: 'closed', label: '終了 / 休止中' },
-    { value: 'unknown', label: '確認中 / 不明' },
+    { value: 'available', symbol: '○', label: '受付中 / 利用可能' },
+    { value: 'crowded', symbol: '▲', label: '混雑中 / 順番待ち' },
+    { value: 'few', symbol: '▲', label: '残りわずか' },
+    { value: 'closed', symbol: '✕', label: '終了 / 休止中' },
+    { value: 'unknown', symbol: '?', label: '確認中 / 不明' },
   ];
 
   // Photo, EXIF & C2PA state
@@ -89,6 +95,9 @@
   let lng = $state<number | null>(null);
   let isLocating = $state(false);
   let isGeocoding = $state(false);
+  let isMapExpanded = $state(false);
+  let reverseGeocodedAddress = $state<string | null>(null);
+  let isReverseGeocoding = $state(false);
   let geoStatusMessage = $state<{
     type: 'success' | 'error';
     text: string;
@@ -98,6 +107,60 @@
   let pickerMap: L.Map | null = null;
   let pickerMarker: L.Marker | null = null;
   let leaflet: typeof L | null = null;
+
+  function toggleMapExpand() {
+    isMapExpanded = !isMapExpanded;
+    setTimeout(() => {
+      pickerMap?.invalidateSize();
+    }, 200);
+  }
+
+  function nudgePin(dLat: number, dLng: number) {
+    if (lat === null || lng === null) return;
+    const newLat = lat + dLat;
+    const newLng = lng + dLng;
+    setCoordinates(newLat, newLng);
+    geoStatusMessage = {
+      type: 'success',
+      text: 'ピンの位置を微調整しました（約10m移動）',
+    };
+  }
+
+  async function reverseGeocode(latVal: number, lngVal: number) {
+    isReverseGeocoding = true;
+    try {
+      const res = await fetch(
+        `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${lngVal},${latVal}`
+      );
+      const data = await res.json();
+      if (data && data.length > 0 && data[0].properties?.title) {
+        reverseGeocodedAddress = data[0].properties.title;
+      }
+    } catch {
+      // Fallback
+    } finally {
+      isReverseGeocoding = false;
+    }
+  }
+
+  function applyReverseAddress() {
+    if (!reverseGeocodedAddress) return;
+    if (!address.trim()) {
+      address = reverseGeocodedAddress;
+    }
+    if (!area.trim()) {
+      const match = reverseGeocodedAddress.match(
+        /([^都道府県]+[市区町村][^0-9\s]*)/
+      );
+      if (match && match[1]) {
+        area = match[1];
+      }
+    }
+    geoStatusMessage = {
+      type: 'success',
+      text: '住所・エリア欄に反映しました',
+    };
+  }
 
   // Voluntary vocabulary (tags)
   let selectedTags = $state<string[]>([]);
@@ -402,6 +465,7 @@
           type: 'success',
           text: 'ピンの位置を微調整しました',
         };
+        void reverseGeocode(lat, lng);
       });
     }
 
@@ -410,11 +474,14 @@
     } else {
       pickerMap.panTo([newLat, newLng]);
     }
+
+    void reverseGeocode(lat, lng);
   }
 
   function clearLocation() {
     lat = null;
     lng = null;
+    reverseGeocodedAddress = null;
     if (pickerMarker && pickerMap) {
       pickerMap.removeLayer(pickerMarker);
       pickerMarker = null;
@@ -857,7 +924,7 @@
             class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
           >
             {#each STATUS_PRESETS as opt (opt.value)}
-              <option value={opt.value}>{opt.label}</option>
+              <option value={opt.value}>[{opt.symbol}] {opt.label}</option>
             {/each}
           </select>
         </div>
@@ -1231,12 +1298,12 @@
 
         <!-- Interactive minimap -->
         <div
-          class="relative h-44 w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner dark:border-slate-700 dark:bg-slate-800"
+          class={`relative w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner transition-all duration-200 dark:border-slate-700 dark:bg-slate-800 ${isMapExpanded ? 'h-80' : 'h-48'}`}
         >
           <div bind:this={pickerMapContainer} class="z-0 h-full w-full"></div>
 
           <div
-            class="pointer-events-none absolute top-2 right-2 left-2 z-[400] flex justify-center"
+            class="pointer-events-none absolute top-2 right-12 left-2 z-[400] flex justify-center"
           >
             <div
               class="rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-medium text-white shadow-xs backdrop-blur-xs"
@@ -1244,7 +1311,99 @@
               👆 地図タップでピン配置、ピンのドラッグで位置微調整
             </div>
           </div>
+
+          <!-- Map expand/collapse toggle -->
+          <button
+            type="button"
+            onclick={toggleMapExpand}
+            class="absolute top-2 right-2 z-[400] cursor-pointer rounded-lg bg-white/90 p-1.5 text-slate-700 shadow-md backdrop-blur-xs transition hover:bg-white dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-900"
+            title={isMapExpanded ? '地図を縮小' : '地図を拡大'}
+            aria-label={isMapExpanded ? '地図を縮小' : '地図を拡大'}
+          >
+            {#if isMapExpanded}
+              <Minimize2 class="h-3.5 w-3.5" />
+            {:else}
+              <Maximize2 class="h-3.5 w-3.5" />
+            {/if}
+          </button>
         </div>
+
+        {#if isReverseGeocoding}
+          <div
+            class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400"
+          >
+            <Search class="h-3.5 w-3.5 animate-spin text-blue-500" />
+            <span>周辺住所を取得中...</span>
+          </div>
+        {:else if reverseGeocodedAddress && (!address.trim() || !area.trim())}
+          <div
+            class="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs dark:border-blue-800 dark:bg-blue-950/40"
+          >
+            <span
+              class="truncate text-[11px] font-medium text-blue-900 dark:text-blue-200"
+            >
+              📍 周辺住所: {reverseGeocodedAddress}
+            </span>
+            <button
+              type="button"
+              onclick={applyReverseAddress}
+              class="ml-2 shrink-0 cursor-pointer rounded bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white transition hover:bg-blue-700"
+            >
+              住所に反映
+            </button>
+          </div>
+        {/if}
+
+        {#if lat !== null && lng !== null}
+          <!-- Fine-tuning nudge controls (10m steps) -->
+          <div
+            class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-800/60"
+          >
+            <span
+              class="text-[11px] font-bold text-slate-600 dark:text-slate-400"
+            >
+              位置微調整 (約10m単位)
+            </span>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                onclick={() => nudgePin(0.0001, 0)}
+                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                title="北へ約10m移動"
+                aria-label="北へ約10m移動"
+              >
+                <ChevronUp class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onclick={() => nudgePin(-0.0001, 0)}
+                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                title="南へ約10m移動"
+                aria-label="南へ約10m移動"
+              >
+                <ChevronDown class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onclick={() => nudgePin(0, -0.0001)}
+                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                title="西へ約10m移動"
+                aria-label="西へ約10m移動"
+              >
+                <ChevronLeft class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onclick={() => nudgePin(0, 0.0001)}
+                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                title="東へ約10m移動"
+                aria-label="東へ約10m移動"
+              >
+                <ChevronRight class="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        {/if}
 
         <!-- Numeric coordinate display & clear button -->
         <div
