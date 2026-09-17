@@ -8,6 +8,7 @@ import type {
   Bindings,
   PushNotificationPayload,
   PushSubscriptionRecord,
+  PushQueueMessage,
 } from '../types';
 
 /**
@@ -276,7 +277,12 @@ export async function broadcastPushNotification(
     alertType?: 'emergency' | 'evacuation' | 'status' | 'messages';
     excludeUserId?: string;
   }
-): Promise<{ sent: number; failed: number; cleaned: number }> {
+): Promise<{
+  sent: number;
+  failed: number;
+  cleaned: number;
+  queued?: boolean;
+}> {
   const vapid = await getOrCreateVapidKeys(env);
 
   // Query matching subscriptions
@@ -324,6 +330,33 @@ export async function broadcastPushNotification(
       area: options.area,
     },
   };
+
+  // If Cloudflare Queues is bound (production high-traffic mode), offload delivery
+  // to avoid HTTP request timeouts with 10k+ subscribers!
+  if (env.PUSH_QUEUE) {
+    const queueMessages: MessageSendRequest<PushQueueMessage>[] =
+      targetSubs.map((sub) => ({
+        body: {
+          subscription: {
+            endpoint: sub.endpoint,
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+          },
+          payload,
+        },
+      }));
+
+    for (let i = 0; i < queueMessages.length; i += 100) {
+      await env.PUSH_QUEUE.sendBatch(queueMessages.slice(i, i + 100));
+    }
+
+    return {
+      sent: targetSubs.length,
+      failed: 0,
+      cleaned: 0,
+      queued: true,
+    };
+  }
 
   let sent = 0;
   let failed = 0;
@@ -375,6 +408,58 @@ export async function broadcastPushNotification(
   }
 
   return { sent, failed, cleaned };
+}
+
+/**
+ * Processes a batch of push notification messages from Cloudflare Queues.
+ */
+export async function processPushQueueBatch(
+  batch: MessageBatch<PushQueueMessage>,
+  env: Bindings
+): Promise<void> {
+  const vapid = await getOrCreateVapidKeys(env);
+  const expiredEndpoints: string[] = [];
+
+  await Promise.allSettled(
+    batch.messages.map(async (msg) => {
+      try {
+        const res = await sendPushNotification(
+          msg.body.subscription,
+          msg.body.payload,
+          vapid
+        );
+        if (!res.success) {
+          if (res.statusCode === 404 || res.statusCode === 410) {
+            expiredEndpoints.push(msg.body.subscription.endpoint);
+          }
+        }
+        msg.ack();
+      } catch (err) {
+        console.error('[queue] Failed to deliver push message:', err);
+        msg.retry();
+      }
+    })
+  );
+
+  if (expiredEndpoints.length > 0) {
+    for (let i = 0; i < expiredEndpoints.length; i += 50) {
+      const chunk = expiredEndpoints.slice(i, i + 50);
+      try {
+        await env.DB.batch(
+          chunk.map((ep) =>
+            env.DB.prepare(
+              'DELETE FROM push_subscriptions WHERE endpoint = ?'
+            ).bind(ep)
+          )
+        );
+      } catch (e) {
+        console.error(
+          '[queue] Failed to cleanup expired push subscriptions:',
+          e
+        );
+      }
+    }
+  }
 }
 
 /**

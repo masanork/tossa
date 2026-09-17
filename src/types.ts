@@ -3,6 +3,7 @@
 export interface Bindings {
   DB: D1Database;
   IMAGES_BUCKET?: R2Bucket;
+  PUSH_QUEUE?: Queue<PushQueueMessage>;
   ASSETS?: Fetcher;
   RP_NAME: string;
   RP_ID: string;
@@ -11,6 +12,15 @@ export interface Bindings {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+}
+
+export interface PushQueueMessage {
+  subscription: {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  };
+  payload: PushNotificationPayload;
 }
 
 export type AppMode = 'normal' | 'disaster';

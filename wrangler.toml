@@ -27,3 +27,15 @@ EXPECTED_ORIGIN = "https://tossa.sorane.dev"
 [[r2_buckets]]
 binding = "IMAGES_BUCKET"
 bucket_name = "tossa-images"
+
+# Cloudflare Queues (Asynchronous Web Push & High-Traffic Buffering)
+# Enable on Workers Paid plan to broadcast push notifications asynchronously to 10k+ subscribers without request timeout:
+# [[queues.producers]]
+# binding = "PUSH_QUEUE"
+# queue = "tossa-push-queue"
+
+# [[queues.consumers]]
+# queue = "tossa-push-queue"
+# max_batch_size = 25
+# max_batch_timeout = 5
+

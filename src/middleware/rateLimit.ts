@@ -8,6 +8,7 @@ interface RateLimitConfig {
   maxRequests: number; // Maximum requests allowed within the window
   message?: string;
   skip?: (req: Request) => boolean;
+  keyGenerator?: (c: any) => string;
 }
 
 interface WindowRecord {
@@ -16,20 +17,21 @@ interface WindowRecord {
 }
 
 /**
- * Creates an in-memory sliding rate limiter per client IP.
- * Protects edge workers against rapid-fire spam and DoS attacks.
+ * Creates an in-memory sliding rate limiter per client (Device ID or IP).
+ * Protects edge workers against rapid-fire spam and DoS attacks,
+ * while preventing collateral throttling of users sharing public shelter Wi-Fi (CGNAT).
  */
 export function rateLimiter(config: RateLimitConfig) {
-  const ipWindows = new Map<string, WindowRecord>();
+  const clientWindows = new Map<string, WindowRecord>();
   let lastCleanup = Date.now();
 
   function cleanup() {
     const now = Date.now();
     if (now - lastCleanup < 60_000) return; // Cleanup at most once per minute
     lastCleanup = now;
-    for (const [ip, record] of ipWindows.entries()) {
+    for (const [key, record] of clientWindows.entries()) {
       if (now > record.resetAt) {
-        ipWindows.delete(ip);
+        clientWindows.delete(key);
       }
     }
   }
@@ -42,15 +44,22 @@ export function rateLimiter(config: RateLimitConfig) {
     cleanup();
 
     const now = Date.now();
+    const deviceId = (c as any).get?.('deviceSessionId');
     const ip = getClientIp(c.req.raw);
-    let record = ipWindows.get(ip);
+    const clientKey = config.keyGenerator
+      ? config.keyGenerator(c)
+      : deviceId
+        ? `dev_${deviceId}`
+        : `ip_${ip}`;
+
+    let record = clientWindows.get(clientKey);
 
     if (!record || now > record.resetAt) {
       record = {
         count: 1,
         resetAt: now + config.windowMs,
       };
-      ipWindows.set(ip, record);
+      clientWindows.set(clientKey, record);
     } else {
       record.count += 1;
     }

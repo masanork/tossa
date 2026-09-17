@@ -244,4 +244,78 @@ describe('Web Push HTTP API Routes', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('Cloudflare Queues asynchronous push delivery', () => {
+    it('offloads notifications to PUSH_QUEUE when bound', async () => {
+      const ctx = createTestContext();
+      const sentBatches: any[] = [];
+      const mockQueue: any = {
+        sendBatch: async (messages: any[]) => {
+          sentBatches.push(messages);
+        },
+      };
+
+      const envWithQueue: Bindings = {
+        ...ctx.env,
+        PUSH_QUEUE: mockQueue,
+      };
+
+      // Add 2 mock subscribers in D1
+      await savePushSubscription(ctx.db, {
+        endpoint: 'https://push.example.com/sub1',
+        p256dh: 'mock_p256dh_1',
+        auth: 'mock_auth_1',
+      });
+      await savePushSubscription(ctx.db, {
+        endpoint: 'https://push.example.com/sub2',
+        p256dh: 'mock_p256dh_2',
+        auth: 'mock_auth_2',
+      });
+
+      const { broadcastPushNotification } =
+        await import('../src/services/push');
+      const result = await broadcastPushNotification(envWithQueue, {
+        title: '避難指示発令',
+        body: '直ちに指定避難場所へ避難してください',
+      });
+
+      expect(result.queued).toBe(true);
+      expect(result.sent).toBe(2);
+      expect(sentBatches.length).toBe(1);
+      expect(sentBatches[0].length).toBe(2);
+      expect(sentBatches[0][0].body.payload.title).toBe('避難指示発令');
+    });
+
+    it('processes queue batch with ack in processPushQueueBatch', async () => {
+      const ctx = createTestContext();
+      const { processPushQueueBatch } = await import('../src/services/push');
+      let ackCount = 0;
+
+      const mockBatch: any = {
+        messages: [
+          {
+            body: {
+              subscription: {
+                endpoint: 'https://push.example.com/consumer_sub1',
+                p256dh:
+                  'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DQA',
+                auth: 'tBHItJI5svbpez7KI4CCXg',
+              },
+              payload: {
+                title: 'キュー配信テスト',
+                body: '非同期ワーカーからの配信',
+              },
+            },
+            ack: () => {
+              ackCount++;
+            },
+            retry: () => {},
+          },
+        ],
+      };
+
+      await processPushQueueBatch(mockBatch, ctx.env);
+      expect(ackCount).toBe(1);
+    });
+  });
 });

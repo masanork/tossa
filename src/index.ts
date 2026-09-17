@@ -17,6 +17,7 @@ import { seoRoute } from './routes/seo';
 import { imagesRoute } from './routes/images';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 import { rateLimiter } from './middleware/rateLimit';
+import { processPushQueueBatch } from './services/push';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -127,7 +128,10 @@ app.use(
   })
 );
 
-// 4. Rate Limiting Protection
+// 4. Automatic device cookie issuance (applied to all /api/* routes, before rate limiting)
+app.use('/api/*', deviceCookieMiddleware);
+
+// 5. Rate Limiting Protection (per-device or per-IP to avoid shelter NAT blocking)
 // Micro-updates & post creation rate limits (protect against spam bots)
 app.use(
   '/api/posts',
@@ -149,6 +153,46 @@ app.use(
       'ステータス更新の頻度が高すぎます。しばらく待ってから再試行してください。',
   })
 );
+// Messaging rate limits (protect threads from message flood)
+app.use(
+  '/api/threads',
+  rateLimiter({
+    windowMs: 60_000,
+    maxRequests: 30,
+    skip: (req) => req.method === 'GET',
+    message:
+      'メッセージ送信の頻度が高すぎます。しばらく待ってから再送信してください。',
+  })
+);
+app.use(
+  '/api/threads/*',
+  rateLimiter({
+    windowMs: 60_000,
+    maxRequests: 45,
+    skip: (req) => req.method === 'GET',
+    message:
+      'メッセージ送信の頻度が高すぎます。しばらく待ってから再送信してください。',
+  })
+);
+// Auth rate limits (protect WebAuthn endpoints against brute-force / flood)
+app.use(
+  '/api/auth/*',
+  rateLimiter({
+    windowMs: 60_000,
+    maxRequests: 20,
+    skip: (req) => req.method === 'GET',
+    message: '認証試行回数が多すぎます。1分ほど待ってから再試行してください。',
+  })
+);
+// Federation import rate limit
+app.use(
+  '/api/federation/import',
+  rateLimiter({
+    windowMs: 60_000,
+    maxRequests: 10,
+    message: '外部データ同期の頻度が高すぎます。',
+  })
+);
 // MCP Agent Rate Limiting (up to 120 calls per minute per client)
 app.use(
   '/mcp',
@@ -166,9 +210,6 @@ app.use(
     message: 'MCP API rate limit exceeded (120 requests/minute).',
   })
 );
-
-// Automatic device cookie issuance (applied to all /api/* routes)
-app.use('/api/*', deviceCookieMiddleware);
 
 // API Routes
 app.route('/api/categories', categoriesRoute);
@@ -207,4 +248,12 @@ app.all('*', async (c) => {
   );
 });
 
-export default app;
+// Attach Cloudflare Queues consumer for asynchronous Web Push delivery
+const worker = Object.assign(app, {
+  async queue(batch: MessageBatch<any>, env: Bindings): Promise<void> {
+    await processPushQueueBatch(batch, env);
+  },
+});
+
+export { app };
+export default worker;

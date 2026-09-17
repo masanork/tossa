@@ -567,7 +567,6 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
       'button:has-text("追記する"), button:has-text("Add Update")'
     );
     await expect(commentBtn).toBeVisible();
-    await commentBtn.scrollIntoViewIfNeeded();
     await commentBtn.click();
 
     // Verify micro-update form is visible

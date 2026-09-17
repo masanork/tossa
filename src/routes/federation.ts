@@ -46,7 +46,8 @@ federationRoute.get('/feed.json', async (c) => {
       status: 200,
       headers: {
         'Content-Type': 'application/geo+json; charset=utf-8',
-        'Cache-Control': 'public, max-age=15, stale-while-revalidate=60',
+        'Cache-Control': 'no-cache',
+        'CDN-Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
       },
     }
   );
@@ -76,6 +77,8 @@ federationRoute.get('/export', async (c) => {
       headers: {
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Content-Type': 'application/geo+json; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        'CDN-Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
       },
     }
   );
