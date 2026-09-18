@@ -4,6 +4,7 @@ import type { Bindings } from '../types';
 import { getSystemSettings, updateSystemSetting } from '../db/queries';
 import { verifySessionToken } from '../auth/session';
 import { broadcastPushNotification } from '../services/push';
+import { performDatabaseBackup, listStoredBackups } from '../services/backup';
 
 export const settingsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -56,5 +57,52 @@ settingsRoute.post('/', async (c) => {
     success: true,
     message: 'Settings updated successfully',
     settings: updated,
+  });
+});
+
+// POST /api/settings/backup - Trigger manual D1 backup to R2 (Admin only)
+settingsRoute.post('/backup', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Unauthorized' }, 401);
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  }
+
+  const result = await performDatabaseBackup(c.env);
+  if (!result.success) {
+    return c.json({ success: false, error: result.error }, 500);
+  }
+
+  return c.json({
+    success: true,
+    message: 'Database backup completed successfully',
+    backupKey: result.backupKey,
+    metadata: result.metadata,
+    deletedOldBackups: result.deletedOldBackups,
+  });
+});
+
+// GET /api/settings/backups - List backups stored in R2 (Admin only)
+settingsRoute.get('/backups', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Unauthorized' }, 401);
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  }
+
+  const backups = await listStoredBackups(c.env);
+  return c.json({
+    success: true,
+    backups,
   });
 });

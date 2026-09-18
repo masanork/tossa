@@ -1,6 +1,10 @@
 // web/src/lib/media-processor.ts: EXIF extraction, C2PA verification & image optimization
-import exifr from 'exifr';
 import type { ImageMeta } from './types';
+
+async function getExifr() {
+  const mod = await import('exifr');
+  return (mod as any).default || mod;
+}
 
 export interface ProcessedMedia {
   dataUrl: string;
@@ -28,6 +32,7 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
   let model: string | undefined;
 
   try {
+    const exifr = await getExifr();
     const exifData = await exifr.parse(arrayBuffer, {
       gps: true,
       tiff: true,

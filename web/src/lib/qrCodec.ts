@@ -1,7 +1,14 @@
-// web/src/lib/qrCodec.ts: Offline QR Code Serialization, Rendering & Scanning Engine
-import QRCode from 'qrcode';
-import jsQR from 'jsqr';
 import type { Post } from './types';
+
+async function getQRCode() {
+  const mod = await import('qrcode');
+  return (mod as any).default || mod;
+}
+
+async function getJsQR() {
+  const mod = await import('jsqr');
+  return (mod as any).default || mod;
+}
 
 export interface QrPostPayload {
   _t: 'tossa';
@@ -180,6 +187,7 @@ export async function generateQrSvg(
   text: string,
   options: { margin?: number; width?: number } = {}
 ): Promise<string> {
+  const QRCode = await getQRCode();
   return await QRCode.toString(text, {
     type: 'svg',
     errorCorrectionLevel: 'M',
@@ -195,6 +203,7 @@ export async function generateQrDataUrl(
   text: string,
   options: { margin?: number; width?: number } = {}
 ): Promise<string> {
+  const QRCode = await getQRCode();
   return await QRCode.toDataURL(text, {
     errorCorrectionLevel: 'M',
     margin: options.margin ?? 2,
@@ -235,6 +244,7 @@ export async function decodeQrFromImageData(imageData: {
 
   // 2. Pure JS fallback with jsQR (compatible across all browsers and node/test runners)
   try {
+    const jsQR = await getJsQR();
     const result = jsQR(imageData.data, imageData.width, imageData.height, {
       inversionAttempts: 'dontInvert',
     });

@@ -18,6 +18,8 @@ import { imagesRoute } from './routes/images';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 import { rateLimiter } from './middleware/rateLimit';
 import { processPushQueueBatch } from './services/push';
+import { processWriteQueueBatch } from './services/writeBuffer';
+import { performDatabaseBackup } from './services/backup';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -248,10 +250,26 @@ app.all('*', async (c) => {
   );
 });
 
-// Attach Cloudflare Queues consumer for asynchronous Web Push delivery
+// Attach Cloudflare Queues consumer for asynchronous Web Push & Write Buffer, and Cron scheduled triggers
 const worker = Object.assign(app, {
   async queue(batch: MessageBatch<any>, env: Bindings): Promise<void> {
-    await processPushQueueBatch(batch, env);
+    const firstMsg = batch.messages[0]?.body;
+    if (
+      (batch as any).queue === 'tossa-write-queue' ||
+      firstMsg?.type === 'create_post' ||
+      firstMsg?.type === 'update_status'
+    ) {
+      await processWriteQueueBatch(batch, env);
+    } else {
+      await processPushQueueBatch(batch, env);
+    }
+  },
+  async scheduled(
+    event: ScheduledEvent,
+    env: Bindings,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(performDatabaseBackup(env));
   },
 });
 

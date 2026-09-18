@@ -13,18 +13,8 @@
   import Header from './lib/Header.svelte';
   import VocabularyFilter from './lib/VocabularyFilter.svelte';
   import PostCard from './lib/PostCard.svelte';
-  import MapView from './lib/MapView.svelte';
-  import UpdateStatusModal from './lib/UpdateStatusModal.svelte';
-  import CreatePostModal from './lib/CreatePostModal.svelte';
-  import AdminModal from './lib/AdminModal.svelte';
-  import MessagesModal from './lib/MessagesModal.svelte';
-  import OfflineMapModal from './lib/OfflineMapModal.svelte';
   import WaypointNavHUD from './lib/WaypointNavHUD.svelte';
-  import QrCodeModal from './lib/QrCodeModal.svelte';
-  import QrScannerModal from './lib/QrScannerModal.svelte';
-  import PushModal from './lib/PushModal.svelte';
-  import HelpModal from './lib/HelpModal.svelte';
-  import MyPageModal from './lib/MyPageModal.svelte';
+
   import { decodePostFromQrString } from './lib/qrCodec';
   import {
     getPeerPosts,
@@ -986,13 +976,15 @@
           </button>
         </div>
       {:else}
-        <MapView
-          posts={displayPosts}
-          defaultArea={settings.default_area || ''}
-          {focusWaypointTrigger}
-          onOpenUpdateStatus={handleOpenUpdateStatus}
-          onOpenOfflineMap={handleOpenOfflineMap}
-        />
+        {#await import('./lib/MapView.svelte') then { default: MapView }}
+          <MapView
+            posts={displayPosts}
+            defaultArea={settings.default_area || ''}
+            {focusWaypointTrigger}
+            onOpenUpdateStatus={handleOpenUpdateStatus}
+            onOpenOfflineMap={handleOpenOfflineMap}
+          />
+        {/await}
       {/if}
     {:else}
       <!-- List view -->
@@ -1119,127 +1111,147 @@
     </button>
   </div>
 
-  <!-- Modals (with Stack & Bottom Sheet coordination) -->
+  <!-- Modals (with Stack & Bottom Sheet coordination, Lazy Loaded) -->
   {#if modalManager.isOpen('update_status') && updatingPost}
-    <UpdateStatusModal
-      post={updatingPost}
-      isTop={modalManager.isTop('update_status')}
-      zIndex={modalManager.getZIndex('update_status')}
-      onClose={() => handleCloseModal('update_status')}
-      onUpdated={() => {
-        reloadPosts(true);
-      }}
-    />
+    {#await import('./lib/UpdateStatusModal.svelte') then { default: UpdateStatusModal }}
+      <UpdateStatusModal
+        post={updatingPost}
+        isTop={modalManager.isTop('update_status')}
+        zIndex={modalManager.getZIndex('update_status')}
+        onClose={() => handleCloseModal('update_status')}
+        onUpdated={() => {
+          reloadPosts(true);
+        }}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('create')}
-    <CreatePostModal
-      {vocabularyTags}
-      defaultArea={settings.default_area || ''}
-      {availableAreas}
-      token={authToken}
-      {editingPost}
-      isTop={modalManager.isTop('create')}
-      zIndex={modalManager.getZIndex('create')}
-      onClose={() => handleCloseModal('create')}
-      onCreated={() => {
-        pendingCount = getPendingQueueCount();
-        reloadPosts(true);
-      }}
-      onUpdated={() => {
-        pendingCount = getPendingQueueCount();
-        reloadPosts(true);
-      }}
-      onOpenAuth={() => {
-        modalManager.open('admin');
-      }}
-    />
+    {#await import('./lib/CreatePostModal.svelte') then { default: CreatePostModal }}
+      <CreatePostModal
+        {vocabularyTags}
+        defaultArea={settings.default_area || ''}
+        {availableAreas}
+        token={authToken}
+        {editingPost}
+        isTop={modalManager.isTop('create')}
+        zIndex={modalManager.getZIndex('create')}
+        onClose={() => handleCloseModal('create')}
+        onCreated={() => {
+          pendingCount = getPendingQueueCount();
+          reloadPosts(true);
+        }}
+        onUpdated={() => {
+          pendingCount = getPendingQueueCount();
+          reloadPosts(true);
+        }}
+        onOpenAuth={() => {
+          modalManager.open('admin');
+        }}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('admin')}
-    <AdminModal
-      {settings}
-      user={currentUser}
-      token={authToken}
-      isTop={modalManager.isTop('admin')}
-      zIndex={modalManager.getZIndex('admin')}
-      onClose={() => handleCloseModal('admin')}
-      onAuthSuccess={handleAuthSuccess}
-      onLogout={handleLogout}
-      onSettingsUpdated={handleSettingsUpdated}
-    />
+    {#await import('./lib/AdminModal.svelte') then { default: AdminModal }}
+      <AdminModal
+        {settings}
+        user={currentUser}
+        token={authToken}
+        isTop={modalManager.isTop('admin')}
+        zIndex={modalManager.getZIndex('admin')}
+        onClose={() => handleCloseModal('admin')}
+        onAuthSuccess={handleAuthSuccess}
+        onLogout={handleLogout}
+        onSettingsUpdated={handleSettingsUpdated}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('messages') && currentUser && authToken}
-    <MessagesModal
-      {currentUser}
-      token={authToken}
-      initialPostId={messageContextPost?.id}
-      initialPostTitle={messageContextPost?.title}
-      isTop={modalManager.isTop('messages')}
-      zIndex={modalManager.getZIndex('messages')}
-      onClose={() => handleCloseModal('messages')}
-    />
+    {#await import('./lib/MessagesModal.svelte') then { default: MessagesModal }}
+      <MessagesModal
+        {currentUser}
+        token={authToken}
+        initialPostId={messageContextPost?.id}
+        initialPostTitle={messageContextPost?.title}
+        isTop={modalManager.isTop('messages')}
+        zIndex={modalManager.getZIndex('messages')}
+        onClose={() => handleCloseModal('messages')}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('offline_map')}
-    <OfflineMapModal
-      currentBounds={currentMapBounds}
-      currentZoom={currentMapZoom}
-      postsBounds={postsMapBounds}
-      isTop={modalManager.isTop('offline_map')}
-      zIndex={modalManager.getZIndex('offline_map')}
-      onClose={() => handleCloseModal('offline_map')}
-    />
+    {#await import('./lib/OfflineMapModal.svelte') then { default: OfflineMapModal }}
+      <OfflineMapModal
+        currentBounds={currentMapBounds}
+        currentZoom={currentMapZoom}
+        postsBounds={postsMapBounds}
+        isTop={modalManager.isTop('offline_map')}
+        zIndex={modalManager.getZIndex('offline_map')}
+        onClose={() => handleCloseModal('offline_map')}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('qr_code') && activeQrPost}
-    <QrCodeModal
-      isTop={modalManager.isTop('qr_code')}
-      zIndex={modalManager.getZIndex('qr_code')}
-      post={activeQrPost}
-      onClose={() => handleCloseModal('qr_code')}
-    />
+    {#await import('./lib/QrCodeModal.svelte') then { default: QrCodeModal }}
+      <QrCodeModal
+        isTop={modalManager.isTop('qr_code')}
+        zIndex={modalManager.getZIndex('qr_code')}
+        post={activeQrPost}
+        onClose={() => handleCloseModal('qr_code')}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('qr_scanner')}
-    <QrScannerModal
-      isTop={modalManager.isTop('qr_scanner')}
-      zIndex={modalManager.getZIndex('qr_scanner')}
-      onImportPost={handleImportPost}
-      onClose={() => handleCloseModal('qr_scanner')}
-    />
+    {#await import('./lib/QrScannerModal.svelte') then { default: QrScannerModal }}
+      <QrScannerModal
+        isTop={modalManager.isTop('qr_scanner')}
+        zIndex={modalManager.getZIndex('qr_scanner')}
+        onImportPost={handleImportPost}
+        onClose={() => handleCloseModal('qr_scanner')}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('push')}
-    <PushModal
-      isTop={modalManager.isTop('push')}
-      zIndex={modalManager.getZIndex('push')}
-      {availableAreas}
-      token={authToken}
-      onClose={() => handleCloseModal('push')}
-    />
+    {#await import('./lib/PushModal.svelte') then { default: PushModal }}
+      <PushModal
+        isTop={modalManager.isTop('push')}
+        zIndex={modalManager.getZIndex('push')}
+        {availableAreas}
+        token={authToken}
+        onClose={() => handleCloseModal('push')}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('help')}
-    <HelpModal
-      isTop={modalManager.isTop('help')}
-      zIndex={modalManager.getZIndex('help')}
-      onClose={() => handleCloseModal('help')}
-    />
+    {#await import('./lib/HelpModal.svelte') then { default: HelpModal }}
+      <HelpModal
+        isTop={modalManager.isTop('help')}
+        zIndex={modalManager.getZIndex('help')}
+        onClose={() => handleCloseModal('help')}
+      />
+    {/await}
   {/if}
 
   {#if modalManager.isOpen('mypage')}
-    <MyPageModal
-      isTop={modalManager.isTop('mypage')}
-      zIndex={modalManager.getZIndex('mypage')}
-      {currentUser}
-      onClose={() => handleCloseModal('mypage')}
-      onEditPost={handleEditPost}
-      onDeletePost={handleDeletePost}
-      onOpenQrShare={handleOpenQrShare}
-      onContactPost={handleContactPost}
-    />
+    {#await import('./lib/MyPageModal.svelte') then { default: MyPageModal }}
+      <MyPageModal
+        isTop={modalManager.isTop('mypage')}
+        zIndex={modalManager.getZIndex('mypage')}
+        {currentUser}
+        onClose={() => handleCloseModal('mypage')}
+        onEditPost={handleEditPost}
+        onDeletePost={handleDeletePost}
+        onOpenQrShare={handleOpenQrShare}
+        onContactPost={handleContactPost}
+      />
+    {/await}
   {/if}
 
   <!-- Emergency Evacuation Waypoint HUD -->

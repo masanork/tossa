@@ -4,6 +4,7 @@ export interface Bindings {
   DB: D1Database;
   IMAGES_BUCKET?: R2Bucket;
   PUSH_QUEUE?: Queue<PushQueueMessage>;
+  WRITE_QUEUE?: Queue<WriteQueueMessage>;
   ASSETS?: Fetcher;
   RP_NAME: string;
   RP_ID: string;
@@ -22,6 +23,61 @@ export interface PushQueueMessage {
   };
   payload: PushNotificationPayload;
 }
+
+export type WriteQueueMessage =
+  | {
+      type: 'create_post';
+      post: {
+        id: string;
+        authorId: string | null;
+        authorCookieId: string | null;
+        categoryId?: string;
+        title: string;
+        area: string;
+        address?: string | null;
+        lat?: number | null;
+        lng?: number | null;
+        currentStatus: string;
+        statusLabel: string;
+        note?: string | null;
+        url?: string | null;
+        sourceUrl?: string | null;
+        imageUrl?: string | null;
+        imageMeta?: string;
+        attributes?: string;
+        tags?: string[];
+        isVerified?: boolean;
+        reporterName?: string | null;
+      };
+      accessLog?: {
+        ip?: string;
+        ua?: string;
+        deviceId?: string | null;
+        userId?: string | null;
+      };
+      pushBroadcast?: {
+        title: string;
+        body: string;
+        url: string;
+        area?: string;
+        alertType: 'emergency' | 'evacuation' | 'status' | 'messages';
+      };
+    }
+  | {
+      type: 'update_status';
+      postId: string;
+      status: string;
+      statusLabel: string;
+      note: string | null;
+      ipHash: string;
+      pushBroadcast?: {
+        title: string;
+        body: string;
+        url: string;
+        area?: string;
+        alertType: 'emergency' | 'evacuation' | 'status' | 'messages';
+      };
+    };
 
 export type AppMode = 'normal' | 'disaster';
 export type CategoryScope = 'normal' | 'disaster' | 'both';

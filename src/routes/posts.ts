@@ -16,6 +16,10 @@ import { logAccess, getClientIp } from '../middleware/deviceCookie';
 import { verifySessionToken } from '../auth/session';
 import { broadcastPushNotification } from '../services/push';
 import { persistImageToR2 } from './images';
+import {
+  enqueuePostCreation,
+  enqueueStatusUpdate,
+} from '../services/writeBuffer';
 
 type PostsVariables = { deviceSessionId: string };
 
@@ -195,7 +199,7 @@ postsRoute.post('/', async (c) => {
     postId
   );
 
-  await createPost(c.env.DB, {
+  const postData = {
     id: postId,
     authorId: session?.userId || null,
     authorCookieId: deviceId || null,
@@ -216,20 +220,16 @@ postsRoute.post('/', async (c) => {
     tags: Array.isArray(body.tags) ? body.tags : undefined,
     isVerified: !!session, // Posts made with authenticated Passkey receive verified status
     reporterName: body.reporterName || session?.username || null,
-  });
+  };
 
-  // Access log
   const ip = getClientIp(c.req.raw);
   const ua = c.req.header('User-Agent') || '';
-  await logAccess(
-    c.env.DB,
-    'post_created',
-    deviceId || null,
-    session?.userId || null,
+  const accessLog = {
     ip,
     ua,
-    { postId }
-  );
+    deviceId: deviceId || null,
+    userId: session?.userId || null,
+  };
 
   // Trigger push broadcast for emergency / evacuation posts
   const postTags: string[] = Array.isArray(body.tags) ? body.tags : [];
@@ -240,21 +240,51 @@ postsRoute.post('/', async (c) => {
     body.currentStatus === 'closed' ||
     body.currentStatus === 'danger';
 
-  if (isEmergencyPost) {
-    broadcastPushNotification(c.env, {
-      title: `【防災情報】${body.area} ${body.title}`,
-      body: `${body.statusLabel || body.currentStatus}: ${body.note || '最新情報を確認してください'}`,
-      url: `/?post=${postId}`,
-      area: body.area,
-      alertType: 'evacuation',
-    }).catch((err) => console.error('[push] post broadcast failed:', err));
+  const pushBroadcast = isEmergencyPost
+    ? {
+        title: `【防災情報】${body.area} ${body.title}`,
+        body: `${body.statusLabel || body.currentStatus}: ${body.note || '最新情報を確認してください'}`,
+        url: `/?post=${postId}`,
+        area: body.area,
+        alertType: 'evacuation' as const,
+      }
+    : undefined;
+
+  // Try async write buffer via Cloudflare Queues
+  const enqueued = await enqueuePostCreation(c.env, {
+    type: 'create_post',
+    post: postData,
+    accessLog,
+    pushBroadcast,
+  });
+
+  if (!enqueued) {
+    // Synchronous write fallback (local/dev/testing)
+    await createPost(c.env.DB, postData);
+    await logAccess(
+      c.env.DB,
+      'post_created',
+      deviceId || null,
+      session?.userId || null,
+      ip,
+      ua,
+      { postId }
+    );
+    if (pushBroadcast) {
+      broadcastPushNotification(c.env, pushBroadcast).catch((err) =>
+        console.error('[push] post broadcast failed:', err)
+      );
+    }
   }
 
   return c.json(
     {
       success: true,
       id: postId,
-      message: 'Post created successfully',
+      message: enqueued
+        ? 'Post accepted and queued for writing'
+        : 'Post created successfully',
+      buffered: enqueued,
       hasPasskey: !!session,
     },
     201
@@ -435,26 +465,44 @@ postsRoute.post('/:id/status', async (c) => {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-  await updatePostStatus(c.env.DB, postId, status, statusLabel, note, ipHash);
-
-  // Trigger push broadcast for status change
-  if (
+  const pushBroadcast =
     body.status === 'closed' ||
     body.status === 'danger' ||
     body.status === 'available'
-  ) {
-    broadcastPushNotification(c.env, {
-      title: `【状況更新】${post.area} ${post.title}`,
-      body: `状況: ${body.statusLabel}${body.note ? ' - ' + body.note : ''}`,
-      url: `/?post=${postId}`,
-      area: post.area,
-      alertType: 'status',
-    }).catch((err) => console.error('[push] status broadcast failed:', err));
+      ? {
+          title: `【状況更新】${post.area} ${post.title}`,
+          body: `状況: ${statusLabel}${note ? ' - ' + note : ''}`,
+          url: `/?post=${postId}`,
+          area: post.area,
+          alertType: 'status' as const,
+        }
+      : undefined;
+
+  const enqueued = await enqueueStatusUpdate(c.env, {
+    type: 'update_status',
+    postId,
+    status,
+    statusLabel,
+    note,
+    ipHash,
+    pushBroadcast,
+  });
+
+  if (!enqueued) {
+    await updatePostStatus(c.env.DB, postId, status, statusLabel, note, ipHash);
+    if (pushBroadcast) {
+      broadcastPushNotification(c.env, pushBroadcast).catch((err) =>
+        console.error('[push] status broadcast failed:', err)
+      );
+    }
   }
 
   return c.json({
     success: true,
-    message: 'Status updated successfully',
+    message: enqueued
+      ? 'Status update accepted and queued for writing'
+      : 'Status updated successfully',
+    buffered: enqueued,
   });
 });
 

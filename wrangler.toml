@@ -39,3 +39,19 @@ bucket_name = "tossa-images"
 # max_batch_size = 25
 # max_batch_timeout = 5
 
+# Cloudflare Queues (Write Buffer / Smoothing for High-Traffic Spikes)
+# Enable to absorb thousands of concurrent posts during disasters without D1 write timeouts:
+# [[queues.producers]]
+# binding = "WRITE_QUEUE"
+# queue = "tossa-write-queue"
+
+# [[queues.consumers]]
+# queue = "tossa-write-queue"
+# max_batch_size = 50
+# max_batch_timeout = 5
+
+# Cron Triggers (Automated Daily D1 Database Backup & R2 Archival)
+[triggers]
+crons = ["0 3 * * *"] # Daily at 12:00 JST (03:00 UTC)
+
+
