@@ -146,3 +146,24 @@ export interface DecryptedMessage {
   created_at: string;
   isMine: boolean;
 }
+
+export interface BackupRecord {
+  key: string;
+  size: number;
+  uploaded?: string;
+  totalRecords?: number;
+}
+
+export interface BackupResult {
+  success: boolean;
+  message?: string;
+  backupKey?: string;
+  metadata?: {
+    version: number;
+    timestamp: string;
+    totalRecords: number;
+    tableCounts: Record<string, number>;
+  };
+  deletedOldBackups?: string[];
+  error?: string;
+}

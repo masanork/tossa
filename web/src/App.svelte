@@ -295,7 +295,46 @@
     // 5. Deep link check for /posts/:id
     await checkPathnameForPostDeepLink();
     window.addEventListener('popstate', checkPathnameForPostDeepLink);
+
+    // 6. Idle background prefetch for disaster offline resilience
+    scheduleIdlePrefetch();
   });
+
+  /**
+   * Warm up heavy dynamic chunks (MapView, QrScanner, CreatePost, etc.) during idle periods
+   * so the Service Worker caches them for offline resilience without delaying initial render.
+   */
+  function scheduleIdlePrefetch() {
+    if (typeof window === 'undefined') return;
+
+    // Respect user's Data Saver preference
+    const conn = (navigator as any).connection;
+    if (conn && conn.saveData) {
+      return;
+    }
+
+    const prefetch = async () => {
+      try {
+        await Promise.allSettled([
+          import('./lib/MapView.svelte'),
+          import('./lib/QrScannerModal.svelte'),
+          import('./lib/CreatePostModal.svelte'),
+          import('./lib/QrCodeModal.svelte'),
+          import('./lib/HelpModal.svelte'),
+        ]);
+      } catch {
+        // Silently ignore prefetch network drops
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(() => {
+        setTimeout(prefetch, 2500);
+      });
+    } else {
+      setTimeout(prefetch, 4000);
+    }
+  }
 
   onDestroy(() => {
     if (typeof window !== 'undefined') {

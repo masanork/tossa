@@ -14,6 +14,8 @@ import type {
   ThreadMember,
   EncryptedMessage,
   ThreadType,
+  BackupRecord,
+  BackupResult,
 } from './types';
 import {
   deriveKeyFromPrfSeed,
@@ -839,6 +841,41 @@ export async function broadcastPushApi(
     return {
       success: false,
       error: err.message || 'Failed to broadcast push',
+    };
+  }
+}
+
+export async function triggerBackupApi(token: string): Promise<BackupResult> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/backup`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to trigger database backup',
+    };
+  }
+}
+
+export async function fetchBackupsApi(
+  token: string
+): Promise<{ success: boolean; backups?: BackupRecord[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/backups`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to fetch database backups',
     };
   }
 }
