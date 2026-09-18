@@ -21,7 +21,7 @@
     savePeerPost,
     mergePostsWithPeer,
   } from './lib/peerPosts';
-  import { removeMyPost } from './lib/myPosts';
+  import { removeMyPost, isMyPost } from './lib/myPosts';
   import type { MapBounds } from './lib/mapTileCache';
   import {
     List,
@@ -433,7 +433,21 @@
       ]);
       const serverPosts = postRes.posts || [];
       const peerPosts = getPeerPosts();
-      posts = mergePostsWithPeer(serverPosts, peerPosts);
+      let merged = mergePostsWithPeer(serverPosts, peerPosts);
+
+      // Preserve recently authored local posts that may still be in Write Queue buffer or edge cache
+      const recentMyPosts = posts.filter((p) => {
+        if (!isMyPost(p.id)) return false;
+        const postTime = new Date(p.created_at).getTime();
+        const age = isNaN(postTime) ? 0 : Date.now() - postTime;
+        return age < 30_000 && !merged.some((m) => m.id === p.id);
+      });
+
+      if (recentMyPosts.length > 0) {
+        merged = [...recentMyPosts, ...merged];
+      }
+
+      posts = merged;
       totalPosts = posts.length;
       vocabularyTags = tags;
     } catch (err) {
@@ -1158,7 +1172,22 @@
         isTop={modalManager.isTop('update_status')}
         zIndex={modalManager.getZIndex('update_status')}
         onClose={() => handleCloseModal('update_status')}
-        onUpdated={() => {
+        onUpdated={(update) => {
+          if (update && updatingPost) {
+            posts = posts.map((p) => {
+              if (p.id === updatingPost?.id) {
+                return {
+                  ...p,
+                  current_status: update.status,
+                  status_label: update.statusLabel,
+                  note: update.note !== undefined ? update.note : p.note,
+                  latest_update_note:
+                    update.note || (p as any).latest_update_note,
+                };
+              }
+              return p;
+            });
+          }
           reloadPosts(true);
         }}
       />
@@ -1176,8 +1205,12 @@
         isTop={modalManager.isTop('create')}
         zIndex={modalManager.getZIndex('create')}
         onClose={() => handleCloseModal('create')}
-        onCreated={() => {
+        onCreated={(newPost) => {
           pendingCount = getPendingQueueCount();
+          if (newPost) {
+            posts = [newPost, ...posts.filter((p) => p.id !== newPost.id)];
+            totalPosts = posts.length;
+          }
           reloadPosts(true);
         }}
         onUpdated={() => {

@@ -12,7 +12,7 @@ export async function enqueuePostCreation(
   env: Bindings,
   message: Extract<WriteQueueMessage, { type: 'create_post' }>
 ): Promise<boolean> {
-  if (!env.WRITE_QUEUE) {
+  if (!env.WRITE_QUEUE || env.DISABLE_WRITE_BUFFER === 'true') {
     return false;
   }
 
@@ -36,7 +36,7 @@ export async function enqueueStatusUpdate(
   env: Bindings,
   message: Extract<WriteQueueMessage, { type: 'update_status' }>
 ): Promise<boolean> {
-  if (!env.WRITE_QUEUE) {
+  if (!env.WRITE_QUEUE || env.DISABLE_WRITE_BUFFER === 'true') {
     return false;
   }
 

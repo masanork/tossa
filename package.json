@@ -20,7 +20,8 @@
     "lint:fix": "eslint . --fix",
     "knip": "knip",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "tail": "wrangler tail tossa"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",

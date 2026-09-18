@@ -47,6 +47,39 @@ describe('Write Buffer & High-Traffic Smoothing Queue', () => {
     expect(queued.post.area).toBe('熊本市中央区');
   });
 
+  it('falls back to synchronous D1 write when DISABLE_WRITE_BUFFER is true even if WRITE_QUEUE is bound', async () => {
+    const { request, db, env } = createTestContext();
+    const mockQueue = createMockQueue();
+    env.WRITE_QUEUE = mockQueue;
+    env.DISABLE_WRITE_BUFFER = 'true';
+
+    const res = await request('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: 'テスト避難所（同期）',
+        area: '熊本市中央区',
+        currentStatus: 'available',
+        statusLabel: '給水中',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as any;
+    expect(body.success).toBe(true);
+    expect(body.buffered).toBe(false);
+    expect(mockQueue.send).not.toHaveBeenCalled();
+
+    // Verify it was directly written to D1
+    const { results } = await db
+      .prepare('SELECT * FROM posts WHERE title = ?')
+      .bind('テスト避難所（同期）')
+      .all();
+    expect(results.length).toBe(1);
+  });
+
   it('falls back to synchronous D1 write when WRITE_QUEUE is not bound', async () => {
     const { request, db, env } = createTestContext();
     env.WRITE_QUEUE = undefined; // No queue

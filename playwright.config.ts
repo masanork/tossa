@@ -21,9 +21,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:web && npx wrangler dev --port 8787',
+    command:
+      'npm run build:web && npx wrangler dev --port 8787 --var DISABLE_WRITE_BUFFER:true',
     url: 'http://localhost:8787',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 30000,
   },
 });

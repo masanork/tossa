@@ -20,8 +20,40 @@ import { rateLimiter } from './middleware/rateLimit';
 import { processPushQueueBatch } from './services/push';
 import { processWriteQueueBatch } from './services/writeBuffer';
 import { performDatabaseBackup } from './services/backup';
+import { sendErrorAlert } from './services/alert';
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+// Global Error Handler & Webhook Alerting
+export async function handleGlobalError(err: Error, c: any) {
+  console.error('[Unhandled Error]', err);
+
+  if (c.env?.ALERT_WEBHOOK_URL && c.executionCtx?.waitUntil) {
+    c.executionCtx.waitUntil(
+      sendErrorAlert(c.env, err, {
+        source: 'http',
+        method: c.req.method,
+        url: c.req.url,
+        ip:
+          c.req.header('cf-connecting-ip') ||
+          c.req.header('x-forwarded-for') ||
+          undefined,
+        userAgent: c.req.header('user-agent') || undefined,
+      })
+    );
+  }
+
+  return c.json(
+    {
+      success: false,
+      error: 'Internal Server Error',
+      message: 'システム内部で予期せぬエラーが発生しました。',
+    },
+    500
+  );
+}
+
+app.onError(handleGlobalError);
 
 // 1. HTTP Security Headers (CSP, HSTS, X-Content-Type-Options, Frame protection)
 app.use(
@@ -253,15 +285,26 @@ app.all('*', async (c) => {
 // Attach Cloudflare Queues consumer for asynchronous Web Push & Write Buffer, and Cron scheduled triggers
 const worker = Object.assign(app, {
   async queue(batch: MessageBatch<any>, env: Bindings): Promise<void> {
-    const firstMsg = batch.messages[0]?.body;
-    if (
-      (batch as any).queue === 'tossa-write-queue' ||
-      firstMsg?.type === 'create_post' ||
-      firstMsg?.type === 'update_status'
-    ) {
-      await processWriteQueueBatch(batch, env);
-    } else {
-      await processPushQueueBatch(batch, env);
+    try {
+      const firstMsg = batch.messages[0]?.body;
+      if (
+        (batch as any).queue === 'tossa-write-queue' ||
+        firstMsg?.type === 'create_post' ||
+        firstMsg?.type === 'update_status'
+      ) {
+        await processWriteQueueBatch(batch, env);
+      } else {
+        await processPushQueueBatch(batch, env);
+      }
+    } catch (queueErr) {
+      console.error('[Worker Queue Error]', queueErr);
+      if (env?.ALERT_WEBHOOK_URL) {
+        await sendErrorAlert(env, queueErr, {
+          source: (batch as any).queue || 'queues',
+          additionalInfo: { messageCount: batch.messages?.length },
+        });
+      }
+      throw queueErr;
     }
   },
   async scheduled(
@@ -269,7 +312,28 @@ const worker = Object.assign(app, {
     env: Bindings,
     ctx: ExecutionContext
   ): Promise<void> {
-    ctx.waitUntil(performDatabaseBackup(env));
+    ctx.waitUntil(
+      performDatabaseBackup(env)
+        .then(async (result) => {
+          if (!result.success && env?.ALERT_WEBHOOK_URL) {
+            await sendErrorAlert(
+              env,
+              new Error(result.error || 'Scheduled D1 backup failed'),
+              {
+                source: 'scheduled_backup',
+              }
+            );
+          }
+        })
+        .catch(async (backupErr) => {
+          console.error('[Worker Scheduled Backup Error]', backupErr);
+          if (env?.ALERT_WEBHOOK_URL) {
+            await sendErrorAlert(env, backupErr, {
+              source: 'scheduled_backup',
+            });
+          }
+        })
+    );
   },
 });
 

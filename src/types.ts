@@ -13,6 +13,8 @@ export interface Bindings {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  ALERT_WEBHOOK_URL?: string;
+  DISABLE_WRITE_BUFFER?: string;
 }
 
 export interface PushQueueMessage {

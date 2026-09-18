@@ -44,7 +44,7 @@
     isTop?: boolean;
     zIndex?: number;
     onClose: () => void;
-    onCreated: () => void;
+    onCreated: (newPost?: Post) => void;
     onUpdated?: () => void;
     onOpenAuth?: () => void;
   }
@@ -668,10 +668,36 @@
         );
 
         if (res.success) {
-          if (res.id) {
-            recordMyPost(res.id);
-          }
-          onCreated();
+          const assignedId = res.id || `post_${Date.now()}`;
+          recordMyPost(assignedId);
+
+          const newPostObj: Post = {
+            id: assignedId,
+            category_id: 'general',
+            title: title.trim(),
+            area: area.trim(),
+            address: address.trim() || null,
+            lat: lat !== null ? lat : null,
+            lng: lng !== null ? lng : null,
+            current_status: currentStatus,
+            status_label: statusLabel,
+            note: note.trim() || null,
+            url: url.trim() || null,
+            source_url: sourceUrl.trim() || null,
+            image_url: imagePreviewUrl || null,
+            image_meta: imageMeta ? JSON.stringify(imageMeta) : '{}',
+            attributes: JSON.stringify(attributes),
+            tags: JSON.stringify(selectedTags),
+            verification_count: 0,
+            last_verified_at: null,
+            is_verified: token ? 1 : 0,
+            reporter_name: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_owner: true,
+          };
+
+          onCreated(newPostObj);
           onClose();
         } else {
           errorMessage = res.error || '作成に失敗しました';

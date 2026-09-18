@@ -12,7 +12,11 @@
     isTop?: boolean;
     zIndex?: number;
     onClose: () => void;
-    onUpdated: () => void;
+    onUpdated: (update?: {
+      status: string;
+      statusLabel: string;
+      note?: string;
+    }) => void;
   }
 
   const {
@@ -99,13 +103,16 @@
 
     try {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        enqueueStatusUpdate({
-          postId: post.id,
+        const payload = {
           status: selectedStatus,
           statusLabel: selectedLabel,
           note: note.trim() || undefined,
+        };
+        enqueueStatusUpdate({
+          postId: post.id,
+          ...payload,
         });
-        onUpdated();
+        onUpdated(payload);
         onClose();
         return;
       }
@@ -117,20 +124,27 @@
         note
       );
       if (res.success) {
-        onUpdated();
+        onUpdated({
+          status: selectedStatus,
+          statusLabel: selectedLabel,
+          note: note.trim() || undefined,
+        });
         onClose();
       } else {
         errorMessage = res.error || '更新に失敗しました';
       }
     } catch {
       // Offline fallback: save to local outbox
-      enqueueStatusUpdate({
-        postId: post.id,
+      const payload = {
         status: selectedStatus,
         statusLabel: selectedLabel,
         note: note.trim() || undefined,
+      };
+      enqueueStatusUpdate({
+        postId: post.id,
+        ...payload,
       });
-      onUpdated();
+      onUpdated(payload);
       onClose();
     } finally {
       isSubmitting = false;
