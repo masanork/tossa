@@ -45,15 +45,17 @@ export async function createRegOptions(
 export async function verifyRegResponse(
   env: Bindings,
   user: User,
-  response: RegistrationResponseJSON
+  response: RegistrationResponseJSON,
+  expectedChallenge?: string
 ) {
-  if (!user.current_challenge) {
+  const challenge = expectedChallenge || user.current_challenge;
+  if (!challenge) {
     throw new Error('No pending registration challenge found');
   }
 
   const verification = await verifyRegistrationResponse({
     response,
-    expectedChallenge: user.current_challenge,
+    expectedChallenge: challenge,
     expectedOrigin: env.EXPECTED_ORIGIN,
     expectedRPID: env.RP_ID,
     requireUserVerification: false,
@@ -132,9 +134,11 @@ export async function createAuthOptions(env: Bindings, user?: User) {
 export async function verifyAuthResponse(
   env: Bindings,
   user: User,
-  response: AuthenticationResponseJSON
+  response: AuthenticationResponseJSON,
+  expectedChallenge?: string
 ) {
-  if (!user.current_challenge) {
+  const challenge = expectedChallenge || user.current_challenge;
+  if (!challenge) {
     throw new Error('No pending authentication challenge found');
   }
 
@@ -151,7 +155,7 @@ export async function verifyAuthResponse(
 
   const verification = await verifyAuthenticationResponse({
     response,
-    expectedChallenge: user.current_challenge,
+    expectedChallenge: challenge,
     expectedOrigin: env.EXPECTED_ORIGIN,
     expectedRPID: env.RP_ID,
     credential: {

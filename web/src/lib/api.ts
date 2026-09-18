@@ -254,6 +254,7 @@ export async function registerPasskey(
   const optRes = await fetch(`${API_BASE}/auth/register-options`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify({ username, displayName }),
   });
   const optData = await optRes.json();
@@ -300,6 +301,7 @@ export async function registerPasskey(
   const verifyRes = await fetch(`${API_BASE}/auth/verify-registration`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify({ username, response: attestationResponse }),
   });
   const verifyData = await verifyRes.json();
@@ -329,6 +331,7 @@ export async function loginPasskey(username?: string): Promise<{
   const optRes = await fetch(`${API_BASE}/auth/login-options`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify({ username }),
   });
   const optData = await optRes.json();
@@ -373,6 +376,7 @@ export async function loginPasskey(username?: string): Promise<{
   const verifyRes = await fetch(`${API_BASE}/auth/verify-authentication`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify({ username, response: assertionResponse }),
   });
   const verifyData = await verifyRes.json();

@@ -1,5 +1,6 @@
 // src/routes/auth.ts: WebAuthn Passkey Authentication Routes
 import { Hono } from 'hono';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { Bindings, User } from '../types';
 import {
   createRegOptions,
@@ -24,6 +25,14 @@ import {
   createApiToken,
 } from '../auth/session';
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
+
+const CHALLENGE_COOKIE_OPTIONS = {
+  path: '/api/auth',
+  httpOnly: true,
+  secure: true,
+  sameSite: 'Lax' as const,
+  maxAge: 300, // 5 minutes
+};
 
 type AuthVariables = { deviceSessionId: string };
 export const authRoute = new Hono<{
@@ -83,6 +92,8 @@ authRoute.post('/register-options', async (c) => {
   const existingCreds = await getUserCredentials(c.env.DB, user.id);
   const options = await createRegOptions(c.env, user, existingCreds);
 
+  setCookie(c, 'tossa_reg_challenge', options.challenge, CHALLENGE_COOKIE_OPTIONS);
+
   return c.json({
     success: true,
     options,
@@ -105,8 +116,16 @@ authRoute.post('/verify-registration', async (c) => {
     return c.json({ success: false, error: 'User not found' }, 404);
   }
 
+  const cookieChallenge = getCookie(c, 'tossa_reg_challenge');
+
   try {
-    const verification = await verifyRegResponse(c.env, user, body.response);
+    const verification = await verifyRegResponse(
+      c.env,
+      user,
+      body.response,
+      cookieChallenge
+    );
+    deleteCookie(c, 'tossa_reg_challenge', { path: '/api/auth' });
 
     // Issue session token upon successful registration
     const token = await createSessionToken(
@@ -171,6 +190,8 @@ authRoute.post('/login-options', async (c) => {
 
   const options = await createAuthOptions(c.env, user || undefined);
 
+  setCookie(c, 'tossa_auth_challenge', options.challenge, CHALLENGE_COOKIE_OPTIONS);
+
   return c.json({ success: true, options });
 });
 
@@ -207,8 +228,16 @@ authRoute.post('/verify-authentication', async (c) => {
     );
   }
 
+  const cookieChallenge = getCookie(c, 'tossa_auth_challenge');
+
   try {
-    const verification = await verifyAuthResponse(c.env, user, body.response);
+    const verification = await verifyAuthResponse(
+      c.env,
+      user,
+      body.response,
+      cookieChallenge
+    );
+    deleteCookie(c, 'tossa_auth_challenge', { path: '/api/auth' });
 
     const token = await createSessionToken(
       { userId: user.id, username: user.username, role: user.role },
