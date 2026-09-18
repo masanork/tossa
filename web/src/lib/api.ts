@@ -21,7 +21,6 @@ import {
   deriveKeyFromPrfSeed,
   getOrCreateFallbackIdentityKey,
   PRF_SALT,
-  bufferToBase64,
   base64ToBuffer,
 } from './e2ee';
 
@@ -275,12 +274,26 @@ export async function registerPasskey(
         prf: {},
       },
     };
-    attestationResponse = await startRegistration({ optionsJSON: regOptions });
+    attestationResponse = await startRegistration({ optionsJSON: regOptions as any });
   } catch (err: any) {
-    return {
-      success: false,
-      error: err.message || 'Passkey registration cancelled',
-    };
+    if (
+      err.name === 'NotAllowedError' &&
+      (err.message?.includes('cancel') || err.message?.includes('abort'))
+    ) {
+      return {
+        success: false,
+        error: err.message || 'Passkey registration cancelled',
+      };
+    }
+    console.warn('Registration with PRF extension failed, retrying without PRF:', err);
+    try {
+      attestationResponse = await startRegistration({ optionsJSON: optData.options });
+    } catch (retryErr: any) {
+      return {
+        success: false,
+        error: retryErr.message || 'Passkey registration cancelled',
+      };
+    }
   }
 
   // 3. Verify attestation response on server
@@ -329,24 +342,31 @@ export async function loginPasskey(username?: string): Promise<{
   // 2. Launch browser Passkey prompt (eval PRF Extension to obtain biometric key seed)
   let assertionResponse;
   try {
-    const prfSaltBase64 = bufferToBase64(PRF_SALT)
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
     const authOptions = {
       ...optData.options,
       extensions: {
         ...optData.options?.extensions,
         prf: {
           eval: {
-            first: prfSaltBase64,
+            first: PRF_SALT,
           },
         },
       },
     };
-    assertionResponse = await startAuthentication({ optionsJSON: authOptions });
+    assertionResponse = await startAuthentication({ optionsJSON: authOptions as any });
   } catch (err: any) {
-    return { success: false, error: err.message || 'Passkey login cancelled' };
+    if (
+      err.name === 'NotAllowedError' &&
+      (err.message?.includes('cancel') || err.message?.includes('abort'))
+    ) {
+      return { success: false, error: err.message || 'Passkey login cancelled' };
+    }
+    console.warn('Authentication with PRF extension failed, retrying without PRF:', err);
+    try {
+      assertionResponse = await startAuthentication({ optionsJSON: optData.options });
+    } catch (retryErr: any) {
+      return { success: false, error: retryErr.message || 'Passkey login cancelled' };
+    }
   }
 
   // 3. Verify assertion response on server
