@@ -29,26 +29,24 @@ binding = "IMAGES_BUCKET"
 bucket_name = "tossa-images"
 
 # Cloudflare Queues (Asynchronous Web Push & High-Traffic Buffering)
-# Enable on Workers Paid plan to broadcast push notifications asynchronously to 10k+ subscribers without request timeout:
-# [[queues.producers]]
-# binding = "PUSH_QUEUE"
-# queue = "tossa-push-queue"
+[[queues.producers]]
+binding = "PUSH_QUEUE"
+queue = "tossa-push-queue"
 
-# [[queues.consumers]]
-# queue = "tossa-push-queue"
-# max_batch_size = 25
-# max_batch_timeout = 5
+[[queues.consumers]]
+queue = "tossa-push-queue"
+max_batch_size = 25
+max_batch_timeout = 5
 
 # Cloudflare Queues (Write Buffer / Smoothing for High-Traffic Spikes)
-# Enable to absorb thousands of concurrent posts during disasters without D1 write timeouts:
-# [[queues.producers]]
-# binding = "WRITE_QUEUE"
-# queue = "tossa-write-queue"
+[[queues.producers]]
+binding = "WRITE_QUEUE"
+queue = "tossa-write-queue"
 
-# [[queues.consumers]]
-# queue = "tossa-write-queue"
-# max_batch_size = 50
-# max_batch_timeout = 5
+[[queues.consumers]]
+queue = "tossa-write-queue"
+max_batch_size = 50
+max_batch_timeout = 5
 
 # Cron Triggers (Automated Daily D1 Database Backup & R2 Archival)
 [triggers]
