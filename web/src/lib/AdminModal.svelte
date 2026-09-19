@@ -43,6 +43,8 @@
     Copy,
     Database,
     FileText,
+    Maximize2,
+    Minimize2,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
@@ -81,6 +83,9 @@
 
   // First-time setup state
   let isFirstUserSetup = $state(false);
+
+  // Fullscreen / wide modal state
+  let isFullscreen = $state(false);
 
   // Admin tabs
   let activeTab = $state<
@@ -576,9 +581,9 @@
   onclick={(e) => {
     if (e.target === e.currentTarget && isTop) onClose();
   }}
-  class="fixed inset-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs transition-opacity duration-200 sm:items-center sm:p-4 {isTop
-    ? 'opacity-100'
-    : 'opacity-80'}"
+  class="fixed inset-0 flex items-end justify-center bg-black/60 p-0 backdrop-blur-xs transition-all duration-200 {isFullscreen
+    ? 'sm:p-2 md:p-3'
+    : 'sm:items-center sm:p-4 md:p-6'} {isTop ? 'opacity-100' : 'opacity-80'}"
 >
   <div
     role="dialog"
@@ -586,9 +591,13 @@
     aria-labelledby="admin-modal-title"
     use:focusTrap={{ onEscape: onClose }}
     use:swipeDown={onClose}
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {isTop
-      ? 'scale-100 opacity-100'
-      : 'pointer-events-none scale-[0.97] opacity-85'}"
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {
+      !user
+        ? 'w-full max-w-xl max-h-[94vh] sm:max-h-[90vh]'
+        : isFullscreen
+          ? 'w-full h-full max-w-none rounded-t-2xl sm:rounded-2xl'
+          : 'w-full max-w-5xl xl:max-w-6xl h-[96vh] sm:h-[90vh]'
+    } {isTop ? 'scale-100 opacity-100' : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
@@ -597,7 +606,7 @@
 
     <!-- Header -->
     <div
-      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/80"
+      class="flex shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-800/80"
     >
       <div class="flex items-center gap-2">
         <KeyRound class="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -605,17 +614,44 @@
           id="admin-modal-title"
           class="text-base font-black text-slate-900 dark:text-white"
         >
-          Passkey 認証・設定
+          {user ? (user.role === 'admin' ? 'システム管理ダッシュボード' : 'アカウント設定') : 'Passkey 認証・設定'}
         </h2>
+        {#if user}
+          <span
+            class="hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold sm:inline-flex {user.role === 'admin'
+              ? 'border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+              : 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300'}"
+          >
+            {user.role === 'admin' ? '管理者' : '一般ユーザー'}
+          </span>
+        {/if}
       </div>
-      <button
-        type="button"
-        onclick={onClose}
-        aria-label="閉じる"
-        class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-      >
-        <X class="h-5 w-5" />
-      </button>
+
+      <div class="flex items-center gap-1">
+        {#if user}
+          <button
+            type="button"
+            onclick={() => (isFullscreen = !isFullscreen)}
+            aria-label={isFullscreen ? '元のサイズに戻す' : '画面いっぱいに広げる'}
+            title={isFullscreen ? '元のサイズに戻す' : '画面いっぱいに広げる'}
+            class="hidden cursor-pointer rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-800 sm:inline-flex dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          >
+            {#if isFullscreen}
+              <Minimize2 class="h-4 w-4" />
+            {:else}
+              <Maximize2 class="h-4 w-4" />
+            {/if}
+          </button>
+        {/if}
+        <button
+          type="button"
+          onclick={onClose}
+          aria-label="閉じる"
+          class="cursor-pointer rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+        >
+          <X class="h-5 w-5" />
+        </button>
+      </div>
     </div>
 
     <div class="flex flex-col gap-4 overflow-y-auto p-4 sm:p-5">
@@ -898,7 +934,7 @@
           {:else}
             <!-- Tab navigation -->
             <div
-              class="flex items-center gap-1 border-b border-slate-200 text-xs font-bold dark:border-slate-800"
+              class="flex items-center gap-1 overflow-x-auto border-b border-slate-200 text-xs font-bold whitespace-nowrap dark:border-slate-800"
             >
               <button
                 type="button"
@@ -980,71 +1016,76 @@
 
             <!-- Tab 1: Region & Announcement settings -->
             {#if activeTab === 'settings'}
-              <div class="flex flex-col gap-3.5">
-                <!-- Emergency announcement banner -->
-                <div>
-                  <label
-                    for="admin-emergency-banner"
-                    class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+              <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <!-- Left: 基本告知・地域設定 -->
+                <div class="flex flex-col gap-3.5 rounded-xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+                  <h3 class="text-xs font-bold text-slate-800 dark:text-slate-200">基本告知・対象地域設定</h3>
+
+                  <!-- Emergency announcement banner -->
+                  <div>
+                    <label
+                      for="admin-emergency-banner"
+                      class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+                    >
+                      緊急告知アナウンス文（全画面最上部に固定表示）
+                    </label>
+                    <textarea
+                      id="admin-emergency-banner"
+                      bind:value={emergencyBanner}
+                      rows="3"
+                      placeholder="例: 台風接近に伴い避難所が開設されています。給水・物資の最新状況を共有してください。（空にすると非表示）"
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    ></textarea>
+                  </div>
+
+                  <!-- Target region / municipality name -->
+                  <div>
+                    <label
+                      for="admin-default-area"
+                      class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+                    >
+                      対象地域・自治体名
+                    </label>
+                    <input
+                      id="admin-default-area"
+                      type="text"
+                      bind:value={defaultArea}
+                      placeholder="例: 高知県高知市、能登地方、〇〇町（空欄時は全域）"
+                      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                    <p
+                      class="mt-1 text-[10px] text-slate-500 dark:text-slate-400"
+                    >
+                      ※
+                      設定するとヘッダーに地域名が表示され、地図の初期表示や住所補完の中心となります。
+                    </p>
+                  </div>
+
+                  <!-- Save button -->
+                  <button
+                    type="button"
+                    onclick={handleSaveSettings}
+                    disabled={isSavingSettings}
+                    class="mt-auto flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
                   >
-                    緊急告知アナウンス文（全画面最上部に固定表示）
-                  </label>
-                  <textarea
-                    id="admin-emergency-banner"
-                    bind:value={emergencyBanner}
-                    rows="2"
-                    placeholder="例: 台風接近に伴い避難所が開設されています。給水・物資の最新状況を共有してください。（空にすると非表示）"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-                  ></textarea>
+                    <span>
+                      {isSavingSettings ? '保存中...' : '設定を反映する'}
+                    </span>
+                  </button>
                 </div>
 
-                <!-- Target region / municipality name -->
-                <div>
-                  <label
-                    for="admin-default-area"
-                    class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-                  >
-                    対象地域・自治体名
-                  </label>
-                  <input
-                    id="admin-default-area"
-                    type="text"
-                    bind:value={defaultArea}
-                    placeholder="例: 高知県高知市、能登地方、〇〇町（空欄時は全域）"
-                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-                  />
-                  <p
-                    class="mt-1 text-[10px] text-slate-500 dark:text-slate-400"
-                  >
-                    ※
-                    設定するとヘッダーに地域名が表示され、地図の初期表示や住所補完の中心となります。
-                  </p>
-                </div>
-
-                <!-- Save button -->
-                <button
-                  type="button"
-                  onclick={handleSaveSettings}
-                  disabled={isSavingSettings}
-                  class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <span>
-                    {isSavingSettings ? '保存中...' : '設定を反映する'}
-                  </span>
-                </button>
-
-                <!-- Web Push Emergency Broadcast Section -->
+                <!-- Right: Web Push Emergency Broadcast Section -->
                 <div
-                  class="mt-4 rounded-xl border border-red-200 bg-red-50/50 p-3.5 dark:border-red-900/40 dark:bg-red-950/20"
+                  class="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50/50 p-4 dark:border-red-900/40 dark:bg-red-950/20"
                 >
                   <div
-                    class="mb-2 flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-400"
+                    class="flex items-center gap-1.5 text-xs font-bold text-red-700 dark:text-red-400"
                   >
                     <Radio class="h-4 w-4" />
                     <span>緊急プッシュ一斉配信 (Web Push Broadcast)</span>
                   </div>
                   <p
-                    class="mb-3 text-[11px] text-slate-600 dark:text-slate-400"
+                    class="text-[11px] text-slate-600 dark:text-slate-400"
                   >
                     購読登録済みの全端末に、画面を閉じていても即座に通知をプッシュ配信します。
                   </p>
@@ -1061,7 +1102,7 @@
                     <div>
                       <textarea
                         bind:value={broadcastBody}
-                        rows="2"
+                        rows="3"
                         placeholder="通知本文 (例: ○○川流域にお住まいの方は、速やかに高台や避難所に避難を開始してください。)"
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-hidden dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                       ></textarea>
@@ -1138,48 +1179,47 @@
                   </div>
                 {/if}
 
-                <div
-                  class="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-800/40"
-                >
-                  {#if isLoadingUsers}
-                    <div
-                      class="py-6 text-center text-xs text-slate-400 dark:text-slate-500"
-                    >
-                      ユーザー一覧を読み込み中...
-                    </div>
-                  {:else if userList.length === 0}
-                    <div
-                      class="py-6 text-center text-xs text-slate-400 dark:text-slate-500"
-                    >
-                      ユーザーが見つかりません
-                    </div>
-                  {:else}
+                {#if isLoadingUsers}
+                  <div
+                    class="py-12 text-center text-xs text-slate-400 dark:text-slate-500"
+                  >
+                    <RefreshCw class="mx-auto mb-2 h-5 w-5 animate-spin text-blue-500" />
+                    ユーザー一覧を読み込み中...
+                  </div>
+                {:else if userList.length === 0}
+                  <div
+                    class="rounded-xl border border-slate-200 bg-slate-50 py-12 text-center text-xs text-slate-400 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-500"
+                  >
+                    ユーザーが見つかりません
+                  </div>
+                {:else}
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {#each userList as u (u.id)}
                       <div
-                        class="flex items-center justify-between gap-2 bg-white p-3 transition hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/60"
+                        class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-slate-700"
                       >
-                        <div class="flex min-w-0 items-center gap-2.5">
+                        <div class="flex items-center gap-3">
                           <div
-                            class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-xs font-black text-white shadow-xs"
                           >
                             {u.displayName
                               ? u.displayName.charAt(0)
                               : u.username.charAt(0)}
                           </div>
-                          <div class="min-w-0">
+                          <div class="min-w-0 flex-1">
                             <div
-                              class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-800 dark:text-slate-200"
+                              class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100"
                             >
-                              <span>{u.displayName || u.username}</span>
+                              <span class="truncate">{u.displayName || u.username}</span>
                               {#if u.id === user.id}
                                 <span
-                                  class="text-[10px] font-bold text-blue-600 dark:text-blue-400"
+                                  class="shrink-0 text-[10px] font-bold text-blue-600 dark:text-blue-400"
                                   >(自分)</span
                                 >
                               {/if}
                             </div>
                             <div
-                              class="truncate text-[10px] text-slate-400 dark:text-slate-500"
+                              class="truncate font-mono text-[10px] text-slate-400 dark:text-slate-500"
                             >
                               @{u.username}
                             </div>
@@ -1187,75 +1227,81 @@
                         </div>
 
                         <!-- Role badge & update action -->
-                        <div class="flex shrink-0 items-center gap-2">
-                          {#if u.role === 'admin'}
-                            <span
-                              class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                            >
-                              <Crown
-                                class="h-3 w-3 text-amber-600 dark:text-amber-400"
-                              />
-                              管理者
-                            </span>
-                            {#if u.id !== user.id}
+                        <div class="flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-700/60">
+                          <div>
+                            {#if u.role === 'admin'}
+                              <span
+                                class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                              >
+                                <Crown class="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                                管理者
+                              </span>
+                            {:else}
+                              <span
+                                class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                              >
+                                一般
+                              </span>
+                            {/if}
+                          </div>
+
+                          <div class="flex items-center gap-1.5">
+                            {#if u.role === 'admin'}
+                              {#if u.id !== user.id}
+                                <button
+                                  type="button"
+                                  onclick={() =>
+                                    handleUpdateRole(
+                                      u.id,
+                                      u.displayName || u.username,
+                                      'user'
+                                    )}
+                                  class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                                >
+                                  一般に戻す
+                                </button>
+                              {/if}
+                            {:else}
                               <button
                                 type="button"
                                 onclick={() =>
                                   handleUpdateRole(
                                     u.id,
                                     u.displayName || u.username,
-                                    'user'
+                                    'admin'
                                   )}
-                                class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                                class="flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
                               >
-                                一般に戻す
+                                <Crown
+                                  class="h-2.5 w-2.5 text-amber-600 dark:text-amber-400"
+                                />
+                                <span>昇格</span>
                               </button>
                             {/if}
-                          {:else}
-                            <span
-                              class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                            >
-                              一般
-                            </span>
-                            <button
-                              type="button"
-                              onclick={() =>
-                                handleUpdateRole(
-                                  u.id,
-                                  u.displayName || u.username,
-                                  'admin'
-                                )}
-                              class="flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
-                            >
-                              <Crown
-                                class="h-2.5 w-2.5 text-amber-600 dark:text-amber-400"
-                              />
-                              <span>管理者に昇格</span>
-                            </button>
-                          {/if}
 
-                          {#if u.id !== user.id}
-                            <button
-                              type="button"
-                              onclick={() =>
-                                handleDeleteUser(
-                                  u.id,
-                                  u.displayName || u.username
-                                )}
-                              class="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60"
-                              title="アカウントを削除"
-                            >
-                              <Trash2
-                                class="h-2.5 w-2.5 text-rose-600 dark:text-rose-400"
-                              />
-                              <span>削除</span>
-                            </button>
-                          {/if}
+                            {#if u.id !== user.id}
+                              <button
+                                type="button"
+                                onclick={() =>
+                                  handleDeleteUser(
+                                    u.id,
+                                    u.displayName || u.username
+                                  )}
+                                class="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60"
+                                title="アカウントを削除"
+                              >
+                                <Trash2
+                                  class="h-2.5 w-2.5 text-rose-600 dark:text-rose-400"
+                                />
+                                <span>削除</span>
+                              </button>
+                            {/if}
+                          </div>
                         </div>
                       </div>
                     {/each}
-                  {/if}
-                </div>
+                  </div>
+                {/if}
                 <p class="text-[10px] text-slate-400 dark:text-slate-500">
                   ※
                   管理者権限を持つユーザーは、システム設定の更新、他サイトとのデータ同期、および全投稿の編集・削除が可能です。
@@ -1264,32 +1310,10 @@
 
               <!-- Tab 3: Data Federation -->
             {:else if activeTab === 'federation'}
-              <div
-                class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/60"
-              >
-                <div class="flex items-center justify-between">
-                  <div
-                    class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
-                  >
-                    <Network class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <span>他サイトとの合流・連携 (Federation)</span>
-                  </div>
-                  <span
-                    class="font-mono text-[10px] text-slate-500 dark:text-slate-400"
-                    >GeoJSON-LD</span
-                  >
-                </div>
-
-                <p
-                  class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
-                >
-                  災害時に他チームが立ち上げた tossa
-                  や互換サイトと相互にデータを合流・移行できます。
-                </p>
-
+              <div class="flex flex-col gap-4">
                 {#if syncMessage}
                   <div
-                    class={`flex items-center gap-1.5 rounded-lg p-2.5 text-[11px] ${
+                    class={`flex items-center gap-1.5 rounded-xl p-3 text-xs ${
                       syncMessage.type === 'success'
                         ? 'border border-emerald-200 bg-emerald-50 font-medium text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                         : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
@@ -1299,64 +1323,105 @@
                   </div>
                 {/if}
 
-                <!-- Import from remote site URL -->
-                <div class="flex flex-col gap-1.5">
-                  <label
-                    for="admin-sync-url"
-                    class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <!-- Left: Remote Site Realtime Federation -->
+                  <div
+                    class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                   >
-                    他サイトと同期（相手の tossa URL を入力）:
-                  </label>
-                  <div class="flex items-center gap-1.5">
-                    <input
-                      id="admin-sync-url"
-                      type="url"
-                      bind:value={remoteSyncUrl}
-                      placeholder="例: https://other-tossa.workers.dev"
-                      class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onclick={handleSyncFromRemoteUrl}
-                      disabled={isSyncing || !remoteSyncUrl.trim()}
-                      class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
-                    >
-                      <RefreshCw
-                        class={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`}
-                      />
-                      <span>{isSyncing ? '同期中...' : '合流・同期'}</span>
-                    </button>
+                    <div>
+                      <div class="flex items-center justify-between">
+                        <div
+                          class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
+                          <Network class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <span>他サイトとの合流・連携 (Federation)</span>
+                        </div>
+                        <span
+                          class="font-mono text-[10px] text-slate-500 dark:text-slate-400"
+                          >GeoJSON-LD</span
+                        >
+                      </div>
+
+                      <p
+                        class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
+                      >
+                        災害時に他チームが立ち上げた tossa や互換サイトと相互にデータを合流・移行できます。
+                      </p>
+                    </div>
+
+                    <!-- Import from remote site URL -->
+                    <div class="flex flex-col gap-1.5 pt-2">
+                      <label
+                        for="admin-sync-url"
+                        class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                      >
+                        相手の tossa URL を入力して合流:
+                      </label>
+                      <div class="flex items-center gap-1.5">
+                        <input
+                          id="admin-sync-url"
+                          type="url"
+                          bind:value={remoteSyncUrl}
+                          placeholder="例: https://other-tossa.workers.dev"
+                          class="flex-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                        />
+                        <button
+                          type="button"
+                          onclick={handleSyncFromRemoteUrl}
+                          disabled={isSyncing || !remoteSyncUrl.trim()}
+                          class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
+                        >
+                          <RefreshCw
+                            class={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`}
+                          />
+                          <span>{isSyncing ? '同期中...' : '合流・同期'}</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <!-- Export & file import -->
-                <div class="flex items-center gap-2 pt-1">
-                  <a
-                    href="/api/federation/export"
-                    download
-                    class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  <!-- Right: Export & File Import -->
+                  <div
+                    class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                   >
-                    <Download
-                      class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
-                    />
-                    <span>データ出力 (Export)</span>
-                  </a>
+                    <div>
+                      <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        オフライン・手動データ移行
+                      </h4>
+                      <p class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
+                        通信障害時やローカル環境へのデータ退避として、GeoJSON-LD 形式のファイル出力・取り込みを行えます。
+                      </p>
+                    </div>
 
-                  <label
-                    class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                  >
-                    <Upload
-                      class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"
-                    />
-                    <span>ファイル取込 (Import)</span>
-                    <input
-                      type="file"
-                      accept=".json,.geojson"
-                      bind:this={fileInput}
-                      onchange={handleImportFile}
-                      class="hidden"
-                    />
-                  </label>
+                    <div class="flex flex-col gap-2 pt-2 sm:flex-row">
+                      <a
+                        href="/api/federation/export"
+                        download
+                        class="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      >
+                        <Download
+                          class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+                        />
+                        <span>データ出力 (Export)</span>
+                      </a>
+
+                      <label
+                        class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      >
+                        <Upload
+                          class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"
+                        />
+                        <span>ファイル取込 (Import)</span>
+                        <input
+                          type="file"
+                          accept=".json,.geojson"
+                          bind:this={fileInput}
+                          onchange={handleImportFile}
+                          class="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             {/if}
@@ -1384,99 +1449,110 @@
                   </p>
                 </div>
 
-                <!-- Token Generation Card -->
-                <div
-                  class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
-                >
-                  <div>
-                    <label
-                      for="mcp-token-name"
-                      class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-                    >
-                      トークン用途・識別名
-                    </label>
-                    <div class="flex gap-2">
-                      <input
-                        id="mcp-token-name"
-                        type="text"
-                        bind:value={mcpTokenName}
-                        placeholder="例: Claude Desktop, Cursor"
-                        class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                      />
-                      <button
-                        type="button"
-                        onclick={handleIssueMcpToken}
-                        disabled={isIssuingMcpToken}
-                        class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 disabled:opacity-50"
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <!-- Token Generation Card -->
+                  <div
+                    class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40"
+                  >
+                    <div>
+                      <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        エージェント専用 API トークン発行
+                      </h4>
+                      <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        AIアシスタントに付与する識別名（例: Claude, Cursor）を入力して発行してください。
+                      </p>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5">
+                      <label
+                        for="mcp-token-name"
+                        class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
                       >
-                        <KeyRound class="h-3.5 w-3.5" />
-                        <span
-                          >{isIssuingMcpToken
-                            ? '発行中...'
-                            : 'トークンを発行'}</span
-                        >
-                      </button>
-                    </div>
-                  </div>
-
-                  {#if mcpTokenError}
-                    <div
-                      class="rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
-                    >
-                      {mcpTokenError}
-                    </div>
-                  {/if}
-
-                  {#if issuedMcpToken}
-                    <div
-                      class="flex flex-col gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/40"
-                    >
-                      <div class="flex items-center justify-between">
-                        <span
-                          class="flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300"
-                        >
-                          <Check class="h-3.5 w-3.5" />
-                          APIトークンを発行しました（有効期限: 1年間）
-                        </span>
-                        <span
-                          class="text-[10px] text-slate-500 dark:text-slate-400"
-                        >
-                          {issuedMcpToken.tokenName}
-                        </span>
-                      </div>
-
-                      <div class="flex items-center gap-1.5">
+                        用途・識別名
+                      </label>
+                      <div class="flex gap-2">
                         <input
+                          id="mcp-token-name"
                           type="text"
-                          readonly
-                          value={issuedMcpToken.token}
-                          class="flex-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 font-mono text-[11px] text-slate-800 select-all dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100"
+                          bind:value={mcpTokenName}
+                          placeholder="例: Claude Desktop, Cursor"
+                          class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                         />
                         <button
                           type="button"
-                          onclick={handleCopyToken}
-                          class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                          onclick={handleIssueMcpToken}
+                          disabled={isIssuingMcpToken}
+                          class="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 disabled:opacity-50"
                         >
-                          {#if isTokenCopied}
-                            <Check class="h-3.5 w-3.5" />
-                            <span>コピー済</span>
-                          {:else}
-                            <Copy class="h-3.5 w-3.5" />
-                            <span>コピー</span>
-                          {/if}
+                          <KeyRound class="h-3.5 w-3.5" />
+                          <span
+                            >{isIssuingMcpToken
+                              ? '発行中...'
+                              : 'トークンを発行'}</span
+                          >
                         </button>
                       </div>
-
-                      <p class="text-[10px] text-slate-500 dark:text-slate-400">
-                        ※
-                        トークンは再表示されません。安全な場所に保存してエージェントの設定ファイルに設定してください。
-                      </p>
                     </div>
-                  {/if}
 
-                  <!-- Setup Configuration Guide -->
+                    {#if mcpTokenError}
+                      <div
+                        class="rounded-lg border border-rose-200 bg-rose-50 p-2 text-[11px] text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
+                      >
+                        {mcpTokenError}
+                      </div>
+                    {/if}
+
+                    {#if issuedMcpToken}
+                      <div
+                        class="flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/40"
+                      >
+                        <div class="flex items-center justify-between">
+                          <span
+                            class="flex items-center gap-1 text-xs font-bold text-emerald-800 dark:text-emerald-300"
+                          >
+                            <Check class="h-3.5 w-3.5" />
+                            APIトークンを発行しました（有効期限: 1年間）
+                          </span>
+                          <span
+                            class="text-[10px] text-slate-500 dark:text-slate-400"
+                          >
+                            {issuedMcpToken.tokenName}
+                          </span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            readonly
+                            value={issuedMcpToken.token}
+                            class="flex-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 font-mono text-[11px] text-slate-800 select-all dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100"
+                          />
+                          <button
+                            type="button"
+                            onclick={handleCopyToken}
+                            class="flex shrink-0 cursor-pointer items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-emerald-700"
+                          >
+                            {#if isTokenCopied}
+                              <Check class="h-3.5 w-3.5" />
+                              <span>コピー済</span>
+                            {:else}
+                              <Copy class="h-3.5 w-3.5" />
+                              <span>コピー</span>
+                            {/if}
+                          </button>
+                        </div>
+
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400">
+                          ※
+                          トークンは再表示されません。安全な場所に保存してエージェントの設定ファイルに設定してください。
+                        </p>
+                      </div>
+                    {/if}
+                  </div>
+
+                  <!-- Setup Configuration Guide Card -->
                   <div
-                    class="flex flex-col gap-1.5 border-t border-slate-200/80 pt-2.5 dark:border-slate-700/60"
+                    class="flex flex-col justify-between gap-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                   >
                     <div class="flex items-center justify-between">
                       <span
@@ -1500,7 +1576,7 @@
                     </div>
 
                     <pre
-                      class="overflow-x-auto rounded-lg bg-slate-900 p-2.5 font-mono text-[11px] leading-snug text-slate-200"><code
+                      class="flex-1 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-[11px] leading-snug text-slate-200"><code
                         >{`{
   "mcpServers": {
     "tossa": {
@@ -1517,7 +1593,7 @@
                 </div>
               </div>
             {:else if activeTab === 'backup'}
-              <div class="flex flex-col gap-3.5">
+              <div class="flex flex-col gap-4">
                 <!-- Backup Status Alert -->
                 {#if backupStatusMessage}
                   <div
@@ -1551,179 +1627,181 @@
                   </div>
                 {/if}
 
-                <!-- Automatic Cron Backup Info Box -->
-                <div
-                  class="rounded-xl border border-blue-200/80 bg-blue-50/60 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/30"
-                >
-                  <div
-                    class="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300"
-                  >
-                    <Database
-                      class="h-4 w-4 text-blue-600 dark:text-blue-400"
-                    />
-                    <span>D1 データベース自動バックアップ稼働状況</span>
-                  </div>
-                  <p
-                    class="mt-1.5 text-[11px] leading-relaxed text-blue-800/80 dark:text-blue-300/80"
-                  >
-                    Cloudflare Cron Triggers により、<strong
-                      >毎日 12:00 JST (03:00 UTC)</strong
-                    >
-                    に全テーブル（投稿、ユーザー、設定、ステータス履歴等）を自動で
-                    JSON ダンプし、Cloudflare R2（<code>backups/</code
-                    >）に保管しています（最新 30 世代を自動保持）。
-                  </p>
-                </div>
-
-                <!-- Manual Backup Trigger Action -->
-                <div
-                  class="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-                >
-                  <div
-                    class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <h4
-                        class="text-xs font-bold text-slate-800 dark:text-slate-200"
-                      >
-                        手動即時バックアップ
-                      </h4>
-                      <p class="text-[11px] text-slate-500 dark:text-slate-400">
-                        メンテナンス前や災害対応の区切りに、現在の全データを R2
-                        に直ちに退避・スナップショット保存します。
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onclick={handleTriggerBackup}
-                      disabled={isTriggeringBackup}
-                      class="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {#if isTriggeringBackup}
-                        <RefreshCw class="h-3.5 w-3.5 animate-spin" />
-                        <span>バックアップ生成中...</span>
-                      {:else}
-                        <Download class="h-3.5 w-3.5" />
-                        <span>今すぐバックアップ実行</span>
-                      {/if}
-                    </button>
-                  </div>
-
-                  {#if lastBackupResult && lastBackupResult.metadata}
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                  <!-- Left: 5 columns on desktop (Cron status & manual trigger) -->
+                  <div class="flex flex-col gap-4 lg:col-span-5">
+                    <!-- Automatic Cron Backup Info Box -->
                     <div
-                      class="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800"
+                      class="rounded-xl border border-blue-200/80 bg-blue-50/60 p-4 dark:border-blue-900/50 dark:bg-blue-950/30"
                     >
                       <div
-                        class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                        class="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300"
                       >
-                        直前のバックアップ結果（計 {lastBackupResult.metadata
-                          .totalRecords} 件）:
+                        <Database
+                          class="h-4 w-4 text-blue-600 dark:text-blue-400"
+                        />
+                        <span>D1 自動バックアップ稼働状況</span>
                       </div>
-                      <div class="mt-1.5 flex flex-wrap gap-1.5">
-                        {#each Object.entries(lastBackupResult.metadata.tableCounts) as [table, count] (table)}
-                          <span
-                            class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                          >
-                            <span>{table}:</span>
-                            <span class="font-bold">{count}</span>
-                          </span>
-                        {/each}
-                      </div>
+                      <p
+                        class="mt-2 text-[11px] leading-relaxed text-blue-800/80 dark:text-blue-300/80"
+                      >
+                        Cloudflare Cron Triggers により、<strong
+                          >毎日 12:00 JST (03:00 UTC)</strong
+                        >
+                        に全テーブル（投稿、ユーザー、設定、ステータス履歴等）を自動で
+                        JSON ダンプし、Cloudflare R2（<code>backups/</code
+                        >）に保管しています（最新 30 世代を自動保持）。
+                      </p>
                     </div>
-                  {/if}
-                </div>
 
-                <!-- Stored Backups List -->
-                <div
-                  class="rounded-xl border border-slate-200 bg-white p-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
-                >
-                  <div class="mb-2.5 flex items-center justify-between">
-                    <div class="flex items-center gap-1.5">
-                      <FileText
-                        class="h-4 w-4 text-slate-500 dark:text-slate-400"
-                      />
-                      <h4
-                        class="text-xs font-bold text-slate-800 dark:text-slate-200"
-                      >
-                        R2 保存済みバックアップ一覧 ({backups.length} 件)
-                      </h4>
-                    </div>
-                    <button
-                      type="button"
-                      onclick={loadBackups}
-                      disabled={isLoadingBackups}
-                      class="flex cursor-pointer items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
+                    <!-- Manual Backup Trigger Action -->
+                    <div
+                      class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900"
                     >
-                      <RefreshCw
-                        class={`h-3 w-3 ${isLoadingBackups ? 'animate-spin' : ''}`}
-                      />
-                      <span>再読込</span>
-                    </button>
+                      <div>
+                        <h4
+                          class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
+                          手動即時バックアップ
+                        </h4>
+                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                          メンテナンス前や災害対応の区切りに、現在の全データを R2
+                          に直ちに退避・スナップショット保存します。
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onclick={handleTriggerBackup}
+                        disabled={isTriggeringBackup}
+                        class="mt-1 flex cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {#if isTriggeringBackup}
+                          <RefreshCw class="h-3.5 w-3.5 animate-spin" />
+                          <span>バックアップ生成中...</span>
+                        {:else}
+                          <Download class="h-3.5 w-3.5" />
+                          <span>今すぐバックアップ実行</span>
+                        {/if}
+                      </button>
+
+                      {#if lastBackupResult && lastBackupResult.metadata}
+                        <div
+                          class="mt-2 border-t border-slate-100 pt-2.5 dark:border-slate-800"
+                        >
+                          <div
+                            class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            直前のバックアップ結果（計 {lastBackupResult.metadata
+                              .totalRecords} 件）:
+                          </div>
+                          <div class="mt-1.5 flex flex-wrap gap-1.5">
+                            {#each Object.entries(lastBackupResult.metadata.tableCounts) as [table, count] (table)}
+                              <span
+                                class="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                              >
+                                <span>{table}:</span>
+                                <span class="font-bold">{count}</span>
+                              </span>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
+                    </div>
                   </div>
 
-                  {#if isLoadingBackups}
-                    <div
-                      class="flex items-center justify-center py-6 text-xs text-slate-400"
-                    >
-                      <RefreshCw class="mr-2 h-4 w-4 animate-spin" />
-                      <span>一覧を取得中...</span>
-                    </div>
-                  {:else if backups.length === 0}
-                    <div
-                      class="rounded-lg bg-slate-50 py-6 text-center text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
-                    >
-                      保存されているバックアップはありません（R2バケット未バインドまたは初回実行前）
-                    </div>
-                  {:else}
-                    <div class="overflow-x-auto">
-                      <table class="w-full text-left text-xs">
-                        <thead>
-                          <tr
-                            class="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400"
-                          >
-                            <th class="pb-1.5 font-bold">ファイル名</th>
-                            <th class="pb-1.5 font-bold">作成日時</th>
-                            <th class="pb-1.5 text-right font-bold">総件数</th>
-                            <th class="pb-1.5 text-right font-bold">サイズ</th>
-                          </tr>
-                        </thead>
-                        <tbody
-                          class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800/60"
+                  <!-- Right: 7 columns on desktop (Stored Backups List) -->
+                  <div
+                    class="rounded-xl border border-slate-200 bg-white p-4 shadow-xs lg:col-span-7 dark:border-slate-800 dark:bg-slate-900"
+                  >
+                    <div class="mb-3 flex items-center justify-between">
+                      <div class="flex items-center gap-1.5">
+                        <FileText
+                          class="h-4 w-4 text-slate-500 dark:text-slate-400"
+                        />
+                        <h4
+                          class="text-xs font-bold text-slate-800 dark:text-slate-200"
                         >
-                          {#each backups as b (b.key)}
-                            <tr
-                              class="hover:bg-slate-50 dark:hover:bg-slate-800/40"
-                            >
-                              <td
-                                class="py-2 font-medium text-slate-800 dark:text-slate-200"
-                              >
-                                {b.key.replace('backups/', '')}
-                              </td>
-                              <td
-                                class="py-2 text-slate-500 dark:text-slate-400"
-                              >
-                                {b.uploaded
-                                  ? new Date(b.uploaded).toLocaleString('ja-JP')
-                                  : '-'}
-                              </td>
-                              <td
-                                class="py-2 text-right text-slate-700 dark:text-slate-300"
-                              >
-                                {b.totalRecords !== undefined
-                                  ? `${b.totalRecords} 件`
-                                  : '-'}
-                              </td>
-                              <td
-                                class="py-2 text-right text-slate-500 dark:text-slate-400"
-                              >
-                                {(b.size / 1024).toFixed(1)} KB
-                              </td>
-                            </tr>
-                          {/each}
-                        </tbody>
-                      </table>
+                          R2 保存済みバックアップ一覧 ({backups.length} 件)
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onclick={loadBackups}
+                        disabled={isLoadingBackups}
+                        class="flex cursor-pointer items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        <RefreshCw
+                          class={`h-3 w-3 ${isLoadingBackups ? 'animate-spin' : ''}`}
+                        />
+                        <span>再読込</span>
+                      </button>
                     </div>
-                  {/if}
+
+                    {#if isLoadingBackups}
+                      <div
+                        class="flex items-center justify-center py-10 text-xs text-slate-400"
+                      >
+                        <RefreshCw class="mr-2 h-4 w-4 animate-spin" />
+                        <span>一覧を取得中...</span>
+                      </div>
+                    {:else if backups.length === 0}
+                      <div
+                        class="rounded-lg bg-slate-50 py-10 text-center text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
+                      >
+                        保存されているバックアップはありません（R2バケット未バインドまたは初回実行前）
+                      </div>
+                    {:else}
+                      <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                          <thead>
+                            <tr
+                              class="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400"
+                            >
+                              <th class="pb-2 font-bold">ファイル名</th>
+                              <th class="pb-2 font-bold">作成日時</th>
+                              <th class="pb-2 text-right font-bold">総件数</th>
+                              <th class="pb-2 text-right font-bold">サイズ</th>
+                            </tr>
+                          </thead>
+                          <tbody
+                            class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800/60"
+                          >
+                            {#each backups as b (b.key)}
+                              <tr
+                                class="hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                              >
+                                <td
+                                  class="py-2.5 font-medium text-slate-800 dark:text-slate-200"
+                                >
+                                  {b.key.replace('backups/', '')}
+                                </td>
+                                <td
+                                  class="py-2.5 text-slate-500 dark:text-slate-400"
+                                >
+                                  {b.uploaded
+                                    ? new Date(b.uploaded).toLocaleString('ja-JP')
+                                    : '-'}
+                                </td>
+                                <td
+                                  class="py-2.5 text-right text-slate-700 dark:text-slate-300"
+                                >
+                                  {b.totalRecords !== undefined
+                                    ? `${b.totalRecords} 件`
+                                    : '-'}
+                                </td>
+                                <td
+                                  class="py-2.5 text-right text-slate-500 dark:text-slate-400"
+                                >
+                                  {(b.size / 1024).toFixed(1)} KB
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    {/if}
+                  </div>
                 </div>
               </div>
             {/if}
