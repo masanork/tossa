@@ -1494,7 +1494,7 @@
                 }`}
               >
                 <FileSpreadsheet class="h-3.5 w-3.5" />
-                <span>データ取込 (CSV/Excel)</span>
+                <span>データ取込</span>
               </button>
 
               <button
