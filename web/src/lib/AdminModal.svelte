@@ -27,8 +27,11 @@
     inferColumnMapping,
     normalizeRows,
     generateSampleCsv,
+    parseImportFile,
     type ColumnMapping,
     type ColumnField,
+    type ExcelSheetInfo,
+    type CsvParsedData,
   } from './csvHelper';
   import {
     X,
@@ -106,7 +109,7 @@
     'settings' | 'import' | 'users' | 'federation' | 'mcp' | 'backup'
   >('settings');
 
-  // CSV Import state
+  // CSV / Excel Import state
   let csvRawText = $state('');
   let csvFileName = $state('');
   let csvHeaders = $state<string[]>([]);
@@ -133,6 +136,11 @@
   let isDraggingCsv = $state(false);
   let fileInputRef = $state<HTMLInputElement | null>(null);
 
+  // Excel (.xlsx) sheet selection state
+  let availableSheets = $state<ExcelSheetInfo[]>([]);
+  let selectedSheetIndex = $state<number>(0);
+  let isExcelMode = $state<boolean>(false);
+
   const normalizedPreview = $derived.by(() => {
     if (csvRows.length === 0 || csvHeaders.length === 0) {
       return { valid: [], errors: [] };
@@ -144,21 +152,38 @@
     );
   });
 
-  async function handleCsvFile(file: File) {
+  function applySheetData(data: CsvParsedData) {
+    csvHeaders = data.headers;
+    csvRows = data.rows;
+    columnMapping = inferColumnMapping(data.headers);
+  }
+
+  function handleSelectSheet(index: number) {
+    selectedSheetIndex = index;
+    const sheet = availableSheets[index];
+    if (sheet) {
+      applySheetData(sheet.data);
+    }
+  }
+
+  async function handleImportSpreadsheetFile(file: File) {
     try {
       csvStatusMessage = null;
       csvImportResult = null;
-      const text = await readFileAsText(file);
-      csvRawText = text;
       csvFileName = file.name;
-      const parsed = parseCsv(text);
-      csvHeaders = parsed.headers;
-      csvRows = parsed.rows;
-      columnMapping = inferColumnMapping(parsed.headers);
+
+      const result = await parseImportFile(file);
+      availableSheets = result.sheets;
+      isExcelMode = result.isExcel;
+      selectedSheetIndex = 0;
+
+      if (result.sheets.length > 0 && result.sheets[0]) {
+        applySheetData(result.sheets[0].data);
+      }
     } catch (err: any) {
       csvStatusMessage = {
         type: 'error',
-        text: `CSVファイルの読み込みに失敗しました: ${err?.message}`,
+        text: `ファイルの読み込みに失敗しました: ${err?.message}`,
       };
     }
   }
@@ -168,9 +193,10 @@
     csvRawText = sample;
     csvFileName = 'tossa_shelter_sample.csv';
     const parsed = parseCsv(sample);
-    csvHeaders = parsed.headers;
-    csvRows = parsed.rows;
-    columnMapping = inferColumnMapping(parsed.headers);
+    availableSheets = [{ name: 'tossa_shelter_sample.csv', data: parsed }];
+    isExcelMode = false;
+    selectedSheetIndex = 0;
+    applySheetData(parsed);
     csvStatusMessage = null;
     csvImportResult = null;
   }
@@ -1124,7 +1150,7 @@
                 }`}
               >
                 <FileSpreadsheet class="h-3.5 w-3.5" />
-                <span>データ取込 (CSV)</span>
+                <span>データ取込 (CSV/Excel)</span>
               </button>
 
               <button
@@ -1488,7 +1514,7 @@
                       e.preventDefault();
                       isDraggingCsv = false;
                       const file = e.dataTransfer?.files?.[0];
-                      if (file) void handleCsvFile(file);
+                      if (file) void handleImportSpreadsheetFile(file);
                     }}
                     class={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition-all ${
                       isDraggingCsv
@@ -1498,11 +1524,11 @@
                   >
                     <input
                       type="file"
-                      accept=".csv,.tsv,.txt"
+                      accept=".csv,.tsv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                       bind:this={fileInputRef}
                       onchange={(e) => {
                         const file = (e.target as HTMLInputElement).files?.[0];
-                        if (file) void handleCsvFile(file);
+                        if (file) void handleImportSpreadsheetFile(file);
                       }}
                       class="hidden"
                     />
@@ -1514,7 +1540,7 @@
                     </div>
 
                     <div class="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      ここに CSV / TSV ファイルをドロップ
+                      ここに Excel (.xlsx) / CSV / TSV ファイルをドロップ
                     </div>
                     <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                       または
@@ -1531,15 +1557,48 @@
                       <span
                         class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                       >
-                        UTF-8 / Shift_JIS 自動対応
+                        Excel (.xlsx) 直接読込対応
                       </span>
                       <span
                         class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                       >
-                        カンマ / タブ (TSV) 自動検出
+                        UTF-8 / Shift_JIS CSV 自動対応
                       </span>
                     </div>
                   </div>
+
+                  <!-- Excel Multi-Sheet Selector (if multiple sheets found) -->
+                  {#if availableSheets.length > 1}
+                    <div
+                      class="flex flex-col gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/30"
+                    >
+                      <div class="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                        <span class="flex items-center gap-1.5">
+                          <FileSpreadsheet class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          複数のシートを検出 ({availableSheets.length} 枚)
+                        </span>
+                      </div>
+                      <label
+                        for="excel-sheet-selector"
+                        class="text-[11px] text-emerald-800 dark:text-emerald-300"
+                      >
+                        取り込むワークシートを選択してください:
+                      </label>
+                      <select
+                        id="excel-sheet-selector"
+                        value={selectedSheetIndex}
+                        onchange={(e) =>
+                          handleSelectSheet(Number(e.currentTarget.value))}
+                        class="w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100"
+                      >
+                        {#each availableSheets as sheet, idx}
+                          <option value={idx}>
+                            📄 {sheet.name} ({sheet.data.rows.length} 行)
+                          </option>
+                        {/each}
+                      </select>
+                    </div>
+                  {/if}
 
                   <!-- Sample & Template Helper Buttons -->
                   <div class="flex items-center gap-2">

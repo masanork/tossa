@@ -383,3 +383,94 @@ export function generateSampleCsv(): string {
 中央公園給水ステーション,熊本市中央区,熊本市中央区中央公園3,給水,開設中,32.7989,130.7015,給水中（8:00〜18:00）。ポリタンク持参推奨,https://example.com/water1
 西部ふれあい会館,熊本市西区,熊本市西区西町4-5-6,避難所,閉鎖中,32.7850,130.6890,安全確認のため一時閉鎖中,https://example.com/shelter3`;
 }
+
+// ================= Excel (.xlsx) Support =================
+
+export interface ExcelSheetInfo {
+  name: string;
+  data: CsvParsedData;
+}
+
+export interface ParsedImportPayload {
+  sheets: ExcelSheetInfo[];
+  isExcel: boolean;
+}
+
+/**
+ * Determines whether the given file is an Excel spreadsheet (.xlsx, .xls).
+ */
+export function isExcelFile(file: File): boolean {
+  const name = (file.name || '').toLowerCase();
+  return (
+    name.endsWith('.xlsx') ||
+    name.endsWith('.xls') ||
+    file.type ===
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    file.type === 'application/vnd.ms-excel'
+  );
+}
+
+/**
+ * Reads an Excel (.xlsx) file and returns all sheets with their parsed headers and rows.
+ * Dynamically imports read-excel-file only when needed to maintain small initial bundle.
+ */
+export async function readExcelFileSheets(
+  file: File | Blob
+): Promise<ExcelSheetInfo[]> {
+  const { default: readXlsxFile } = await import('read-excel-file/browser');
+  const sheets = await readXlsxFile(file);
+
+  return sheets.map((sheetObj) => {
+    const rawRows = sheetObj.data || [];
+    const stringRows: string[][] = rawRows.map((row) =>
+      row.map((cell) => {
+        if (cell === null || cell === undefined) return '';
+        if (cell instanceof Date) {
+          return cell.toISOString().split('T')[0] || '';
+        }
+        return String(cell).trim();
+      })
+    );
+
+    const cleanRows = stringRows.filter((r) => r.some((c) => c.length > 0));
+    if (cleanRows.length === 0) {
+      return {
+        name: sheetObj.sheet,
+        data: { headers: [], rows: [], delimiter: ',' },
+      };
+    }
+
+    const firstRow = cleanRows[0];
+    const headers = firstRow ? firstRow.map((h) => h.trim()) : [];
+    const bodyRows = cleanRows.slice(1);
+
+    return {
+      name: sheetObj.sheet,
+      data: {
+        headers,
+        rows: bodyRows,
+        delimiter: ',',
+      },
+    };
+  });
+}
+
+/**
+ * Universal file parser supporting both CSV/TSV and Excel (.xlsx) files.
+ */
+export async function parseImportFile(
+  file: File
+): Promise<ParsedImportPayload> {
+  if (isExcelFile(file)) {
+    const sheets = await readExcelFileSheets(file);
+    return { sheets, isExcel: true };
+  } else {
+    const text = await readFileAsText(file);
+    const parsed = parseCsv(text);
+    return {
+      sheets: [{ name: file.name, data: parsed }],
+      isExcel: false,
+    };
+  }
+}
+

@@ -6,6 +6,8 @@ import {
   inferColumnMapping,
   normalizeRows,
   readFileAsText,
+  isExcelFile,
+  parseImportFile,
 } from '../web/src/lib/csvHelper';
 
 describe('CSV Helper (Browser & Client)', () => {
@@ -50,5 +52,31 @@ describe('CSV Helper (Browser & Client)', () => {
 
     const decoded = await readFileAsText(file);
     expect(decoded).toBe(textData);
+  });
+
+  it('detects Excel file extensions and MIME types accurately', () => {
+    const xlsxFile = new File(['dummy'], 'shelters.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const xlsFile = new File(['dummy'], 'shelters.xls', {
+      type: 'application/vnd.ms-excel',
+    });
+    const csvFile = new File(['dummy'], 'shelters.csv', { type: 'text/csv' });
+
+    expect(isExcelFile(xlsxFile)).toBe(true);
+    expect(isExcelFile(xlsFile)).toBe(true);
+    expect(isExcelFile(csvFile)).toBe(false);
+  });
+
+  it('parses text files using universal parseImportFile', async () => {
+    const csvContent = 'タイトル,地区\n中央避難所,中央区';
+    const csvFile = new File([csvContent], 'test.csv', { type: 'text/csv' });
+
+    const result = await parseImportFile(csvFile);
+    expect(result.isExcel).toBe(false);
+    expect(result.sheets.length).toBe(1);
+    expect(result.sheets[0].data.headers).toEqual(['タイトル', '地区']);
+    expect(result.sheets[0].data.rows.length).toBe(1);
+    expect(result.sheets[0].data.rows[0]).toEqual(['中央避難所', '中央区']);
   });
 });
