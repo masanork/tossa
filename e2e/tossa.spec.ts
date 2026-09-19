@@ -367,14 +367,16 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     // 1. Open QR Share modal on an existing post
     const qrShareBtn = page
-      .locator('button:has-text("QR共有"), button:has-text("QR Share")')
+      .locator(
+        'button:has-text("QRで渡す"), button:has-text("Pass by QR"), button:has-text("QRで わたす")'
+      )
       .first();
     await expect(qrShareBtn).toBeVisible({ timeout: 10000 });
     await qrShareBtn.click();
 
     // Verify QR modal opens with SVG code and copy link button
     const qrModal = page.locator(
-      'h2:has-text("オフラインQR共有"), h2:has-text("Offline QR Share")'
+      'h2:has-text("この情報を画面で渡す"), h2:has-text("Pass this post on-screen"), h2:has-text("この じょうほうを がめんで わたす")'
     );
     await expect(qrModal).toBeVisible();
 
@@ -389,14 +391,14 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     // 2. Open QR Scanner modal from Header menu
     await openHeaderMenu(page);
     const scanHeaderBtn = page.locator(
-      '[data-header-menu-panel] button[title*="Offline Import"], [data-header-menu-panel] button[title*="QRコード読取"], [data-header-menu-panel] button[title*="QRコードを よみとる"]'
+      '[data-header-menu-panel] [data-header-qr-scan]'
     );
     await expect(scanHeaderBtn).toBeVisible();
     await scanHeaderBtn.click();
 
     // Verify Scanner modal opens
     const scannerTitle = page.locator(
-      'h2:has-text("QRコード読取"), h2:has-text("Scan QR Code")'
+      'h2:has-text("画面から取り込む"), h2:has-text("Import from a screen"), h2:has-text("がめんから とりこむ")'
     );
     await expect(scannerTitle).toBeVisible();
 

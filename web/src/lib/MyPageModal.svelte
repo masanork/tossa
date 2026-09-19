@@ -416,7 +416,7 @@
                         type="button"
                         onclick={() => onOpenQrShare(post)}
                         class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        title="QRコード共有"
+                        title={m.qr_share_title()}
                       >
                         <QrCode
                           class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400"

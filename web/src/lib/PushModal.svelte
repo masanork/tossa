@@ -42,16 +42,10 @@
 
   const alertTypeOptions = [
     {
-      id: 'emergency',
-      label: m.push_type_emergency(),
-      icon: Flame,
-      color: 'text-red-500',
-    },
-    {
-      id: 'evacuation',
-      label: m.push_type_evacuation(),
-      icon: Home,
-      color: 'text-amber-500',
+      id: 'messages',
+      label: m.push_type_messages(),
+      icon: MessageSquareLock,
+      color: 'text-indigo-500',
     },
     {
       id: 'status',
@@ -60,10 +54,16 @@
       color: 'text-blue-500',
     },
     {
-      id: 'messages',
-      label: m.push_type_messages(),
-      icon: MessageSquareLock,
-      color: 'text-indigo-500',
+      id: 'evacuation',
+      label: m.push_type_evacuation(),
+      icon: Home,
+      color: 'text-amber-500',
+    },
+    {
+      id: 'emergency',
+      label: m.push_type_emergency(),
+      icon: Flame,
+      color: 'text-red-500',
     },
   ];
 
@@ -155,9 +155,6 @@
         >
           {m.push_modal_title()}
         </h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400">
-          RFC 8291 / 8292 Web Push
-        </p>
       </div>
     </div>
     <button

@@ -139,8 +139,8 @@ pushRoute.post('/test', async (c) => {
     const vapid = await getOrCreateVapidKeys(c.env);
 
     const testPayload: PushNotificationPayload = {
-      title: 'tossa 防災通知テスト',
-      body: 'Web Push による緊急通知受信の準備が完了しました。',
+      title: 'とっさ 通知テスト',
+      body: '通知の準備ができました。',
       url: '/',
       tag: 'tossa-test-push',
     };

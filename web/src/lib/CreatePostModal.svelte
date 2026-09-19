@@ -868,7 +868,7 @@
       onsubmit={handleSubmit}
       class="flex flex-col gap-4 overflow-y-auto p-4 sm:p-5"
     >
-      {#if !editingPost}
+      {#if isDisaster && !editingPost}
         <div
           class="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs dark:border-amber-900/50 dark:bg-amber-950/30"
         >
