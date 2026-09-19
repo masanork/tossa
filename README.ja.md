@@ -8,6 +8,15 @@
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MasKusuno/tossa)
 
+## コードベースの健全性
+
+`main` への push のたびに CI が行数・テスト比率・ユニットカバレッジを記録します。グラフは [`stats/`](stats/) にあります。
+
+![コード規模](stats/codebase-growth.svg)
+![カバレッジ](stats/coverage-trend.svg)
+
+最新の数値: [`stats/stats.md`](stats/stats.md)
+
 ---
 
 ## 🌟 主な特徴

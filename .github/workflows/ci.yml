@@ -7,6 +7,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  deployments: write
+
 jobs:
   test-and-lint:
     name: Lint, Typecheck, Knip, Unit & E2E Tests
@@ -55,8 +59,8 @@ jobs:
       - name: Type Check (TypeScript & Svelte Check)
         run: npm run typecheck
 
-      - name: Run Unit & Integration Tests with Typecheck (Vitest)
-        run: npm test
+      - name: Run Unit & Integration Tests with Coverage (Vitest)
+        run: npm run test:coverage
 
       - name: Install Playwright Chromium & System Dependencies
         run: npx playwright install --with-deps chromium
@@ -69,6 +73,27 @@ jobs:
 
       - name: Verify Production Build
         run: npm run build
+
+      - name: Update stats dashboard
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        continue-on-error: true
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          node --experimental-strip-types scripts/stats.ts --save stats
+          node --experimental-strip-types scripts/plot-growth.ts --update --stats-file stats/stats.json
+          git add stats/
+          if git diff --cached --quiet; then
+            echo "No stats changes"
+            exit 0
+          fi
+          git commit -m "chore(stats): update codebase dashboard [skip ci]"
+          git push
 
   deploy:
     name: Deploy to Cloudflare Workers

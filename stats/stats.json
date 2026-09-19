@@ -1,0 +1,126 @@
+{
+  "generatedAt": "2026-09-19T14:11:29.600Z",
+  "git": {
+    "commit": "c159ee3"
+  },
+  "src": {
+    "name": "src (Worker)",
+    "path": "src",
+    "files": 26,
+    "lines": 11373,
+    "testFns": 0
+  },
+  "web": {
+    "name": "web/src (UI)",
+    "path": "web/src",
+    "files": 42,
+    "lines": 21184,
+    "testFns": 0
+  },
+  "tests": {
+    "name": "test (unit)",
+    "path": "test",
+    "files": 36,
+    "lines": 6110,
+    "testFns": 215
+  },
+  "e2e": {
+    "name": "e2e",
+    "path": "e2e",
+    "files": 1,
+    "lines": 708,
+    "testFns": 14
+  },
+  "health": {
+    "implLines": 32557,
+    "testLines": 6818,
+    "testRatio": 0.17315555555555556,
+    "depCount": 453,
+    "largeFiles": [
+      {
+        "path": "web/src/lib/AdminModal.svelte",
+        "lines": 3718
+      },
+      {
+        "path": "src/municipalities.ts",
+        "lines": 2206
+      },
+      {
+        "path": "web/src/lib/municipalityCodes.ts",
+        "lines": 2185
+      },
+      {
+        "path": "src/db/queries.ts",
+        "lines": 1617
+      },
+      {
+        "path": "web/src/lib/CreatePostModal.svelte",
+        "lines": 1526
+      },
+      {
+        "path": "web/src/App.svelte",
+        "lines": 1417
+      },
+      {
+        "path": "src/routes/mcp.ts",
+        "lines": 1106
+      },
+      {
+        "path": "web/src/lib/PostCard.svelte",
+        "lines": 1066
+      },
+      {
+        "path": "web/src/lib/api.ts",
+        "lines": 1062
+      },
+      {
+        "path": "web/src/lib/MessagesModal.svelte",
+        "lines": 1035
+      },
+      {
+        "path": "src/routes/seo.ts",
+        "lines": 734
+      },
+      {
+        "path": "web/src/lib/HelpModal.svelte",
+        "lines": 734
+      },
+      {
+        "path": "web/src/lib/MapView.svelte",
+        "lines": 704
+      },
+      {
+        "path": "web/src/lib/MyPageModal.svelte",
+        "lines": 645
+      },
+      {
+        "path": "web/src/lib/QrScannerModal.svelte",
+        "lines": 593
+      },
+      {
+        "path": "src/routes/posts.ts",
+        "lines": 556
+      },
+      {
+        "path": "src/routes/opendata.ts",
+        "lines": 554
+      },
+      {
+        "path": "src/services/push.ts",
+        "lines": 543
+      },
+      {
+        "path": "src/routes/auth.ts",
+        "lines": 526
+      }
+    ]
+  },
+  "coverage": {
+    "available": true,
+    "linePct": 72,
+    "branchPct": 60,
+    "funcPct": 74,
+    "lines": 2163,
+    "coveredLines": 1557
+  }
+}

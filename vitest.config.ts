@@ -11,5 +11,11 @@ export default defineConfig({
       enabled: true,
       include: ['test/**/*.test.ts'],
     },
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      reporter: ['text', 'lcov', 'json-summary'],
+      reportsDirectory: './coverage',
+    },
   },
 });

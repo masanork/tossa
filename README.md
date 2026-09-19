@@ -8,6 +8,15 @@
 
 [![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/MasKusuno/tossa)
 
+## Codebase health
+
+CI records line counts, test ratio, and unit coverage on every push to `main`. Charts live in [`stats/`](stats/).
+
+![Codebase size](stats/codebase-growth.svg)
+![Unit coverage](stats/coverage-trend.svg)
+
+Snapshot: [`stats/stats.md`](stats/stats.md)
+
 ---
 
 ## 🌟 Key Features

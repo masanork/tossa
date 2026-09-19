@@ -51,6 +51,8 @@ export default ts.config(
       'web/project.inlang/**',
       'test-results/**',
       'playwright-report/**',
+      'coverage/**',
+      'stats/**',
     ],
   },
   {
