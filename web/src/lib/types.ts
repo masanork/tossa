@@ -81,6 +81,7 @@ export interface DisasterArea {
   fullName: string;
   lat: number;
   lng: number;
+  isPrefecture?: boolean;
 }
 
 export interface SystemSettings {

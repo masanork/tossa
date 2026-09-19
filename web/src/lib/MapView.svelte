@@ -97,12 +97,14 @@
     if (!hasAnyCoords) {
       if (disasterAreas && disasterAreas.length > 0) {
         if (disasterAreas.length === 1 && disasterAreas[0]) {
-          map.setView([disasterAreas[0].lat, disasterAreas[0].lng], 13);
+          const zoom = disasterAreas[0].isPrefecture ? 9 : 13;
+          map.setView([disasterAreas[0].lat, disasterAreas[0].lng], zoom);
         } else {
+          const hasPref = disasterAreas.some((a) => a.isPrefecture);
           const bounds = leaflet.latLngBounds(
             disasterAreas.map((a) => [a.lat, a.lng])
           );
-          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: hasPref ? 9 : 14 });
         }
       } else if (defaultArea) {
         try {

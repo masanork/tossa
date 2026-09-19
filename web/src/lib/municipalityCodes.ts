@@ -1,12 +1,67 @@
 // web/src/lib/municipalityCodes.ts: Frontend Municipality Code Master & Search
 export interface Municipality {
   code: string; // 5-6 digit Local Government Code
-  name: string; // 市区町村名（例: 輪島市, 熊本市中央区）
+  name: string; // 市区町村名 または 都道府県全域名
   pref: string; // 都道府県名（例: 石川県, 熊本県）
-  fullName: string; // 都道府県 + 市区町村（例: 石川県輪島市）
+  fullName: string; // 都道府県 + 市区町村（例: 石川県輪島市, 石川県全域）
   lat: number;
   lng: number;
+  isPrefecture?: boolean; // 都道府県全域フラグ
 }
+
+/**
+ * 47 Prefectures Whole-Area Master (JIS X 0401 / 0402 6-digit standard)
+ * Allows designating an entire prefecture in disaster / emergency relief acts.
+ */
+export const PREFECTURES: Municipality[] = [
+  { code: '010006', pref: '北海道', name: '北海道全域', fullName: '北海道全域', lat: 43.0642, lng: 141.3469, isPrefecture: true },
+  { code: '020001', pref: '青森県', name: '青森県全域', fullName: '青森県全域', lat: 40.8244, lng: 140.7400, isPrefecture: true },
+  { code: '030007', pref: '岩手県', name: '岩手県全域', fullName: '岩手県全域', lat: 39.7036, lng: 141.1527, isPrefecture: true },
+  { code: '040002', pref: '宮城県', name: '宮城県全域', fullName: '宮城県全域', lat: 38.2682, lng: 140.8694, isPrefecture: true },
+  { code: '050008', pref: '秋田県', name: '秋田県全域', fullName: '秋田県全域', lat: 39.7186, lng: 140.1024, isPrefecture: true },
+  { code: '060003', pref: '山形県', name: '山形県全域', fullName: '山形県全域', lat: 38.2404, lng: 140.3636, isPrefecture: true },
+  { code: '070009', pref: '福島県', name: '福島県全域', fullName: '福島県全域', lat: 37.7608, lng: 140.4748, isPrefecture: true },
+  { code: '080004', pref: '茨城県', name: '茨城県全域', fullName: '茨城県全域', lat: 36.3659, lng: 140.4712, isPrefecture: true },
+  { code: '090000', pref: '栃木県', name: '栃木県全域', fullName: '栃木県全域', lat: 36.5658, lng: 139.8836, isPrefecture: true },
+  { code: '100005', pref: '群馬県', name: '群馬県全域', fullName: '群馬県全域', lat: 36.3907, lng: 139.0604, isPrefecture: true },
+  { code: '110001', pref: '埼玉県', name: '埼玉県全域', fullName: '埼玉県全域', lat: 35.8617, lng: 139.6455, isPrefecture: true },
+  { code: '120006', pref: '千葉県', name: '千葉県全域', fullName: '千葉県全域', lat: 35.6074, lng: 140.1065, isPrefecture: true },
+  { code: '130001', pref: '東京都', name: '東京都全域', fullName: '東京都全域', lat: 35.6895, lng: 139.6917, isPrefecture: true },
+  { code: '140007', pref: '神奈川県', name: '神奈川県全域', fullName: '神奈川県全域', lat: 35.4478, lng: 139.6425, isPrefecture: true },
+  { code: '150002', pref: '新潟県', name: '新潟県全域', fullName: '新潟県全域', lat: 37.9022, lng: 139.0236, isPrefecture: true },
+  { code: '160008', pref: '富山県', name: '富山県全域', fullName: '富山県全域', lat: 36.6953, lng: 137.2113, isPrefecture: true },
+  { code: '170003', pref: '石川県', name: '石川県全域', fullName: '石川県全域', lat: 36.5947, lng: 136.6256, isPrefecture: true },
+  { code: '180009', pref: '福井県', name: '福井県全域', fullName: '福井県全域', lat: 36.0652, lng: 136.2216, isPrefecture: true },
+  { code: '190004', pref: '山梨県', name: '山梨県全域', fullName: '山梨県全域', lat: 35.6642, lng: 138.5683, isPrefecture: true },
+  { code: '200000', pref: '長野県', name: '長野県全域', fullName: '長野県全域', lat: 36.6513, lng: 138.1811, isPrefecture: true },
+  { code: '210005', pref: '岐阜県', name: '岐阜県全域', fullName: '岐阜県全域', lat: 35.4233, lng: 136.7607, isPrefecture: true },
+  { code: '220001', pref: '静岡県', name: '静岡県全域', fullName: '静岡県全域', lat: 34.9756, lng: 138.3828, isPrefecture: true },
+  { code: '230006', pref: '愛知県', name: '愛知県全域', fullName: '愛知県全域', lat: 35.1802, lng: 136.9066, isPrefecture: true },
+  { code: '240001', pref: '三重県', name: '三重県全域', fullName: '三重県全域', lat: 34.7303, lng: 136.5086, isPrefecture: true },
+  { code: '250007', pref: '滋賀県', name: '滋賀県全域', fullName: '滋賀県全域', lat: 35.0045, lng: 135.8686, isPrefecture: true },
+  { code: '260002', pref: '京都府', name: '京都府全域', fullName: '京都府全域', lat: 35.0116, lng: 135.7681, isPrefecture: true },
+  { code: '270008', pref: '大阪府', name: '大阪府全域', fullName: '大阪府全域', lat: 34.6937, lng: 135.5022, isPrefecture: true },
+  { code: '280003', pref: '兵庫県', name: '兵庫県全域', fullName: '兵庫県全域', lat: 34.6913, lng: 135.1830, isPrefecture: true },
+  { code: '290009', pref: '奈良県', name: '奈良県全域', fullName: '奈良県全域', lat: 34.6851, lng: 135.8048, isPrefecture: true },
+  { code: '300004', pref: '和歌山県', name: '和歌山県全域', fullName: '和歌山県全域', lat: 34.2260, lng: 135.1675, isPrefecture: true },
+  { code: '310000', pref: '鳥取県', name: '鳥取県全域', fullName: '鳥取県全域', lat: 35.5011, lng: 134.2351, isPrefecture: true },
+  { code: '320005', pref: '島根県', name: '島根県全域', fullName: '島根県全域', lat: 35.4723, lng: 133.0505, isPrefecture: true },
+  { code: '330001', pref: '岡山県', name: '岡山県全域', fullName: '岡山県全域', lat: 34.6618, lng: 133.9344, isPrefecture: true },
+  { code: '340006', pref: '広島県', name: '広島県全域', fullName: '広島県全域', lat: 34.3853, lng: 132.4553, isPrefecture: true },
+  { code: '350001', pref: '山口県', name: '山口県全域', fullName: '山口県全域', lat: 34.1785, lng: 131.4737, isPrefecture: true },
+  { code: '360007', pref: '徳島県', name: '徳島県全域', fullName: '徳島県全域', lat: 34.0703, lng: 134.5548, isPrefecture: true },
+  { code: '370002', pref: '香川県', name: '香川県全域', fullName: '香川県全域', lat: 34.3401, lng: 134.0433, isPrefecture: true },
+  { code: '380008', pref: '愛媛県', name: '愛媛県全域', fullName: '愛媛県全域', lat: 33.8417, lng: 132.7661, isPrefecture: true },
+  { code: '390003', pref: '高知県', name: '高知県全域', fullName: '高知県全域', lat: 33.5597, lng: 133.5311, isPrefecture: true },
+  { code: '400009', pref: '福岡県', name: '福岡県全域', fullName: '福岡県全域', lat: 33.6064, lng: 130.4181, isPrefecture: true },
+  { code: '410004', pref: '佐賀県', name: '佐賀県全域', fullName: '佐賀県全域', lat: 33.2635, lng: 130.3009, isPrefecture: true },
+  { code: '420000', pref: '長崎県', name: '長崎県全域', fullName: '長崎県全域', lat: 32.7503, lng: 129.8779, isPrefecture: true },
+  { code: '430005', pref: '熊本県', name: '熊本県全域', fullName: '熊本県全域', lat: 32.7898, lng: 130.7417, isPrefecture: true },
+  { code: '440001', pref: '大分県', name: '大分県全域', fullName: '大分県全域', lat: 33.2381, lng: 131.6125, isPrefecture: true },
+  { code: '450006', pref: '宮崎県', name: '宮崎県全域', fullName: '宮崎県全域', lat: 31.9077, lng: 131.4202, isPrefecture: true },
+  { code: '460001', pref: '鹿児島県', name: '鹿児島県全域', fullName: '鹿児島県全域', lat: 31.5966, lng: 130.5571, isPrefecture: true },
+  { code: '470007', pref: '沖縄県', name: '沖縄県全域', fullName: '沖縄県全域', lat: 26.2124, lng: 127.6809, isPrefecture: true },
+];
 
 // Re-export POPULAR_MUNICIPALITIES
 export const POPULAR_MUNICIPALITIES: Municipality[] = [
@@ -240,7 +295,18 @@ export async function searchMunicipalities(
   const q = query.trim();
   if (!q) return [];
 
-  // Local match first
+  // 1. Search 47 prefectures whole-area master first
+  const prefMatches = PREFECTURES.filter((p) => {
+    return (
+      p.pref.includes(q) ||
+      p.name.includes(q) ||
+      p.fullName.includes(q) ||
+      p.code.startsWith(q) ||
+      (q === '全域')
+    );
+  });
+
+  // 2. Local municipalities match
   const localMatches = POPULAR_MUNICIPALITIES.filter((m) => {
     return (
       m.name.includes(q) ||
@@ -248,10 +314,12 @@ export async function searchMunicipalities(
       m.code.startsWith(q) ||
       m.pref.includes(q)
     );
-  }).slice(0, limit);
+  });
 
-  if (localMatches.length >= 3) {
-    return localMatches;
+  const combinedMatches = [...prefMatches, ...localMatches].slice(0, limit);
+
+  if (combinedMatches.length >= 3) {
+    return combinedMatches;
   }
 
   // Fallback to GSI AddressSearch API
@@ -276,7 +344,7 @@ export async function searchMunicipalities(
             const name = (match && match[2]) ? match[2] : title;
             const code = addressCode.length >= 5 ? addressCode : `muni-${name}`;
 
-            if (!localMatches.some((m) => m.name === name || m.fullName === title)) {
+            if (!combinedMatches.some((m) => m.name === name || m.fullName === title)) {
               remoteResults.push({
                 code,
                 name,
@@ -288,12 +356,12 @@ export async function searchMunicipalities(
             }
           }
         }
-        return [...localMatches, ...remoteResults].slice(0, limit);
+        return [...combinedMatches, ...remoteResults].slice(0, limit);
       }
     }
   } catch {
     // ignore
   }
 
-  return localMatches;
+  return combinedMatches;
 }

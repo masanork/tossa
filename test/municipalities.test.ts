@@ -1,8 +1,9 @@
-// test/municipalities.test.ts: Tests for municipality lookup and GSI shelter fetch API
-import { describe, it, expect, vi } from 'vitest';
+// test/municipalities.test.ts: Tests for municipality & prefecture whole-area lookup and GSI shelter fetch API
+import { describe, it, expect } from 'vitest';
 import {
   searchMunicipalities,
   latLngToTileZ10,
+  PREFECTURES,
 } from '../src/municipalities';
 import { createTestContext } from './helpers/testApp';
 
@@ -19,21 +20,46 @@ describe('Municipalities & GSI Shelters', () => {
       expect(wajima?.lng).toBeCloseTo(136.89, 1);
     });
 
+    it('searches prefecture whole-area when prefecture name is entered', async () => {
+      const results = await searchMunicipalities('石川県');
+      expect(results.length).toBeGreaterThan(0);
+      const ishikawaWhole = results[0];
+      expect(ishikawaWhole).toBeDefined();
+      expect(ishikawaWhole?.name).toBe('石川県全域');
+      expect(ishikawaWhole?.isPrefecture).toBe(true);
+      expect(ishikawaWhole?.code).toBe('170003');
+    });
+
+    it('searches prefecture by code', async () => {
+      const results = await searchMunicipalities('430005');
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0]?.name).toBe('熊本県全域');
+      expect(results[0]?.isPrefecture).toBe(true);
+    });
+
     it('searches municipality by city code', async () => {
       const results = await searchMunicipalities('17204');
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0]?.name).toBe('輪島市');
+      expect(results.some((m) => m.name === '輪島市')).toBe(true);
     });
 
     it('searches municipality by partial query (Kumamoto)', async () => {
       const results = await searchMunicipalities('熊本');
       expect(results.length).toBeGreaterThan(0);
       expect(results.some((m) => m.name.includes('熊本'))).toBe(true);
+      expect(results.some((m) => m.isPrefecture)).toBe(true);
     });
 
     it('returns empty array on blank query', async () => {
       const results = await searchMunicipalities('');
       expect(results).toEqual([]);
+    });
+
+    it('contains all 47 prefectures in PREFECTURES master', () => {
+      expect(PREFECTURES.length).toBe(47);
+      expect(PREFECTURES.every((p) => p.isPrefecture)).toBe(true);
+      expect(PREFECTURES.some((p) => p.pref === '東京都')).toBe(true);
+      expect(PREFECTURES.some((p) => p.pref === '沖縄県')).toBe(true);
     });
   });
 
@@ -51,15 +77,16 @@ describe('Municipalities & GSI Shelters', () => {
   });
 
   describe('API Endpoints', () => {
-    it('GET /api/opendata/municipalities returns matches', async () => {
+    it('GET /api/opendata/municipalities returns matches with prefecture whole-area option', async () => {
       const { request } = createTestContext();
-      const res = await request('/api/opendata/municipalities?q=輪島');
+      const res = await request('/api/opendata/municipalities?q=石川');
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as { success: boolean; municipalities: any[] };
       expect(body.success).toBe(true);
       expect(body.municipalities.length).toBeGreaterThan(0);
-      expect(body.municipalities[0].name).toBe('輪島市');
+      expect(body.municipalities[0].name).toBe('石川県全域');
+      expect(body.municipalities[0].isPrefecture).toBe(true);
     });
 
     it('POST /api/opendata/disaster-areas/fetch handles empty request', async () => {
@@ -75,7 +102,7 @@ describe('Municipalities & GSI Shelters', () => {
       expect(body.shelters).toEqual([]);
     });
 
-    it('POST /api/opendata/disaster-areas/fetch retrieves shelters from curated presets or GSI', async () => {
+    it('POST /api/opendata/disaster-areas/fetch retrieves shelters for an entire prefecture', async () => {
       const { request } = createTestContext();
       const res = await request('/api/opendata/disaster-areas/fetch', {
         method: 'POST',
@@ -83,12 +110,13 @@ describe('Municipalities & GSI Shelters', () => {
         body: JSON.stringify({
           areas: [
             {
-              code: '43100',
-              name: '熊本市',
+              code: '430005',
+              name: '熊本県全域',
               pref: '熊本県',
-              fullName: '熊本県熊本市',
-              lat: 32.8031,
-              lng: 130.7079,
+              fullName: '熊本県全域',
+              lat: 32.7898,
+              lng: 130.7417,
+              isPrefecture: true,
             },
           ],
         }),

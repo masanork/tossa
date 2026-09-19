@@ -601,6 +601,7 @@
           fullName: muni.fullName,
           lat: muni.lat,
           lng: muni.lng,
+          isPrefecture: muni.isPrefecture,
         },
       ];
       if (!defaultArea) {
@@ -1513,6 +1514,13 @@
                               class="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-2 py-1 text-xs font-bold text-red-800 shadow-xs dark:border-red-800 dark:bg-slate-900 dark:text-red-200"
                             >
                               <span>{area.fullName}</span>
+                              {#if area.isPrefecture}
+                                <span
+                                  class="rounded bg-red-100 px-1 py-0.2 text-[9px] font-bold text-red-700 dark:bg-red-900/60 dark:text-red-300"
+                                >
+                                  県全域
+                                </span>
+                              {/if}
                               <span
                                 class="text-[10px] text-slate-500 dark:text-slate-400"
                               >
@@ -1562,7 +1570,14 @@
                                 onclick={() => handleAddDisasterArea(item)}
                                 class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-red-50 dark:hover:bg-red-950/40"
                               >
-                                <span class="font-bold text-slate-800 dark:text-slate-100">
+                                <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100">
+                                  {#if item.isPrefecture}
+                                    <span
+                                      class="rounded bg-red-100 px-1 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-900/60 dark:text-red-300"
+                                    >
+                                      県全域
+                                    </span>
+                                  {/if}
                                   {item.fullName}
                                 </span>
                                 <span

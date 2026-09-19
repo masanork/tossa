@@ -4,6 +4,7 @@ import type { Bindings } from '../types';
 import {
   searchMunicipalities,
   latLngToTileZ10,
+  POPULAR_MUNICIPALITIES,
 } from '../municipalities';
 
 export const opendataRoute = new Hono<{ Bindings: Bindings }>();
@@ -374,14 +375,21 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
   for (const area of areas) {
     const areaName = area.name.trim();
     const prefName = (area.pref || '').trim();
+    const isPref = Boolean(
+      (area as any).isPrefecture ||
+      area.code?.endsWith('000') ||
+      area.code?.endsWith('000x') ||
+      area.name.endsWith('全域')
+    );
 
     // 1. Check curated presets first
     for (const preset of OFFICIAL_PRESETS) {
       for (const item of preset.items) {
-        if (
-          item.area.includes(areaName) ||
-          (prefName && item.area.includes(prefName) && item.area.includes(areaName))
-        ) {
+        const matches = isPref
+          ? (prefName && (item.area.includes(prefName) || preset.prefecture.includes(prefName)))
+          : (item.area.includes(areaName) || (prefName && item.area.includes(prefName) && item.area.includes(areaName)));
+
+        if (matches) {
           if (!visitedNames.has(item.name)) {
             visitedNames.add(item.name);
             collectedShelters.push(item);
@@ -390,10 +398,30 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
       }
     }
 
-    // 2. Fetch GSI vector shelter tiles (skhb04: earthquake) if coordinates are available
-    if (area.lat && area.lng) {
+    // 2. Determine target coordinates for GSI vector shelter tiles (skhb04: earthquake)
+    const targetPoints: Array<{ lat: number; lng: number }> = [];
+    if (isPref) {
+      const muniInPref = POPULAR_MUNICIPALITIES.filter((m) => m.pref === prefName);
+      if (muniInPref.length > 0) {
+        for (const m of muniInPref.slice(0, 6)) {
+          targetPoints.push({ lat: m.lat, lng: m.lng });
+        }
+      }
+      if (area.lat && area.lng) {
+        targetPoints.push({ lat: area.lat, lng: area.lng });
+      }
+    } else if (area.lat && area.lng) {
+      targetPoints.push({ lat: area.lat, lng: area.lng });
+    }
+
+    const visitedTiles = new Set<string>();
+    for (const pt of targetPoints) {
+      const tile = latLngToTileZ10(pt.lat, pt.lng);
+      const tileKey = `${tile.z}/${tile.x}/${tile.y}`;
+      if (visitedTiles.has(tileKey)) continue;
+      visitedTiles.add(tileKey);
+
       try {
-        const tile = latLngToTileZ10(area.lat, area.lng);
         const tileUrl = `https://cyberjapandata.gsi.go.jp/xyz/skhb04/${tile.z}/${tile.x}/${tile.y}.geojson`;
         const res = await fetch(tileUrl);
         if (res.ok) {
@@ -408,16 +436,23 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
                 const [sLng, sLat] = coords;
 
                 // Match by address or proximity (< 15km)
-                const addressMatches =
-                  sAddress.includes(areaName) ||
-                  (prefName && sAddress.includes(prefName));
-                const distApprox = Math.hypot(sLat - area.lat, sLng - area.lng);
+                const addressMatches = isPref
+                  ? (prefName && sAddress.includes(prefName))
+                  : (sAddress.includes(areaName) || (prefName && sAddress.includes(prefName)));
+                const distApprox = isPref ? 0 : Math.hypot(sLat - (area.lat || pt.lat), sLng - (area.lng || pt.lng));
 
                 if ((addressMatches || distApprox < 0.25) && !visitedNames.has(sName)) {
                   visitedNames.add(sName);
+
+                  let shelterArea = area.fullName || `${prefName}${areaName}`;
+                  if (isPref && sAddress) {
+                    const muniMatch = sAddress.match(/^(?:東京都|北海道|(?:京都|大阪)府|.{2,3}県)([^市区町村]+(?:市|区|町|村))/);
+                    shelterArea = muniMatch ? muniMatch[0] : (area.fullName || prefName);
+                  }
+
                   collectedShelters.push({
                     name: sName,
-                    area: area.fullName || `${prefName}${areaName}`,
+                    area: shelterArea,
                     address: sAddress || `${prefName}${areaName}`,
                     category: '避難所',
                     lat: Math.round(sLat * 1000000) / 1000000,
@@ -433,7 +468,7 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
           }
         }
       } catch (e) {
-        console.warn(`Failed to fetch GSI tiles for ${areaName}:`, e);
+        console.warn(`Failed to fetch GSI tiles for ${tileKey}:`, e);
       }
     }
   }
