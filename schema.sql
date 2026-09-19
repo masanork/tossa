@@ -192,6 +192,7 @@ CREATE TABLE IF NOT EXISTS access_logs (
 CREATE INDEX IF NOT EXISTS idx_access_logs_device ON access_logs(device_session_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_access_logs_user ON access_logs(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_access_logs_event ON access_logs(event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_access_logs_created ON access_logs(created_at DESC);
 
 -- 端末セッションとPasskeyユーザーのN:N紐付け
 CREATE TABLE IF NOT EXISTS device_user_links (

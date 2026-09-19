@@ -127,7 +127,11 @@ export async function getPosts(
 
   const listQuery = `
     SELECT 
-      p.*,
+      p.id, p.category_id, p.title, p.area, p.address, p.lat, p.lng,
+      p.current_status, p.status_label, p.note, p.url, p.source_url,
+      p.image_url, p.verification_count, p.last_verified_at,
+      p.attributes, p.tags, p.is_verified, p.author_id, p.author_cookie_id,
+      p.reporter_name, p.disaster_id, p.created_at, p.updated_at,
       c.name as category_name,
       c.icon as category_icon,
       c.color as category_color
@@ -148,6 +152,50 @@ export async function getPosts(
     posts: listRes.results || [],
     total,
   };
+}
+
+export async function getCapacityCounts(db: D1Database): Promise<{
+  posts: number;
+  postsUpdated24h: number;
+  writeEvents24h: number;
+  accessLogs: number;
+  deviceSessions: number;
+}> {
+  const one = async (sql: string) => {
+    const row = await db.prepare(sql).first<{ c: number }>();
+    return row?.c || 0;
+  };
+  const [posts, postsUpdated24h, writeEvents24h, accessLogs, deviceSessions] =
+    await Promise.all([
+      one('SELECT COUNT(*) as c FROM posts'),
+      one(
+        "SELECT COUNT(*) as c FROM posts WHERE updated_at >= datetime('now', '-1 day')"
+      ),
+      one(
+        "SELECT COUNT(*) as c FROM access_logs WHERE created_at >= datetime('now', '-1 day') AND event_type IN ('post_created', 'post_updated', 'post_deleted')"
+      ),
+      one('SELECT COUNT(*) as c FROM access_logs'),
+      one('SELECT COUNT(*) as c FROM device_sessions'),
+    ]);
+  return {
+    posts,
+    postsUpdated24h,
+    writeEvents24h,
+    accessLogs,
+    deviceSessions,
+  };
+}
+
+export async function purgeOldAccessLogs(
+  db: D1Database,
+  days = 7
+): Promise<void> {
+  const safeDays = Math.max(1, Math.min(days, 90));
+  await db
+    .prepare(
+      `DELETE FROM access_logs WHERE created_at < datetime('now', '-${safeDays} days')`
+    )
+    .run();
 }
 
 export async function getPostById(
@@ -592,7 +640,7 @@ export async function exportAllPostsForFederation(
   db: D1Database
 ): Promise<FederatedGeoJSONFeature[]> {
   const postsRes = await db
-    .prepare('SELECT * FROM posts ORDER BY updated_at DESC')
+    .prepare('SELECT * FROM posts ORDER BY updated_at DESC LIMIT 2000')
     .all<Post>();
   const posts = postsRes.results || [];
 

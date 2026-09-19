@@ -112,7 +112,7 @@ seoRoute.get('/robots.txt', (c) => {
 // --------------------------------------------------------------------------
 seoRoute.get('/sitemap.xml', async (c) => {
   const origin = getOrigin(c);
-  const { posts } = await getPosts(c.env.DB, { limit: 1000 });
+  const { posts } = await getPosts(c.env.DB, { limit: 200 });
 
   const now = new Date().toISOString();
   let latestPostDate = now;
@@ -198,7 +198,7 @@ seoRoute.get('/sitemap.xml', async (c) => {
     status: 200,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
+      'Cache-Control': 'public, max-age=300, stale-while-revalidate=3600',
     },
   });
 });
@@ -267,7 +267,7 @@ seoRoute.get('/llms-full.txt', async (c) => {
   const settings = await getSystemSettings(c.env.DB);
   const siteTitle = settings.site_title || 'tossa';
   const emergencyBanner = settings.emergency_banner || '';
-  const { posts } = await getPosts(c.env.DB, { limit: 1000 });
+  const { posts } = await getPosts(c.env.DB, { limit: 200 });
 
   const lines: string[] = [
     `# ${siteTitle} - 施設・支援状況リアルタイム一覧 (Live Digest)`,
@@ -316,7 +316,7 @@ seoRoute.get('/llms-full.txt', async (c) => {
     status: 200,
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',
-      'Cache-Control': 'public, max-age=30, stale-while-revalidate=120',
+      'Cache-Control': 'public, max-age=120, stale-while-revalidate=600',
     },
   });
 });
@@ -386,7 +386,7 @@ seoRoute.get('/feed.xml', async (c) => {
     status: 200,
     headers: {
       'Content-Type': 'application/rss+xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=30, stale-while-revalidate=120',
+      'Cache-Control': 'public, max-age=120, stale-while-revalidate=600',
     },
   });
 });

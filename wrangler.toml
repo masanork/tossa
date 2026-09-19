@@ -9,13 +9,35 @@ compatibility_flags = ["nodejs_compat"]
 directory = "./web/dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
-run_worker_first = true
+run_worker_first = [
+  "/api/*",
+  "/mcp",
+  "/mcp/*",
+  "/ogp/*",
+  "/sitemap.xml",
+  "/robots.txt",
+  "/llms.txt",
+  "/llms-full.txt",
+  "/feed.xml",
+  "/posts/*",
+]
 
 # Cloudflare D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "tossa-db"
 database_id = "5c2c9eea-b0f2-428c-843f-fbd5e2ecf0d0"
+
+# Public feed snapshot (Workers Paid KV allotment — no extra product)
+[[kv_namespaces]]
+binding = "FEED_KV"
+id = "f22ffac4a48c4c2eb9bc117711e724dd"
+
+# Future: Postgres via Hyperdrive when a single D1 is no longer enough.
+# Uncomment and fill in after `wrangler hyperdrive create ...` (this *does* add cost).
+# [[hyperdrive]]
+# binding = "HYPERDRIVE"
+# id = ""
 
 # Custom Domain (Cloudflare Registrar)
 [[routes]]

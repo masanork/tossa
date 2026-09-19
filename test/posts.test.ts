@@ -92,12 +92,10 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     expect(post?.status_label).toBe('お知らせ');
   });
 
-  it('correctly sets is_owner based on device cookie in GET /api/posts', async () => {
+  it('omits is_owner on public lists so Cookie does not fragment the edge cache', async () => {
     const { request } = createTestContext();
     const myDevice = 'my_phone_device_123';
-    const otherDevice = 'stranger_device_456';
 
-    // Create post from the user's own device
     const createRes = await request('/api/posts', {
       method: 'POST',
       headers: {
@@ -113,27 +111,25 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     });
     const created = await createRes.json();
 
-    // Fetch posts from own device
-    const resMy = await request('/api/posts', {
+    const resPublic = await request('/api/posts', {
       headers: {
         Cookie: `${DEVICE_COOKIE}=${myDevice}`,
       },
     });
-    const dataMy = await resMy.json();
-    const myPost = dataMy.posts.find((p: any) => p.id === created.id);
-    expect(myPost).toBeTruthy();
-    expect(myPost.is_owner).toBe(true);
+    const dataPublic = await resPublic.json();
+    const listed = dataPublic.posts.find((p: any) => p.id === created.id);
+    expect(listed).toBeTruthy();
+    expect(listed.is_owner).toBeUndefined();
 
-    // Fetch posts from another user's device
-    const resOther = await request('/api/posts', {
+    const resMine = await request('/api/posts?mine=true', {
       headers: {
-        Cookie: `${DEVICE_COOKIE}=${otherDevice}`,
+        Cookie: `${DEVICE_COOKIE}=${myDevice}`,
       },
     });
-    const dataOther = await resOther.json();
-    const otherPost = dataOther.posts.find((p: any) => p.id === created.id);
-    expect(otherPost).toBeTruthy();
-    expect(otherPost.is_owner).toBe(false);
+    const dataMine = await resMine.json();
+    const minePost = dataMine.posts.find((p: any) => p.id === created.id);
+    expect(minePost).toBeTruthy();
+    expect(minePost.is_owner).toBe(true);
   });
 
   it('allows editing by cookie owner, blocks unauthorized users', async () => {

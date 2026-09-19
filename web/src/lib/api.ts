@@ -1001,6 +1001,58 @@ export async function triggerBackupApi(token: string): Promise<BackupResult> {
   }
 }
 
+export interface CapacityAdvice {
+  level: 'ok' | 'watch' | 'act';
+  title: string;
+  body: string;
+}
+
+export interface CapacityReport {
+  generatedAt: string;
+  kvBound: boolean;
+  snapshotAgeSeconds: number | null;
+  snapshotTotal: number | null;
+  posts: number;
+  postsUpdated24h: number;
+  writeEvents24h: number;
+  accessLogs: number;
+  deviceSessions: number;
+  advice: CapacityAdvice[];
+}
+
+export async function fetchCapacityApi(
+  token: string
+): Promise<{ success: boolean; report?: CapacityReport; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/capacity`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to fetch capacity report',
+    };
+  }
+}
+
+export async function refreshCapacityApi(
+  token: string
+): Promise<{ success: boolean; report?: CapacityReport; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/capacity/refresh`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to refresh feed snapshot',
+    };
+  }
+}
+
 export async function fetchBackupsApi(
   token: string
 ): Promise<{ success: boolean; backups?: BackupRecord[]; error?: string }> {

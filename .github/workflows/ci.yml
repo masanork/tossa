@@ -136,5 +136,5 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           packageManager: npm
-          wranglerVersion: '3.114.17'
+          wranglerVersion: '4.135.0'
           command: deploy

@@ -9,6 +9,11 @@ import {
 import { verifySessionToken } from '../auth/session';
 import { broadcastPushNotification } from '../services/push';
 import { performDatabaseBackup, listStoredBackups } from '../services/backup';
+import {
+  buildCapacityReport,
+  runCapacityMaintenance,
+} from '../services/capacity';
+import { refreshPublicFeedSnapshot } from '../services/feedSnapshot';
 
 export const settingsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -183,6 +188,47 @@ settingsRoute.get('/backups', async (c) => {
     success: true,
     backups,
   });
+});
+
+async function requireAdmin(c: {
+  req: { header: (name: string) => string | undefined };
+  env: Bindings;
+  json: (body: unknown, status?: number) => Response;
+}): Promise<{ userId: string; role: string } | Response> {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Unauthorized' }, 401);
+  }
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  }
+  return session;
+}
+
+settingsRoute.get('/capacity', async (c) => {
+  const auth = await requireAdmin(c);
+  if (!('userId' in auth)) return auth;
+  const report = await buildCapacityReport(c.env);
+  return c.json({ success: true, report });
+});
+
+settingsRoute.post('/capacity/refresh', async (c) => {
+  const auth = await requireAdmin(c);
+  if (!('userId' in auth)) return auth;
+  await refreshPublicFeedSnapshot(c.env, { force: true });
+  const report = await buildCapacityReport(c.env);
+  return c.json({ success: true, report });
+});
+
+settingsRoute.post('/capacity/maintain', async (c) => {
+  const auth = await requireAdmin(c);
+  if (!('userId' in auth)) return auth;
+  await runCapacityMaintenance(c.env);
+  await refreshPublicFeedSnapshot(c.env, { force: true });
+  const report = await buildCapacityReport(c.env);
+  return c.json({ success: true, report });
 });
 
 // POST /api/settings/import-csv - Batch import posts from CSV (Admin & Moderator)

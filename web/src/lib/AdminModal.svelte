@@ -18,6 +18,9 @@
     issueApiTokenApi,
     triggerBackupApi,
     fetchBackupsApi,
+    fetchCapacityApi,
+    refreshCapacityApi,
+    type CapacityReport,
     importCsvApi,
     fetchDisasters,
     createDisasterApi,
@@ -75,6 +78,7 @@
     Calendar,
     ChevronDown,
     ChevronUp,
+    Activity,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
@@ -122,7 +126,13 @@
 
   // Admin tabs
   let activeTab = $state<
-    'settings' | 'import' | 'users' | 'federation' | 'mcp' | 'backup'
+    | 'settings'
+    | 'import'
+    | 'users'
+    | 'federation'
+    | 'mcp'
+    | 'backup'
+    | 'capacity'
   >('settings');
 
   // CSV / Excel Import state
@@ -375,6 +385,47 @@
     text: string;
   } | null>(null);
   let lastBackupResult = $state<BackupResult | null>(null);
+
+  let capacityReport = $state<CapacityReport | null>(null);
+  let isLoadingCapacity = $state(false);
+  let isRefreshingCapacity = $state(false);
+  let capacityError = $state<string | null>(null);
+
+  async function loadCapacity() {
+    if (!token) return;
+    isLoadingCapacity = true;
+    capacityError = null;
+    try {
+      const res = await fetchCapacityApi(token);
+      if (res.success && res.report) {
+        capacityReport = res.report;
+      } else {
+        capacityError = res.error || '規模レポートを取得できませんでした';
+      }
+    } catch (err: any) {
+      capacityError = err?.message || '規模レポートを取得できませんでした';
+    } finally {
+      isLoadingCapacity = false;
+    }
+  }
+
+  async function handleRefreshCapacity() {
+    if (!token) return;
+    isRefreshingCapacity = true;
+    capacityError = null;
+    try {
+      const res = await refreshCapacityApi(token);
+      if (res.success && res.report) {
+        capacityReport = res.report;
+      } else {
+        capacityError = res.error || 'スナップショット更新に失敗しました';
+      }
+    } catch (err: any) {
+      capacityError = err?.message || 'スナップショット更新に失敗しました';
+    } finally {
+      isRefreshingCapacity = false;
+    }
+  }
 
   async function loadBackups() {
     if (!token) return;
@@ -1560,6 +1611,22 @@
               >
                 <Bot class="h-3.5 w-3.5" />
                 <span>MCP連携</span>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => {
+                  activeTab = 'capacity';
+                  void loadCapacity();
+                }}
+                class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
+                  activeTab === 'capacity'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Activity class="h-3.5 w-3.5" />
+                <span>規模</span>
               </button>
 
               <button
@@ -3458,6 +3525,149 @@
                       ></pre>
                   </div>
                 </div>
+              </div>
+            {:else if activeTab === 'capacity'}
+              <div class="flex flex-col gap-4">
+                <div
+                  class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/40"
+                >
+                  <p
+                    class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"
+                  >
+                    D1 の件数と KV
+                    スナップショットの鮮度から、追加課金なしで今やるべきことを出します。Hyperdrive
+                    / PostgreSQL はまだ不要な段階では提案しません。
+                  </p>
+                  <button
+                    type="button"
+                    onclick={() => handleRefreshCapacity()}
+                    disabled={isRefreshingCapacity || !token}
+                    class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    <RefreshCw
+                      class={`h-3.5 w-3.5 ${isRefreshingCapacity ? 'animate-spin' : ''}`}
+                    />
+                    <span>スナップショットを更新</span>
+                  </button>
+                </div>
+
+                {#if capacityError}
+                  <div
+                    class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
+                  >
+                    {capacityError}
+                  </div>
+                {/if}
+
+                {#if isLoadingCapacity && !capacityReport}
+                  <div class="py-8 text-center text-xs text-slate-400">
+                    規模データを読み込み中...
+                  </div>
+                {:else if capacityReport}
+                  <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div
+                      class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div class="text-[10px] font-bold text-slate-400">
+                        投稿
+                      </div>
+                      <div
+                        class="mt-1 text-lg font-black text-slate-900 dark:text-white"
+                      >
+                        {capacityReport.posts.toLocaleString()}
+                      </div>
+                    </div>
+                    <div
+                      class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div class="text-[10px] font-bold text-slate-400">
+                        24h 更新
+                      </div>
+                      <div
+                        class="mt-1 text-lg font-black text-slate-900 dark:text-white"
+                      >
+                        {capacityReport.postsUpdated24h.toLocaleString()}
+                      </div>
+                    </div>
+                    <div
+                      class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div class="text-[10px] font-bold text-slate-400">
+                        24h 書き込み
+                      </div>
+                      <div
+                        class="mt-1 text-lg font-black text-slate-900 dark:text-white"
+                      >
+                        {capacityReport.writeEvents24h.toLocaleString()}
+                      </div>
+                    </div>
+                    <div
+                      class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div class="text-[10px] font-bold text-slate-400">
+                        KV スナップショット
+                      </div>
+                      <div
+                        class="mt-1 text-sm font-black text-slate-900 dark:text-white"
+                      >
+                        {#if !capacityReport.kvBound}
+                          未接続
+                        {:else if capacityReport.snapshotAgeSeconds == null}
+                          未作成
+                        {:else if capacityReport.snapshotAgeSeconds < 60}
+                          {capacityReport.snapshotAgeSeconds}秒前
+                        {:else}
+                          {Math.round(
+                            capacityReport.snapshotAgeSeconds / 60
+                          )}分前
+                        {/if}
+                      </div>
+                    </div>
+                    <div
+                      class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div class="text-[10px] font-bold text-slate-400">
+                        端末セッション
+                      </div>
+                      <div
+                        class="mt-1 text-lg font-black text-slate-900 dark:text-white"
+                      >
+                        {capacityReport.deviceSessions.toLocaleString()}
+                      </div>
+                    </div>
+                    <div
+                      class="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div class="text-[10px] font-bold text-slate-400">
+                        アクセスログ
+                      </div>
+                      <div
+                        class="mt-1 text-lg font-black text-slate-900 dark:text-white"
+                      >
+                        {capacityReport.accessLogs.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-col gap-2">
+                    {#each capacityReport.advice as item, i (`${item.level}-${i}`)}
+                      <div
+                        class={`rounded-xl border p-3 text-xs ${
+                          item.level === 'act'
+                            ? 'border-rose-200 bg-rose-50/80 text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-200'
+                            : item.level === 'watch'
+                              ? 'border-amber-200 bg-amber-50/80 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200'
+                              : 'border-emerald-200 bg-emerald-50/80 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200'
+                        }`}
+                      >
+                        <div class="font-bold">{item.title}</div>
+                        <p class="mt-1 leading-relaxed opacity-90">
+                          {item.body}
+                        </p>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {:else if activeTab === 'backup'}
               <div class="flex flex-col gap-4">

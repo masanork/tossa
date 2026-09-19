@@ -22,6 +22,8 @@ import { rateLimiter } from './middleware/rateLimit';
 import { processPushQueueBatch } from './services/push';
 import { processWriteQueueBatch } from './services/writeBuffer';
 import { performDatabaseBackup } from './services/backup';
+import { runCapacityMaintenance } from './services/capacity';
+import { refreshPublicFeedSnapshot } from './services/feedSnapshot';
 import { sendErrorAlert } from './services/alert';
 import { renderOgpSvg } from './ogp';
 import { getPostById } from './db/queries';
@@ -337,26 +339,31 @@ const worker = Object.assign(app, {
     ctx: ExecutionContext
   ): Promise<void> {
     ctx.waitUntil(
-      performDatabaseBackup(env)
-        .then(async (result) => {
-          if (!result.success && env?.ALERT_WEBHOOK_URL) {
-            await sendErrorAlert(
-              env,
-              new Error(result.error || 'Scheduled D1 backup failed'),
-              {
-                source: 'scheduled_backup',
-              }
-            );
-          }
-        })
-        .catch(async (backupErr) => {
-          console.error('[Worker Scheduled Backup Error]', backupErr);
-          if (env?.ALERT_WEBHOOK_URL) {
-            await sendErrorAlert(env, backupErr, {
+      (async () => {
+        await runCapacityMaintenance(env).catch((err) => {
+          console.error('[Worker Scheduled maintenance Error]', err);
+        });
+        await refreshPublicFeedSnapshot(env, { force: true }).catch((err) => {
+          console.error('[Worker Scheduled snapshot Error]', err);
+        });
+        const result = await performDatabaseBackup(env);
+        if (!result.success && env?.ALERT_WEBHOOK_URL) {
+          await sendErrorAlert(
+            env,
+            new Error(result.error || 'Scheduled D1 backup failed'),
+            {
               source: 'scheduled_backup',
-            });
-          }
-        })
+            }
+          );
+        }
+      })().catch(async (backupErr) => {
+        console.error('[Worker Scheduled Backup Error]', backupErr);
+        if (env?.ALERT_WEBHOOK_URL) {
+          await sendErrorAlert(env, backupErr, {
+            source: 'scheduled_backup',
+          });
+        }
+      })
     );
   },
 });

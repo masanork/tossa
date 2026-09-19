@@ -20,6 +20,11 @@ import {
   enqueuePostCreation,
   enqueueStatusUpdate,
 } from '../services/writeBuffer';
+import {
+  readPublicFeedSnapshot,
+  scheduleFeedRefresh,
+  executionCtxOf,
+} from '../services/feedSnapshot';
 import { renderOgpSvg } from '../ogp';
 
 type PostsVariables = { deviceSessionId: string };
@@ -100,6 +105,72 @@ postsRoute.get('/', async (c) => {
     authorCookieId = deviceId || undefined;
   }
 
+  const isPrivateList = mine === 'true';
+  const skipEdgeCache = isPrivateList || c.env.DISABLE_WRITE_BUFFER === 'true';
+
+  if (!skipEdgeCache) {
+    try {
+      const cacheUrl = new URL(c.req.url);
+      cacheUrl.searchParams.delete('_t');
+      const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
+      const cached = await caches.default.match(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    } catch {
+      // Cache API unavailable (tests / local) — fall through to D1
+    }
+  }
+
+  const unfilteredPublic =
+    !isPrivateList &&
+    !categoryId &&
+    !area &&
+    !status &&
+    !search &&
+    !tag &&
+    !ids &&
+    offset === 0;
+
+  if (unfilteredPublic && !skipEdgeCache) {
+    const snapshot = await readPublicFeedSnapshot(c.env);
+    if (snapshot) {
+      const capped = Math.min(Math.max(limit || 50, 1), 100);
+      const payload = {
+        success: true,
+        posts: snapshot.posts.slice(0, capped),
+        total: snapshot.total,
+        limit: capped,
+        offset: 0,
+      };
+      const response = new Response(JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control':
+            'public, max-age=15, s-maxage=15, stale-while-revalidate=60',
+          'X-Feed-Source': 'kv',
+        },
+      });
+      try {
+        const cacheUrl = new URL(c.req.url);
+        cacheUrl.searchParams.delete('_t');
+        executionCtxOf(c)?.waitUntil(
+          caches.default.put(
+            new Request(cacheUrl.toString(), { method: 'GET' }),
+            response.clone()
+          )
+        );
+      } catch {
+        /* ignore */
+      }
+      const age = Date.now() - Date.parse(snapshot.generatedAt);
+      if (Number.isNaN(age) || age > 60_000) {
+        scheduleFeedRefresh(c.env, executionCtxOf(c));
+      }
+      return response;
+    }
+  }
+
   const result = await getPosts(c.env.DB, {
     categoryId,
     area,
@@ -113,37 +184,63 @@ postsRoute.get('/', async (c) => {
     offset,
   });
 
-  // Attach is_owner based on device cookie, Passkey user session, or admin
-  const posts = result.posts.map((post: any) => ({
-    ...post,
-    is_owner: !!(
-      (deviceId &&
-        post.author_cookie_id &&
-        post.author_cookie_id === deviceId) ||
-      (session && post.author_id && post.author_id === session.userId) ||
-      session?.role === 'admin'
-    ),
-  }));
-
-  // Enable aggressive edge caching for public listings (99% D1 load reduction during disasters)
-  // Private no-store is reserved only for personal queries (mine=true)
-  if (mine === 'true') {
-    c.header('Cache-Control', 'private, no-store');
-  } else {
-    c.header('Cache-Control', 'no-cache');
-    c.header(
-      'CDN-Cache-Control',
-      'public, max-age=5, stale-while-revalidate=30'
-    );
+  // Public lists omit is_owner so Cookie headers do not fragment the edge cache.
+  // The client already treats localStorage ownership (isMyPost) as equivalent.
+  if (unfilteredPublic) {
+    scheduleFeedRefresh(c.env, executionCtxOf(c));
   }
 
-  return c.json({
+  const posts = isPrivateList
+    ? result.posts.map((post: any) => ({
+        ...post,
+        is_owner: !!(
+          (deviceId &&
+            post.author_cookie_id &&
+            post.author_cookie_id === deviceId) ||
+          (session && post.author_id && post.author_id === session.userId) ||
+          session?.role === 'admin'
+        ),
+      }))
+    : result.posts;
+
+  if (skipEdgeCache) {
+    c.header('Cache-Control', isPrivateList ? 'private, no-store' : 'no-store');
+    return c.json({
+      success: true,
+      posts,
+      total: result.total,
+      limit,
+      offset,
+    });
+  }
+
+  const payload = {
     success: true,
     posts,
     total: result.total,
     limit,
     offset,
+  };
+  const response = new Response(JSON.stringify(payload), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control':
+        'public, max-age=15, s-maxage=15, stale-while-revalidate=60',
+    },
   });
+
+  try {
+    const cacheUrl = new URL(c.req.url);
+    cacheUrl.searchParams.delete('_t');
+    const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
+    executionCtxOf(c)?.waitUntil(
+      caches.default.put(cacheKey, response.clone())
+    );
+  } catch {
+    // ignore cache put failures
+  }
+
+  return response;
 });
 
 // GET /api/posts/:id
@@ -294,6 +391,8 @@ postsRoute.post('/', async (c) => {
     }
   }
 
+  scheduleFeedRefresh(c.env, executionCtxOf(c));
+
   return c.json(
     {
       success: true,
@@ -394,6 +493,8 @@ postsRoute.put('/:id', async (c) => {
     { postId }
   );
 
+  scheduleFeedRefresh(c.env, executionCtxOf(c));
+
   return c.json({
     success: true,
     message: 'Post updated successfully',
@@ -443,6 +544,8 @@ postsRoute.delete('/:id', async (c) => {
     ua,
     { postId }
   );
+
+  scheduleFeedRefresh(c.env, executionCtxOf(c));
 
   return c.json({
     success: true,
@@ -513,6 +616,8 @@ postsRoute.post('/:id/status', async (c) => {
       );
     }
   }
+
+  scheduleFeedRefresh(c.env, executionCtxOf(c));
 
   return c.json({
     success: true,

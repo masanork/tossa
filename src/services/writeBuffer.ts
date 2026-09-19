@@ -3,6 +3,7 @@ import type { Bindings, WriteQueueMessage } from '../types';
 import { createPost, updatePostStatus } from '../db/queries';
 import { logAccess } from '../middleware/deviceCookie';
 import { broadcastPushNotification } from './push';
+import { refreshPublicFeedSnapshot } from './feedSnapshot';
 
 /**
  * Attempts to enqueue a post creation task to Cloudflare Queues for smoothing high-traffic write spikes.
@@ -60,6 +61,7 @@ export async function processWriteQueueBatch(
   batch: MessageBatch<WriteQueueMessage>,
   env: Bindings
 ): Promise<void> {
+  let wrote = false;
   for (const message of batch.messages) {
     try {
       const msg = message.body;
@@ -83,6 +85,7 @@ export async function processWriteQueueBatch(
           }
         }
 
+        wrote = true;
         await createPost(env.DB, {
           id: msg.post.id,
           authorId: msg.post.authorId,
@@ -124,6 +127,7 @@ export async function processWriteQueueBatch(
           );
         }
       } else if (msg.type === 'update_status') {
+        wrote = true;
         await updatePostStatus(
           env.DB,
           msg.postId,
@@ -148,5 +152,11 @@ export async function processWriteQueueBatch(
       );
       message.retry();
     }
+  }
+
+  if (wrote) {
+    await refreshPublicFeedSnapshot(env).catch((err) =>
+      console.error('[writeBuffer] feed snapshot refresh failed:', err)
+    );
   }
 }

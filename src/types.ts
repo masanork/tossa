@@ -2,6 +2,7 @@
 
 export interface Bindings {
   DB: D1Database;
+  FEED_KV?: KVNamespace;
   IMAGES_BUCKET?: R2Bucket;
   PUSH_QUEUE?: Queue<PushQueueMessage>;
   WRITE_QUEUE?: Queue<WriteQueueMessage>;
