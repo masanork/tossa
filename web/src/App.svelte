@@ -7,6 +7,7 @@
     User,
     TagCount,
     OpenDataShelter,
+    DisasterArea,
   } from './lib/types';
   import {
     fetchSettings,
@@ -159,9 +160,28 @@
     }
   }
 
-  // Candidate areas (extracted from posts)
+  // Designated disaster areas from settings
+  const parsedDisasterAreas = $derived.by<DisasterArea[]>(() => {
+    if (!settings.disaster_areas) return [];
+    try {
+      const parsed = JSON.parse(settings.disaster_areas);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+    return [];
+  });
+
+  const configuredDisasterAreas = $derived(
+    parsedDisasterAreas.map((a) => a.name || a.fullName).filter(Boolean)
+  );
+
+  // Candidate areas (extracted from posts + designated disaster areas)
   const availableAreas = $derived(
-    Array.from(new Set(posts.map((p) => p.area).filter(Boolean)))
+    Array.from(
+      new Set([
+        ...configuredDisasterAreas,
+        ...posts.map((p) => p.area).filter(Boolean),
+      ])
+    )
   );
 
   // Sorted posts (newest vs closest by GPS straight-line distance, filtered by status)
@@ -1070,6 +1090,7 @@
           <MapView
             posts={displayPosts}
             defaultArea={settings.default_area || ''}
+            disasterAreas={parsedDisasterAreas}
             {focusWaypointTrigger}
             onOpenUpdateStatus={handleOpenUpdateStatus}
             onReportOfficialShelter={handleReportOfficialShelter}

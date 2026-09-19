@@ -241,5 +241,16 @@
   "map_official_layer_toggle": "🏛️ 公式避難所",
   "map_official_badge": "🏛️ 国土地理院・公的指定避難場所",
   "map_official_unreported": "※ 現在の開設・混雑状況は未報告です",
-  "map_official_report_btn": "＋ この避難所の状況を報告する"
+  "map_official_report_btn": "＋ この避難所の状況を報告する",
+  "admin_mode_title": "運用モード設定（平時・有事切替）",
+  "admin_mode_normal": "平時モード（日常・地域生活情報）",
+  "admin_mode_disaster": "🚨 有事（災害・緊急対応）モード",
+  "admin_disaster_areas_title": "被災地域（市区町村）の指定",
+  "admin_disaster_areas_desc": "激甚災害や災害救助法の適用に合わせて、対象の自治体（複数指定可）を指定してください。国土地理院の指定緊急避難場所を自動フェッチできます。",
+  "admin_disaster_search_placeholder": "自治体名または自治体コードで検索（例: 輪島市, 17204, 気仙沼市）",
+  "admin_disaster_fetch_btn": "🏛️ 被災地域の公式避難所データを自動取得",
+  "admin_disaster_fetching": "公式避難所データを取得中...",
+  "admin_disaster_fetched_count": "{count} 件の指定緊急避難場所データを取得しました",
+  "admin_disaster_import_now": "今すぐ一括インポートへ進む",
+  "admin_mode_badge_disaster": "🚨 災害対応モード稼働中"
 }

@@ -74,10 +74,21 @@ export interface StatusUpdate {
   created_at: string;
 }
 
+export interface DisasterArea {
+  code: string;
+  name: string;
+  pref: string;
+  fullName: string;
+  lat: number;
+  lng: number;
+}
+
 export interface SystemSettings {
   site_title?: string;
   emergency_banner?: string;
   default_area?: string;
+  operation_mode?: 'normal' | 'disaster';
+  disaster_areas?: string; // JSON array of DisasterArea
   [key: string]: string | undefined;
 }
 

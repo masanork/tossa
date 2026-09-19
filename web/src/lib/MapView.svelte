@@ -1,7 +1,7 @@
 <!-- web/src/lib/MapView.svelte -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { Post, OpenDataShelter } from './types';
+  import type { Post, OpenDataShelter, DisasterArea } from './types';
   import type { MapBounds } from './mapTileCache';
   import type * as L from 'leaflet';
   import * as m from '../paraglide/messages.js';
@@ -12,6 +12,7 @@
   interface Props {
     posts: Post[];
     defaultArea?: string;
+    disasterAreas?: DisasterArea[];
     focusWaypointTrigger?: number;
     onOpenUpdateStatus: (post: Post) => void;
     onReportOfficialShelter?: (shelter: OpenDataShelter) => void;
@@ -25,6 +26,7 @@
   const {
     posts,
     defaultArea,
+    disasterAreas = [],
     focusWaypointTrigger,
     onOpenUpdateStatus,
     onReportOfficialShelter,
@@ -90,20 +92,31 @@
     updateWaypointRoute();
     loadOfficialShelters();
 
-    // If no posts have coordinates, pan to defaultArea if specified
+    // If no posts have coordinates, pan to disasterAreas or defaultArea
     const hasAnyCoords = posts.some((p) => p.lat && p.lng);
-    if (!hasAnyCoords && defaultArea) {
-      try {
-        const res = await fetch(
-          `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(defaultArea)}`
-        );
-        const data = await res.json();
-        if (data && data.length > 0 && data[0].geometry?.coordinates) {
-          const [lng, lat] = data[0].geometry.coordinates;
-          map.setView([lat, lng], 12);
+    if (!hasAnyCoords) {
+      if (disasterAreas && disasterAreas.length > 0) {
+        if (disasterAreas.length === 1 && disasterAreas[0]) {
+          map.setView([disasterAreas[0].lat, disasterAreas[0].lng], 13);
+        } else {
+          const bounds = leaflet.latLngBounds(
+            disasterAreas.map((a) => [a.lat, a.lng])
+          );
+          map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
         }
-      } catch (err) {
-        console.warn('Failed to geocode default area:', err);
+      } else if (defaultArea) {
+        try {
+          const res = await fetch(
+            `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(defaultArea)}`
+          );
+          const data = await res.json();
+          if (data && data.length > 0 && data[0].geometry?.coordinates) {
+            const [lng, lat] = data[0].geometry.coordinates;
+            map.setView([lat, lng], 12);
+          }
+        } catch (err) {
+          console.warn('Failed to geocode default area:', err);
+        }
       }
     }
   });
@@ -158,6 +171,26 @@
     if (isLoadingOfficial || officialShelters.length > 0) return;
     isLoadingOfficial = true;
     try {
+      if (disasterAreas && disasterAreas.length > 0) {
+        const res = await fetch('/api/opendata/disaster-areas/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ areas: disasterAreas }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (
+            data.success &&
+            Array.isArray(data.shelters) &&
+            data.shelters.length > 0
+          ) {
+            officialShelters = data.shelters;
+            return;
+          }
+        }
+      }
+
+      // Fallback to all preset shelters
       const res = await fetch('/api/opendata/shelters');
       if (res.ok) {
         const data = await res.json();

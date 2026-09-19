@@ -3,7 +3,9 @@
 INSERT OR REPLACE INTO system_settings (key, value, description) VALUES
 ('site_title', 'tossa', 'サイトタイトル'),
 ('emergency_banner', '', '緊急アナウンス告知バー（必要な場合のみ設定）'),
-('default_area', '', '対象エリア・自治体名（管理者が任意設定、未設定時は全域）');
+('default_area', '', '対象エリア・自治体名（管理者が任意設定、未設定時は全域）'),
+('operation_mode', 'normal', '運用モード（normal: 平時モード, disaster: 有事・災害モード）'),
+('disaster_areas', '[]', '被災指定自治体一覧JSON');
 
 -- 標準カテゴリの初期シード
 INSERT OR IGNORE INTO categories (id, name, icon, color, scope, sort_order) VALUES

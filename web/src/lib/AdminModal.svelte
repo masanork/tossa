@@ -60,9 +60,15 @@
     Minimize2,
     FileSpreadsheet,
     FileUp,
+    AlertTriangle,
+    MapPin,
+    Building,
+    Search,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
+  import { searchMunicipalities, type Municipality } from './municipalityCodes';
+  import type { DisasterArea } from './types';
 
   interface Props {
     settings: SystemSettings;
@@ -536,10 +542,157 @@
     }
   }
 
+  // Operation mode & disaster areas state
+  let operationMode = $state<'normal' | 'disaster'>('normal');
+  let disasterAreas = $state<DisasterArea[]>([]);
+  let muniSearchQuery = $state('');
+  let muniSearchResults = $state<Municipality[]>([]);
+  let isSearchingMuni = $state(false);
+  let isFetchingDisasterShelters = $state(false);
+  let disasterShelterMessage = $state<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  let fetchedDisasterShelters = $state<any[]>([]);
+
   $effect(() => {
     emergencyBanner = settings.emergency_banner || '';
     defaultArea = settings.default_area || '';
+    operationMode =
+      (settings.operation_mode as any) === 'disaster' ? 'disaster' : 'normal';
+    if (settings.disaster_areas) {
+      try {
+        disasterAreas = JSON.parse(settings.disaster_areas);
+      } catch {
+        disasterAreas = [];
+      }
+    }
   });
+
+  let muniSearchTimer: any = null;
+  function handleMuniInput(e: Event) {
+    const q = (e.target as HTMLInputElement).value;
+    muniSearchQuery = q;
+    clearTimeout(muniSearchTimer);
+    if (!q.trim()) {
+      muniSearchResults = [];
+      isSearchingMuni = false;
+      return;
+    }
+    isSearchingMuni = true;
+    muniSearchTimer = setTimeout(async () => {
+      muniSearchResults = await searchMunicipalities(q.trim());
+      isSearchingMuni = false;
+    }, 180);
+  }
+
+  function handleAddDisasterArea(muni: Municipality) {
+    if (
+      !disasterAreas.some(
+        (a) => a.code === muni.code || a.name === muni.name
+      )
+    ) {
+      disasterAreas = [
+        ...disasterAreas,
+        {
+          code: muni.code,
+          name: muni.name,
+          pref: muni.pref,
+          fullName: muni.fullName,
+          lat: muni.lat,
+          lng: muni.lng,
+        },
+      ];
+      if (!defaultArea) {
+        defaultArea = muni.fullName;
+      }
+    }
+    muniSearchQuery = '';
+    muniSearchResults = [];
+  }
+
+  function handleRemoveDisasterArea(code: string) {
+    disasterAreas = disasterAreas.filter((a) => a.code !== code);
+  }
+
+  async function handleFetchDisasterShelters() {
+    if (disasterAreas.length === 0) return;
+    isFetchingDisasterShelters = true;
+    disasterShelterMessage = null;
+    fetchedDisasterShelters = [];
+
+    try {
+      const res = await fetch('/api/opendata/disaster-areas/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ areas: disasterAreas }),
+      });
+
+      if (!res.ok) throw new Error('避難所データの取得に失敗しました');
+      const data: any = await res.json();
+      if (data.success && Array.isArray(data.shelters)) {
+        fetchedDisasterShelters = data.shelters;
+        disasterShelterMessage = {
+          type: 'success',
+          text: `国土地理院・公的オープンデータから ${data.count} 件の指定緊急避難場所を取得しました`,
+        };
+      } else {
+        throw new Error(data.error || 'データが見つかりませんでした');
+      }
+    } catch (err: any) {
+      disasterShelterMessage = {
+        type: 'error',
+        text: err.message || '取得エラーが発生しました',
+      };
+    } finally {
+      isFetchingDisasterShelters = false;
+    }
+  }
+
+  function handleTransferDisasterSheltersToImport() {
+    if (fetchedDisasterShelters.length === 0) return;
+    const headers = [
+      '施設名称',
+      '市区町村名',
+      '施設所在地',
+      '施設種別',
+      '開設状況',
+      '緯度',
+      '経度',
+      '備考',
+      'ホームページURL',
+    ];
+    const rows = fetchedDisasterShelters.map((item) => [
+      item.name,
+      item.area,
+      item.address,
+      item.category,
+      item.status_label || '開設中',
+      String(item.lat),
+      String(item.lng),
+      item.note,
+      item.source_url,
+    ]);
+    const csvLines = [
+      headers.join(','),
+      ...rows.map((r: string[]) =>
+        r.map((v) => `"${(v || '').replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+    csvRawText = csvLines;
+    csvFileName = 'disaster-shelters-opendata.csv';
+    const parsed = parseCsv(csvLines);
+    availableSheets = [{ name: '国土地理院避難所オープンデータ', data: parsed }];
+    isExcelMode = false;
+    selectedSheetIndex = 0;
+    applySheetData(parsed);
+    csvImportResult = null;
+    activeTab = 'import';
+    disasterShelterMessage = {
+      type: 'success',
+      text: `${fetchedDisasterShelters.length} 件を一括インポート用プレビューに展開しました。「一括取り込みを実行」を押してD1に保存してください。`,
+    };
+  }
 
   onMount(async () => {
     // Initial setup check (whether there are 0 users registered)
@@ -739,6 +892,8 @@
         {
           emergency_banner: emergencyBanner,
           default_area: defaultArea,
+          operation_mode: operationMode,
+          disaster_areas: JSON.stringify(disasterAreas),
         },
         token
       );
@@ -1289,9 +1444,180 @@
             <!-- Tab 1: Region & Announcement settings -->
             {#if activeTab === 'settings'}
               <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <!-- Left: 基本告知・地域設定 -->
-                <div class="flex flex-col gap-3.5 rounded-xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/30">
-                  <h3 class="text-xs font-bold text-slate-800 dark:text-slate-200">基本告知・対象地域設定</h3>
+                <!-- Left: 運用モード切替・基本告知・地域設定 -->
+                <div
+                  class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/30"
+                >
+                  <h3
+                    class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                  >
+                    {m.admin_mode_title()}
+                  </h3>
+
+                  <!-- Operation Mode Selector (Normal vs Disaster) -->
+                  <div
+                    class="grid grid-cols-2 gap-2 rounded-xl bg-slate-200/80 p-1.5 dark:bg-slate-800"
+                  >
+                    <button
+                      type="button"
+                      onclick={() => {
+                        operationMode = 'normal';
+                      }}
+                      class="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition {operationMode ===
+                      'normal'
+                        ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
+                    >
+                      <Building class="h-3.5 w-3.5" />
+                      <span>{m.admin_mode_normal()}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={() => {
+                        operationMode = 'disaster';
+                      }}
+                      class="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition {operationMode ===
+                      'disaster'
+                        ? 'bg-red-600 text-white shadow-sm shadow-red-500/30'
+                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
+                    >
+                      <AlertTriangle class="h-3.5 w-3.5" />
+                      <span>{m.admin_mode_disaster()}</span>
+                    </button>
+                  </div>
+
+                  <!-- Disaster Areas (Municipalities) Specification (when in disaster mode) -->
+                  {#if operationMode === 'disaster'}
+                    <div
+                      class="flex flex-col gap-2.5 rounded-xl border border-red-200 bg-red-50/60 p-3 dark:border-red-900/50 dark:bg-red-950/30"
+                    >
+                      <div class="flex items-center gap-1.5">
+                        <MapPin class="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <span
+                          class="text-xs font-extrabold text-red-900 dark:text-red-300"
+                        >
+                          {m.admin_disaster_areas_title()}
+                        </span>
+                      </div>
+                      <p
+                        class="text-[11px] leading-relaxed text-red-800/90 dark:text-red-300/90"
+                      >
+                        {m.admin_disaster_areas_desc()}
+                      </p>
+
+                      <!-- Selected Municipality Chips -->
+                      {#if disasterAreas.length > 0}
+                        <div class="flex flex-wrap gap-1.5 py-1">
+                          {#each disasterAreas as area (area.code)}
+                            <span
+                              class="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-2 py-1 text-xs font-bold text-red-800 shadow-xs dark:border-red-800 dark:bg-slate-900 dark:text-red-200"
+                            >
+                              <span>{area.fullName}</span>
+                              <span
+                                class="text-[10px] text-slate-500 dark:text-slate-400"
+                              >
+                                ({area.code})
+                              </span>
+                              <button
+                                type="button"
+                                onclick={() => handleRemoveDisasterArea(area.code)}
+                                class="ml-0.5 cursor-pointer rounded text-red-500 hover:text-red-700 dark:hover:text-red-300"
+                                aria-label="{area.fullName}を削除"
+                              >
+                                <X class="h-3 w-3" />
+                              </button>
+                            </span>
+                          {/each}
+                        </div>
+                      {/if}
+
+                      <!-- Municipality Autocomplete Search Input -->
+                      <div class="relative">
+                        <div class="relative flex items-center">
+                          <Search
+                            class="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-slate-400"
+                          />
+                          <input
+                            type="text"
+                            value={muniSearchQuery}
+                            oninput={handleMuniInput}
+                            placeholder={m.admin_disaster_search_placeholder()}
+                            class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          />
+                          {#if isSearchingMuni}
+                            <RefreshCw
+                              class="pointer-events-none absolute right-2.5 h-3.5 w-3.5 animate-spin text-slate-400"
+                            />
+                          {/if}
+                        </div>
+
+                        <!-- Autocomplete Suggestions Dropdown -->
+                        {#if muniSearchResults.length > 0}
+                          <div
+                            class="absolute top-full z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                          >
+                            {#each muniSearchResults as item (item.code + item.name)}
+                              <button
+                                type="button"
+                                onclick={() => handleAddDisasterArea(item)}
+                                class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-red-50 dark:hover:bg-red-950/40"
+                              >
+                                <span class="font-bold text-slate-800 dark:text-slate-100">
+                                  {item.fullName}
+                                </span>
+                                <span
+                                  class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                                >
+                                  {item.code}
+                                </span>
+                              </button>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
+
+                      <!-- Auto-fetch Shelters Button for Selected Areas -->
+                      {#if disasterAreas.length > 0}
+                        <div class="pt-1">
+                          <button
+                            type="button"
+                            onclick={handleFetchDisasterShelters}
+                            disabled={isFetchingDisasterShelters}
+                            class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {#if isFetchingDisasterShelters}
+                              <RefreshCw class="h-3.5 w-3.5 animate-spin" />
+                              <span>{m.admin_disaster_fetching()}</span>
+                            {:else}
+                              <Building class="h-3.5 w-3.5" />
+                              <span>{m.admin_disaster_fetch_btn()}</span>
+                            {/if}
+                          </button>
+                        </div>
+                      {/if}
+
+                      <!-- Fetch result notice -->
+                      {#if disasterShelterMessage}
+                        <div
+                          class="rounded-lg p-2 text-xs font-semibold {disasterShelterMessage.type ===
+                          'success'
+                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}"
+                        >
+                          <p>{disasterShelterMessage.text}</p>
+                          {#if fetchedDisasterShelters.length > 0}
+                            <button
+                              type="button"
+                              onclick={handleTransferDisasterSheltersToImport}
+                              class="mt-1.5 flex cursor-pointer items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+                            >
+                              <span>{m.admin_disaster_import_now()} (→ {fetchedDisasterShelters.length} 件)</span>
+                            </button>
+                          {/if}
+                        </div>
+                      {/if}
+                    </div>
+                  {/if}
 
                   <!-- Emergency announcement banner -->
                   <div>
@@ -1305,7 +1631,7 @@
                       id="admin-emergency-banner"
                       bind:value={emergencyBanner}
                       rows="3"
-                      placeholder="例: 台風接近に伴い避難所が開設されています。給水・物資の最新状況を共有してください。（空にすると非表示）"
+                      placeholder="例: 災害救助法適用に伴い避難所・給水所が開設されています。現地の混雑や物資の最新状況を共有してください。（空にすると非表示）"
                       class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     ></textarea>
                   </div>
@@ -1322,7 +1648,7 @@
                       id="admin-default-area"
                       type="text"
                       bind:value={defaultArea}
-                      placeholder="例: 高知県高知市、能登地方、〇〇町（空欄時は全域）"
+                      placeholder="例: 石川県能登地方、高知県高知市、〇〇町（空欄時は全域）"
                       class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                     />
                     <p

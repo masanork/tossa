@@ -1,6 +1,10 @@
 // src/routes/opendata.ts: Official Government Open Data Presets & Ingestion API
 import { Hono } from 'hono';
 import type { Bindings } from '../types';
+import {
+  searchMunicipalities,
+  latLngToTileZ10,
+} from '../municipalities';
 
 export const opendataRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -334,4 +338,154 @@ opendataRoute.get('/shelters', (c) => {
     shelters: allShelters,
   });
 });
+
+// GET /api/opendata/municipalities - Search municipalities by name or code
+opendataRoute.get('/municipalities', async (c) => {
+  const q = c.req.query('q') || '';
+  const limit = parseInt(c.req.query('limit') || '10', 10);
+  const results = await searchMunicipalities(q, limit);
+  return c.json({
+    success: true,
+    municipalities: results,
+  });
+});
+
+// POST /api/opendata/disaster-areas/fetch - Fetch designated emergency shelters for multiple disaster areas
+opendataRoute.post('/disaster-areas/fetch', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    areas?: Array<{
+      code: string;
+      name: string;
+      pref?: string;
+      fullName?: string;
+      lat?: number;
+      lng?: number;
+    }>;
+  };
+
+  const areas = body.areas || [];
+  if (areas.length === 0) {
+    return c.json({ success: true, count: 0, shelters: [] });
+  }
+
+  const collectedShelters: OpenDataShelterItem[] = [];
+  const visitedNames = new Set<string>();
+
+  for (const area of areas) {
+    const areaName = area.name.trim();
+    const prefName = (area.pref || '').trim();
+
+    // 1. Check curated presets first
+    for (const preset of OFFICIAL_PRESETS) {
+      for (const item of preset.items) {
+        if (
+          item.area.includes(areaName) ||
+          (prefName && item.area.includes(prefName) && item.area.includes(areaName))
+        ) {
+          if (!visitedNames.has(item.name)) {
+            visitedNames.add(item.name);
+            collectedShelters.push(item);
+          }
+        }
+      }
+    }
+
+    // 2. Fetch GSI vector shelter tiles (skhb04: earthquake) if coordinates are available
+    if (area.lat && area.lng) {
+      try {
+        const tile = latLngToTileZ10(area.lat, area.lng);
+        const tileUrl = `https://cyberjapandata.gsi.go.jp/xyz/skhb04/${tile.z}/${tile.x}/${tile.y}.geojson`;
+        const res = await fetch(tileUrl);
+        if (res.ok) {
+          const geojson: any = await res.json();
+          if (geojson && Array.isArray(geojson.features)) {
+            for (const feat of geojson.features) {
+              const p = feat.properties || {};
+              const coords = feat.geometry?.coordinates;
+              if (p.name && coords && coords.length >= 2) {
+                const sName = String(p.name).trim();
+                const sAddress = String(p.address || '').trim();
+                const [sLng, sLat] = coords;
+
+                // Match by address or proximity (< 15km)
+                const addressMatches =
+                  sAddress.includes(areaName) ||
+                  (prefName && sAddress.includes(prefName));
+                const distApprox = Math.hypot(sLat - area.lat, sLng - area.lng);
+
+                if ((addressMatches || distApprox < 0.25) && !visitedNames.has(sName)) {
+                  visitedNames.add(sName);
+                  collectedShelters.push({
+                    name: sName,
+                    area: area.fullName || `${prefName}${areaName}`,
+                    address: sAddress || `${prefName}${areaName}`,
+                    category: '避難所',
+                    lat: Math.round(sLat * 1000000) / 1000000,
+                    lng: Math.round(sLng * 1000000) / 1000000,
+                    current_status: 'available',
+                    status_label: '開設中',
+                    note: `国土地理院指定緊急避難場所（${p.remarks || '地震・火災等'}）`,
+                    source_url: 'https://hinanmap.gsi.go.jp/hinanjocp/hinanbasho/',
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`Failed to fetch GSI tiles for ${areaName}:`, e);
+      }
+    }
+  }
+
+  return c.json({
+    success: true,
+    count: collectedShelters.length,
+    shelters: collectedShelters,
+  });
+});
+
+// POST /api/opendata/fetch-url - Proxy fetch an external open data CSV/GeoJSON/JSON
+opendataRoute.post('/fetch-url', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { url?: string };
+  const targetUrl = (body.url || '').trim();
+
+  if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
+    return c.json({ success: false, error: '有効なURLを指定してください' }, 400);
+  }
+
+  try {
+    const res = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'tossa-opendata-ingest/1.0',
+        Accept: 'text/csv, application/json, text/plain, */*',
+      },
+    });
+
+    if (!res.ok) {
+      return c.json(
+        {
+          success: false,
+          error: `取得に失敗しました (HTTP ${res.status}: ${res.statusText})`,
+        },
+        res.status as any
+      );
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    const text = await res.text();
+
+    return c.json({
+      success: true,
+      contentType,
+      data: text,
+    });
+  } catch (err: any) {
+    return c.json(
+      { success: false, error: err.message || 'データ取得中にエラーが発生しました' },
+      500
+    );
+  }
+});
+
 

@@ -241,5 +241,16 @@
   "map_official_layer_toggle": "🏛️ Official Shelters",
   "map_official_badge": "🏛️ Designated Emergency Shelter (GSI)",
   "map_official_unreported": "* Real-time status has not yet been reported",
-  "map_official_report_btn": "+ Report Current Status for Shelter"
+  "map_official_report_btn": "+ Report Current Status for Shelter",
+  "admin_mode_title": "Operation Mode Setting (Normal vs Disaster)",
+  "admin_mode_normal": "Normal Mode (Everyday Community Info)",
+  "admin_mode_disaster": "🚨 Disaster & Emergency Mode",
+  "admin_disaster_areas_title": "Designated Disaster Areas (Municipalities)",
+  "admin_disaster_areas_desc": "Select affected municipalities (multiple selectable) based on disaster relief designations. Official evacuation shelter open data will be auto-fetched.",
+  "admin_disaster_search_placeholder": "Search by municipality name or code (e.g. Wajima, 17204, Kesennuma)",
+  "admin_disaster_fetch_btn": "🏛️ Auto-fetch Official Shelters for Affected Areas",
+  "admin_disaster_fetching": "Fetching official shelter data...",
+  "admin_disaster_fetched_count": "Fetched {count} designated emergency shelters",
+  "admin_disaster_import_now": "Proceed to Batch Import Now",
+  "admin_mode_badge_disaster": "🚨 Disaster Response Mode Active"
 }

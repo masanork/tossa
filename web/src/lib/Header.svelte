@@ -80,14 +80,23 @@
     showThemeMenu || showLangMenu || showMoreMenu ? 'z-50' : 'z-30'
   } border-b border-slate-200 bg-white/95 shadow-xs backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/95`}
 >
-  <!-- Emergency announcement banner (shown when set by administrator) -->
-  {#if settings.emergency_banner}
+  <!-- Emergency / Disaster Mode announcement banner -->
+  {#if settings.emergency_banner || settings.operation_mode === 'disaster'}
     <div
-      class="flex items-center justify-between bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-inner md:text-sm"
+      class="flex items-center justify-between px-4 py-2 text-xs font-bold shadow-inner md:text-sm {settings.operation_mode ===
+      'disaster'
+        ? 'bg-red-600 text-white'
+        : 'bg-amber-500 text-slate-950'}"
     >
       <div class="mx-auto flex w-full max-w-4xl items-center gap-2">
-        <AlertTriangle class="h-4 w-4 shrink-0 text-slate-900" />
-        <span class="truncate">{settings.emergency_banner}</span>
+        <AlertTriangle
+          class="h-4 w-4 shrink-0 {settings.operation_mode === 'disaster'
+            ? 'text-white'
+            : 'text-slate-900'}"
+        />
+        <span class="truncate">
+          {settings.emergency_banner || m.admin_mode_badge_disaster()}
+        </span>
       </div>
     </div>
   {/if}
@@ -104,10 +113,19 @@
       </span>
       {#if settings.default_area}
         <div
-          class="hidden max-w-[110px] items-center gap-1 truncate rounded-full border border-blue-200 bg-blue-50/80 px-2 py-0.5 text-xs font-semibold text-blue-700 min-[380px]:inline-flex sm:max-w-none dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+          class="hidden max-w-[130px] items-center gap-1 truncate rounded-full border px-2 py-0.5 text-xs font-semibold min-[380px]:inline-flex sm:max-w-none {settings.operation_mode ===
+          'disaster'
+            ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/60 dark:text-red-300'
+            : 'border-blue-200 bg-blue-50/80 text-blue-700 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-300'}"
         >
-          <MapPin class="h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400" />
-          <span class="truncate">{settings.default_area}</span>
+          <MapPin
+            class="h-3 w-3 shrink-0 {settings.operation_mode === 'disaster'
+              ? 'text-red-600 dark:text-red-400'
+              : 'text-blue-600 dark:text-blue-400'}"
+          />
+          <span class="truncate">
+            {settings.operation_mode === 'disaster' ? '🚨 ' : ''}{settings.default_area}
+          </span>
         </div>
       {/if}
     </div>

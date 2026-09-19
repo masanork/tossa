@@ -241,5 +241,16 @@
   "map_official_layer_toggle": "🏛️ こうしきの ひなんじょ",
   "map_official_badge": "🏛️ おやくしょの ひなんじょ",
   "map_official_unreported": "※ いまの ようすは まだ かかれていません",
-  "map_official_report_btn": "＋ いまの ようすを おしえる"
+  "map_official_report_btn": "＋ いまの ようすを おしえる",
+  "admin_mode_title": "アプリの つかいかた（ふだん・さいがい）",
+  "admin_mode_normal": "ふだんの モード（いつもの まちの じょうほう）",
+  "admin_mode_disaster": "🚨 さいがい モード（じしん・たいふうの とき）",
+  "admin_disaster_areas_title": "ひがいが あった まち を えらぶ",
+  "admin_disaster_areas_desc": "ひがいが あった まち（いくつでも）を えらんでください。ひなんじょの データを じどうで とってこれます。",
+  "admin_disaster_search_placeholder": "まちの なまえ や ばんごう を いれてください",
+  "admin_disaster_fetch_btn": "🏛️ おやくしょの ひなんじょデータを とってくる",
+  "admin_disaster_fetching": "ひなんじょの データを とっています...",
+  "admin_disaster_fetched_count": "{count} この ひなんじょを とってきました",
+  "admin_disaster_import_now": "とりこみ がめん に すすむ",
+  "admin_mode_badge_disaster": "🚨 さいがい モード が うごいています"
 }
