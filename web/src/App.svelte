@@ -15,6 +15,7 @@
     fetchVocabularyTags,
     fetchPostDetail,
     checkAuth,
+    confirmEmailVerification,
     deletePost,
   } from './lib/api';
   import Header from './lib/Header.svelte';
@@ -316,6 +317,22 @@
         authToken = null;
         localStorage.removeItem('tossa_token');
       }
+    }
+
+    const verifyToken = new URLSearchParams(window.location.search).get(
+      'verify'
+    );
+    if (verifyToken && authToken) {
+      const confirmed = await confirmEmailVerification(authToken, {
+        token: verifyToken,
+      });
+      if (confirmed.success && confirmed.user) {
+        currentUser = confirmed.user;
+        modalManager.open('admin');
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('verify');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
     }
 
     // 2. Load initial data

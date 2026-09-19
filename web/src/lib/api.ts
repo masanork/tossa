@@ -566,13 +566,70 @@ export async function checkAuth(token: string): Promise<{
   }
 }
 
-export async function fetchUsers(token: string): Promise<{
+export async function requestEmailVerification(
+  email: string,
+  token: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/email/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ email }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to send code' };
+  }
+}
+
+export async function confirmEmailVerification(
+  token: string,
+  payload: { code?: string; token?: string }
+): Promise<{ success: boolean; user?: User; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/email/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to confirm email' };
+  }
+}
+
+export async function fetchUsers(
+  token: string,
+  options: {
+    q?: string;
+    role?: 'admin' | 'moderator' | 'user' | 'all';
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<{
   success: boolean;
   users?: User[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  counts?: { all: number; admin: number; moderator: number; user: number };
   error?: string;
 }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/users`, {
+    const params = new URLSearchParams();
+    if (options.q) params.set('q', options.q);
+    if (options.role && options.role !== 'all')
+      params.set('role', options.role);
+    if (options.limit != null) params.set('limit', String(options.limit));
+    if (options.offset != null) params.set('offset', String(options.offset));
+    const qs = params.toString();
+    const res = await fetch(`${API_BASE}/auth/users${qs ? `?${qs}` : ''}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return await res.json();

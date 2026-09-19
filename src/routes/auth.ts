@@ -14,7 +14,7 @@ import {
   getUserCredentials,
   countUsers,
   countAdmins,
-  getAllUsers,
+  listUsers,
   updateUserRole,
   deleteUser,
   linkDeviceToUser,
@@ -25,6 +25,12 @@ import {
   createApiToken,
 } from '../auth/session';
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
+import {
+  requestEmailVerification,
+  confirmEmailCode,
+  confirmEmailToken,
+  publicUserFields,
+} from '../services/emailVerify';
 
 const CHALLENGE_COOKIE_OPTIONS = {
   path: '/api/auth',
@@ -164,12 +170,7 @@ authRoute.post('/verify-registration', async (c) => {
       success: true,
       verified: verification.verified,
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.display_name,
-        role: user.role,
-      },
+      user: publicUserFields(user),
     });
   } catch (err: any) {
     return c.json(
@@ -280,12 +281,7 @@ authRoute.post('/verify-authentication', async (c) => {
       success: true,
       verified: verification.verified,
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        displayName: user.display_name,
-        role: user.role,
-      },
+      user: publicUserFields(user),
     });
   } catch (err: any) {
     return c.json(
@@ -330,12 +326,62 @@ authRoute.get('/me', async (c) => {
     success: true,
     authenticated: true,
     token: freshToken,
-    user: {
-      id: user.id,
-      username: user.username,
-      displayName: user.display_name,
-      role: user.role,
-    },
+    user: publicUserFields(user),
+  });
+});
+
+async function getSessionUser(
+  token: string | null,
+  env: Bindings
+): Promise<User | null> {
+  if (!token) return null;
+  const session = await verifySessionToken(token, env.JWT_SECRET);
+  if (!session) return null;
+  return getUserById(env.DB, session.userId);
+}
+
+authRoute.post('/email/request', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const user = await getSessionUser(token, c.env);
+  if (!user) {
+    return c.json({ success: false, error: 'Authorization required' }, 401);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as { email?: string };
+  const result = await requestEmailVerification(c.env, user, body.email || '');
+  if (!result.ok) {
+    return c.json(
+      { success: false, error: result.error },
+      result.status as 400 | 409 | 429 | 502 | 503
+    );
+  }
+  return c.json({ success: true, message: '確認番号を送りました' });
+});
+
+authRoute.post('/email/confirm', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const user = await getSessionUser(token, c.env);
+  if (!user) {
+    return c.json({ success: false, error: 'Authorization required' }, 401);
+  }
+  const body = (await c.req.json().catch(() => ({}))) as {
+    code?: string;
+    token?: string;
+  };
+  const result = body.token
+    ? await confirmEmailToken(c.env, user, body.token)
+    : await confirmEmailCode(c.env, user, body.code || '');
+  if (!result.ok) {
+    return c.json(
+      { success: false, error: result.error },
+      result.status as 400 | 409
+    );
+  }
+  const fresh = await getUserById(c.env.DB, user.id);
+  return c.json({
+    success: true,
+    user: fresh ? publicUserFields(fresh) : publicUserFields(user),
   });
 });
 
@@ -367,10 +413,31 @@ authRoute.get('/users', async (c) => {
     return c.json({ success: false, error: 'Admin permission required' }, 403);
   }
 
-  const users = await getAllUsers(c.env.DB);
+  const q = c.req.query('q') || '';
+  const roleParam = c.req.query('role');
+  const role =
+    roleParam === 'admin' || roleParam === 'moderator' || roleParam === 'user'
+      ? roleParam
+      : undefined;
+  const limit = Math.min(
+    Math.max(parseInt(c.req.query('limit') || '50', 10) || 50, 1),
+    100
+  );
+  const offset = Math.max(parseInt(c.req.query('offset') || '0', 10) || 0, 0);
+
+  const { users, total, counts } = await listUsers(c.env.DB, {
+    q,
+    role,
+    limit,
+    offset,
+  });
   return c.json({
     success: true,
     users,
+    total,
+    limit,
+    offset,
+    counts,
   });
 });
 

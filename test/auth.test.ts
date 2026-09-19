@@ -216,4 +216,57 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
       .first<{ count: number }>();
     expect(remainingAdmins?.count).toBe(1);
   });
+
+  it('lists users with search, role filter, and pagination', async () => {
+    const { request, db, env } = createTestContext();
+    const adminToken = await createSessionToken(
+      { userId: 'admin_list', username: 'admin_list', role: 'admin' },
+      env.JWT_SECRET
+    );
+    await db
+      .prepare(
+        'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
+      )
+      .bind('admin_list', 'admin_list', '管理者', 'admin')
+      .run();
+    for (let i = 0; i < 12; i++) {
+      await db
+        .prepare(
+          'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
+        )
+        .bind(`u_${i}`, `user_${i}`, `山田${i}`, 'user')
+        .run();
+    }
+
+    const page = await request('/api/auth/users?limit=5&offset=0', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(page.status).toBe(200);
+    const pageBody = await page.json();
+    expect(pageBody.users.length).toBe(5);
+    expect(pageBody.total).toBe(13);
+    expect(pageBody.counts.all).toBe(13);
+    expect(pageBody.counts.admin).toBe(1);
+    expect(pageBody.counts.user).toBe(12);
+
+    const admins = await request('/api/auth/users?role=admin', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const adminsBody = await admins.json();
+    expect(adminsBody.total).toBe(1);
+    expect(adminsBody.users[0].username).toBe('admin_list');
+
+    const search = await request(
+      `/api/auth/users?q=${encodeURIComponent('山田1')}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } }
+    );
+    const searchBody = await search.json();
+    expect(searchBody.total).toBeGreaterThanOrEqual(1);
+    expect(
+      searchBody.users.some(
+        (u: { displayName?: string; display_name?: string }) =>
+          (u.displayName || u.display_name || '').includes('山田1')
+      )
+    ).toBe(true);
+  });
 });

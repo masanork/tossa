@@ -95,8 +95,18 @@ CREATE TABLE IF NOT EXISTS users (
     role TEXT NOT NULL CHECK(role IN ('admin', 'moderator', 'user')),
     e2ee_public_key TEXT,         -- E2EE ECDH (P-256) 公開鍵 (JWK JSON)
     current_challenge TEXT,       -- WebAuthn チャレンジ一時保管用
+    email TEXT,                   -- 確認済みメールのみ
+    email_verified_at TEXT,
+    pending_email TEXT,
+    email_verify_code_hash TEXT,
+    email_verify_token_hash TEXT,
+    email_verify_expires_at TEXT,
+    email_verify_sent_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL AND email != '';
 
 -- Passkey (WebAuthn) 認証情報
 CREATE TABLE IF NOT EXISTS credentials (

@@ -173,7 +173,7 @@
   "help_disaster_push_title": "アプリを とじていても とどく おしらせ",
   "help_disaster_push_desc": "アプリを とじていても、あたらしい れんらくや まちの こうしんが とどきます。たいへんなときの おしらせも おなじです。",
   "help_security_concept_title": "あんしん・あんぜんな しくみ",
-  "help_security_concept_desc": "パスワードや メールアドレスを いれる ひつようは ありません。スマホの ゆびもんや かおにんしょうで まもられます。",
+  "help_security_concept_desc": "パスワードは つかいません。ゆびもんや かおにんしょうで いれます。メールは にんしょうした ときだけ つかいます。",
   "help_security_passkey_title": "パスキー（ゆびもん・かおにんしょう）",
   "help_security_passkey_desc": "ゆびもんや かおにんしょうで いれます。パスワードは いりません。",
   "help_security_e2ee_title": "だれにも みられない あんごうメッセージ",

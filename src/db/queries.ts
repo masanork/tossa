@@ -555,13 +555,75 @@ export async function countAdmins(db: D1Database): Promise<number> {
   return row?.count ?? 0;
 }
 
-export async function getAllUsers(db: D1Database): Promise<Omit<User, ''>[]> {
-  const res = await db
+export interface ListUsersParams {
+  q?: string;
+  role?: 'admin' | 'moderator' | 'user';
+  limit?: number;
+  offset?: number;
+}
+
+export interface UserRoleCounts {
+  all: number;
+  admin: number;
+  moderator: number;
+  user: number;
+}
+
+export async function listUsers(
+  db: D1Database,
+  params: ListUsersParams = {}
+): Promise<{ users: User[]; total: number; counts: UserRoleCounts }> {
+  const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
+  const offset = Math.max(params.offset ?? 0, 0);
+  const q = (params.q || '').trim().replace(/[%_]/g, '');
+  const role = params.role;
+
+  const where: string[] = [];
+  const binds: (string | number)[] = [];
+  if (role) {
+    where.push('role = ?');
+    binds.push(role);
+  }
+  if (q) {
+    where.push('(username LIKE ? OR display_name LIKE ? OR email LIKE ?)');
+    const like = `%${q}%`;
+    binds.push(like, like, like);
+  }
+  const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  const countRow = await db
+    .prepare(`SELECT COUNT(*) as c FROM users ${whereSql}`)
+    .bind(...binds)
+    .first<{ c: number }>();
+
+  const listRes = await db
     .prepare(
-      'SELECT id, username, display_name, role, created_at FROM users ORDER BY created_at ASC'
+      `SELECT id, username, display_name, display_name as displayName, role, created_at,
+              email, pending_email as pendingEmail, email_verified_at,
+              CASE WHEN email_verified_at IS NOT NULL AND email IS NOT NULL THEN 1 ELSE 0 END as emailVerified FROM users
+       ${whereSql}
+       ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'moderator' THEN 1 ELSE 2 END, created_at DESC
+       LIMIT ? OFFSET ?`
     )
+    .bind(...binds, limit, offset)
     .all<User>();
-  return res.results || [];
+
+  const roleRows = await db
+    .prepare('SELECT role, COUNT(*) as c FROM users GROUP BY role')
+    .all<{ role: string; c: number }>();
+  const counts: UserRoleCounts = { all: 0, admin: 0, moderator: 0, user: 0 };
+  for (const row of roleRows.results || []) {
+    counts.all += row.c;
+    if (row.role === 'admin') counts.admin = row.c;
+    else if (row.role === 'moderator') counts.moderator = row.c;
+    else if (row.role === 'user') counts.user = row.c;
+  }
+
+  return {
+    users: listRes.results || [],
+    total: countRow?.c ?? 0,
+    counts,
+  };
 }
 
 export async function updateUserRole(

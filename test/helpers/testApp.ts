@@ -23,6 +23,12 @@ export function createTestContext() {
     }),
   } as unknown as KVNamespace;
 
+  const sentEmails: Array<{
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+  }> = [];
   const env: Bindings = {
     DB: db,
     FEED_KV: feedKv,
@@ -30,6 +36,19 @@ export function createTestContext() {
     RP_NAME: 'tossa',
     RP_ID: 'localhost',
     EXPECTED_ORIGIN: 'http://localhost',
+    EMAIL: {
+      send: async (message) => {
+        const to =
+          typeof message.to === 'string' ? message.to : String(message.to);
+        sentEmails.push({
+          to,
+          subject: message.subject,
+          text: message.text,
+          html: message.html,
+        });
+        return { messageId: 'test-message' };
+      },
+    },
   };
 
   const request = (path: string, init?: RequestInit) => {
@@ -41,5 +60,6 @@ export function createTestContext() {
     db,
     env,
     request,
+    sentEmails,
   };
 }

@@ -16,6 +16,15 @@ export interface Bindings {
   VAPID_SUBJECT?: string;
   ALERT_WEBHOOK_URL?: string;
   DISABLE_WRITE_BUFFER?: string;
+  EMAIL?: {
+    send: (message: {
+      to: string;
+      from: { email: string; name?: string };
+      subject: string;
+      html: string;
+      text: string;
+    }) => Promise<{ messageId?: string }>;
+  };
 }
 
 export interface PushQueueMessage {
@@ -184,6 +193,13 @@ export interface User {
   role: 'admin' | 'moderator' | 'user';
   e2ee_public_key?: string | null;
   current_challenge: string | null;
+  email?: string | null;
+  email_verified_at?: string | null;
+  pending_email?: string | null;
+  email_verify_code_hash?: string | null;
+  email_verify_token_hash?: string | null;
+  email_verify_expires_at?: string | null;
+  email_verify_sent_at?: string | null;
   created_at: string;
 }
 

@@ -173,7 +173,7 @@
   "help_disaster_push_title": "閉じても届く通知",
   "help_disaster_push_desc": "アプリを閉じていても、新しい連絡や地域の更新が届きます。災害時の速報も、同じ通知から受け取ります。",
   "help_security_concept_title": "ゼロトラスト & プライバシー保護",
-  "help_security_concept_desc": "パスワードやメールアドレスは集めません。指紋や顔認証で安全に入れます。",
+  "help_security_concept_desc": "パスワードは使いません。指紋や顔認証で入ります。連絡用のメールは任意で、番号確認してから使います。",
   "help_security_passkey_title": "Passkey（指紋・顔認証）",
   "help_security_passkey_desc": "指紋や顔認証で入れます。パスワードは不要です。",
   "help_security_e2ee_title": "E2EE エンドツーエンド暗号化連絡",

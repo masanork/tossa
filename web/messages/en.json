@@ -173,7 +173,7 @@
   "help_disaster_push_title": "Notifications while the app is closed",
   "help_disaster_push_desc": "New messages and local updates still arrive when the app is closed. Disaster alerts use the same notifications.",
   "help_security_concept_title": "Zero-Trust & Absolute Privacy",
-  "help_security_concept_desc": "No passwords or emails are collected. Sign in with fingerprint or face ID.",
+  "help_security_concept_desc": "No passwords. Sign in with fingerprint or face ID. Email is optional and only used after you confirm a code.",
   "help_security_passkey_title": "Passkey (fingerprint or face)",
   "help_security_passkey_desc": "Sign in with fingerprint or face ID. No password needed.",
   "help_security_e2ee_title": "E2EE Direct Messaging",

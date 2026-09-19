@@ -20,6 +20,8 @@
     fetchBackupsApi,
     fetchCapacityApi,
     refreshCapacityApi,
+    requestEmailVerification,
+    confirmEmailVerification,
     type CapacityReport,
     importCsvApi,
     fetchDisasters,
@@ -475,6 +477,69 @@
 
   // Member management state
   let userList = $state<User[]>([]);
+  let userQueryInput = $state('');
+  let userQuery = $state('');
+  let userRoleFilter = $state<'all' | 'admin' | 'moderator' | 'user'>('all');
+  let userPage = $state(0);
+  let userTotal = $state(0);
+  let userCounts = $state({
+    all: 0,
+    admin: 0,
+    moderator: 0,
+    user: 0,
+  });
+  const USER_PAGE_SIZE = 50;
+  let userSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+  let emailInput = $state('');
+  let emailCodeInput = $state('');
+  let isSendingEmail = $state(false);
+  let isConfirmingEmail = $state(false);
+  let emailFormError = $state<string | null>(null);
+
+  async function handleSendEmailCode() {
+    if (!token) return;
+    isSendingEmail = true;
+    emailFormError = null;
+    try {
+      const res = await requestEmailVerification(emailInput, token);
+      if (res.success) {
+        statusMessage = { type: 'success', text: '確認番号を送りました' };
+      } else {
+        emailFormError = res.error || '送信に失敗しました';
+      }
+    } catch (err: any) {
+      emailFormError = err?.message || '送信に失敗しました';
+    } finally {
+      isSendingEmail = false;
+    }
+  }
+
+  async function handleConfirmEmailCode() {
+    if (!token) return;
+    isConfirmingEmail = true;
+    emailFormError = null;
+    try {
+      const res = await confirmEmailVerification(token, {
+        code: emailCodeInput,
+      });
+      if (res.success && res.user) {
+        onAuthSuccess(res.user, token);
+        emailCodeInput = '';
+        emailInput = '';
+        statusMessage = {
+          type: 'success',
+          text: 'メールアドレスを確認しました',
+        };
+      } else {
+        emailFormError = res.error || '確認に失敗しました';
+      }
+    } catch (err: any) {
+      emailFormError = err?.message || '確認に失敗しました';
+    } finally {
+      isConfirmingEmail = false;
+    }
+  }
   let isLoadingUsers = $state(false);
   let roleChangeMessage = $state<{
     type: 'success' | 'error';
@@ -848,9 +913,16 @@
     if (!token) return;
     isLoadingUsers = true;
     try {
-      const res = await fetchUsers(token);
+      const res = await fetchUsers(token, {
+        q: userQuery,
+        role: userRoleFilter,
+        limit: USER_PAGE_SIZE,
+        offset: userPage * USER_PAGE_SIZE,
+      });
       if (res.success && res.users) {
         userList = res.users;
+        userTotal = res.total ?? res.users.length;
+        if (res.counts) userCounts = res.counts;
       } else if (res.error) {
         roleChangeMessage = { type: 'error', text: res.error };
       }
@@ -859,6 +931,22 @@
     } finally {
       isLoadingUsers = false;
     }
+  }
+
+  function handleUserSearchInput(value: string) {
+    userQueryInput = value;
+    if (userSearchTimer) clearTimeout(userSearchTimer);
+    userSearchTimer = setTimeout(() => {
+      userQuery = userQueryInput.trim();
+      userPage = 0;
+      void loadUsers();
+    }, 300);
+  }
+
+  function handleUserRoleFilter(role: 'all' | 'admin' | 'moderator' | 'user') {
+    userRoleFilter = role;
+    userPage = 0;
+    void loadUsers();
   }
 
   $effect(() => {
@@ -1331,6 +1419,71 @@
               <LogOut class="h-3.5 w-3.5" />
               <span>ログアウト</span>
             </button>
+          </div>
+
+          <div
+            class="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/40"
+          >
+            <div
+              class="text-[11px] font-bold text-slate-700 dark:text-slate-200"
+            >
+              メールアドレス（任意）
+            </div>
+            {#if user.emailVerified && user.email}
+              <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                {user.email}
+                <span
+                  class="ml-1 font-bold text-emerald-700 dark:text-emerald-400"
+                  >確認済み</span
+                >
+              </p>
+            {:else}
+              <p
+                class="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
+              >
+                連絡とメンバー管理に使います。パスワードにはしません。
+              </p>
+              {#if user.pendingEmail}
+                <p class="mt-1 text-[11px] text-amber-800 dark:text-amber-300">
+                  {user.pendingEmail} に番号を送りました
+                </p>
+              {/if}
+              <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="email"
+                  bind:value={emailInput}
+                  placeholder="you@example.com"
+                  class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+                <button
+                  type="button"
+                  onclick={handleSendEmailCode}
+                  disabled={isSendingEmail || !emailInput.trim()}
+                  class="cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >{isSendingEmail ? '送信中...' : '番号を送る'}</button
+                >
+              </div>
+              <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  bind:value={emailCodeInput}
+                  placeholder="6桁の番号"
+                  class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs tracking-widest dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+                <button
+                  type="button"
+                  onclick={handleConfirmEmailCode}
+                  disabled={isConfirmingEmail || !emailCodeInput.trim()}
+                  class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  >{isConfirmingEmail ? '確認中...' : '確認する'}</button
+                >
+              </div>
+              {#if emailFormError}
+                <p class="mt-1 text-[11px] text-rose-600">{emailFormError}</p>
+              {/if}
+            {/if}
           </div>
 
           <!-- Guide for standard users -->
@@ -2234,10 +2387,10 @@
               <!-- Tab 2: Member role management -->
             {:else if activeTab === 'users'}
               <div class="flex flex-col gap-3">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                   <span
                     class="text-xs font-bold text-slate-700 dark:text-slate-300"
-                    >メンバー一覧 ({userList.length}名)</span
+                    >メンバー {userCounts.all.toLocaleString()}名</span
                   >
                   <button
                     type="button"
@@ -2249,6 +2402,39 @@
                     />
                     <span>再読み込み</span>
                   </button>
+                </div>
+
+                <div class="relative">
+                  <Search
+                    class="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="search"
+                    value={userQueryInput}
+                    oninput={(e) =>
+                      handleUserSearchInput(e.currentTarget.value)}
+                    placeholder="名前・ユーザー名で検索"
+                    class="w-full rounded-lg border border-slate-300 bg-white py-2 pr-3 pl-8 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                </div>
+
+                <div class="flex flex-wrap gap-1.5">
+                  {#each [{ id: 'all' as const, label: 'すべて', count: userCounts.all }, { id: 'admin' as const, label: '管理者', count: userCounts.admin }, { id: 'moderator' as const, label: 'モデレーター', count: userCounts.moderator }, { id: 'user' as const, label: '一般', count: userCounts.user }] as chip (chip.id)}
+                    <button
+                      type="button"
+                      onclick={() => handleUserRoleFilter(chip.id)}
+                      class={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+                        userRoleFilter === chip.id
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                      }`}
+                    >
+                      {chip.label}
+                      <span class="ml-1 opacity-70"
+                        >{chip.count.toLocaleString()}</span
+                      >
+                    </button>
+                  {/each}
                 </div>
 
                 {#if roleChangeMessage}
@@ -2263,7 +2449,7 @@
                   </div>
                 {/if}
 
-                {#if isLoadingUsers}
+                {#if isLoadingUsers && userList.length === 0}
                   <div
                     class="py-12 text-center text-xs text-slate-400 dark:text-slate-500"
                   >
@@ -2276,86 +2462,70 @@
                   <div
                     class="rounded-xl border border-slate-200 bg-slate-50 py-12 text-center text-xs text-slate-400 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-500"
                   >
-                    ユーザーが見つかりません
+                    {userQuery || userRoleFilter !== 'all'
+                      ? '条件に合うメンバーがいません'
+                      : 'ユーザーが見つかりません'}
                   </div>
                 {:else}
                   <div
-                    class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                    class="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
                   >
                     {#each userList as u (u.id)}
                       <div
-                        class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-slate-700"
+                        class="flex items-center gap-2 border-b border-slate-100 px-3 py-2 last:border-b-0 dark:border-slate-800"
                       >
-                        <div class="flex items-center gap-3">
+                        <div class="min-w-0 flex-1">
                           <div
-                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 text-xs font-black text-white shadow-xs"
+                            class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100"
                           >
-                            {u.displayName
-                              ? u.displayName.charAt(0)
-                              : u.username.charAt(0)}
-                          </div>
-                          <div class="min-w-0 flex-1">
-                            <div
-                              class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100"
+                            <span class="truncate"
+                              >{u.displayName || u.username}</span
                             >
-                              <span class="truncate"
-                                >{u.displayName || u.username}</span
-                              >
-                              {#if u.id === user.id}
-                                <span
-                                  class="shrink-0 text-[10px] font-bold text-blue-600 dark:text-blue-400"
-                                  >(自分)</span
-                                >
-                              {/if}
-                            </div>
-                            <div
-                              class="truncate font-mono text-[10px] text-slate-400 dark:text-slate-500"
-                            >
-                              @{u.username}
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Role badge & update action -->
-                        <div
-                          class="flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-700/60"
-                        >
-                          <div>
-                            {#if u.role === 'admin'}
+                            {#if u.id === user.id}
                               <span
-                                class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                class="shrink-0 text-[10px] font-bold text-blue-600 dark:text-blue-400"
+                                >(自分)</span
                               >
-                                <Crown
-                                  class="h-3 w-3 text-amber-600 dark:text-amber-400"
-                                />
-                                管理者
-                              </span>
-                            {:else}
-                              <span
-                                class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                              >
-                                一般
-                              </span>
                             {/if}
                           </div>
-
-                          <div class="flex items-center gap-1.5">
-                            {#if u.role === 'admin'}
-                              {#if u.id !== user.id}
-                                <button
-                                  type="button"
-                                  onclick={() =>
-                                    handleUpdateRole(
-                                      u.id,
-                                      u.displayName || u.username,
-                                      'user'
-                                    )}
-                                  class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                                >
-                                  一般に戻す
-                                </button>
-                              {/if}
-                            {:else}
+                          <div
+                            class="truncate font-mono text-[10px] text-slate-400"
+                          >
+                            @{u.username}
+                          </div>
+                          {#if u.emailVerified && u.email}
+                            <div class="truncate text-[10px] text-slate-500">
+                              {u.email}
+                            </div>
+                          {:else if u.pendingEmail}
+                            <div
+                              class="truncate text-[10px] text-amber-700 dark:text-amber-300"
+                            >
+                              {u.pendingEmail}（未確認）
+                            </div>
+                          {/if}
+                        </div>
+                        {#if u.role === 'admin'}
+                          <span
+                            class="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          >
+                            <Crown class="h-3 w-3" />
+                            管理者
+                          </span>
+                        {:else if u.role === 'moderator'}
+                          <span
+                            class="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
+                            >モデレーター</span
+                          >
+                        {:else}
+                          <span
+                            class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            >一般</span
+                          >
+                        {/if}
+                        <div class="flex shrink-0 items-center gap-1">
+                          {#if u.id !== user.id}
+                            {#if u.role !== 'admin'}
                               <button
                                 type="button"
                                 onclick={() =>
@@ -2364,41 +2534,78 @@
                                     u.displayName || u.username,
                                     'admin'
                                   )}
-                                class="flex cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                                class="cursor-pointer rounded-md border border-amber-200 bg-amber-50 px-1.5 py-1 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                                >管理者に</button
                               >
-                                <Crown
-                                  class="h-2.5 w-2.5 text-amber-600 dark:text-amber-400"
-                                />
-                                <span>昇格</span>
-                              </button>
-                            {/if}
-
-                            {#if u.id !== user.id}
+                            {:else}
                               <button
                                 type="button"
                                 onclick={() =>
-                                  handleDeleteUser(
+                                  handleUpdateRole(
                                     u.id,
-                                    u.displayName || u.username
+                                    u.displayName || u.username,
+                                    'user'
                                   )}
-                                class="flex cursor-pointer items-center gap-1 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-600 transition hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60"
-                                title="アカウントを削除"
+                                class="cursor-pointer rounded-md border border-slate-200 bg-slate-100 px-1.5 py-1 text-[10px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                >一般に</button
                               >
-                                <Trash2
-                                  class="h-2.5 w-2.5 text-rose-600 dark:text-rose-400"
-                                />
-                                <span>削除</span>
-                              </button>
                             {/if}
-                          </div>
+                            <button
+                              type="button"
+                              onclick={() =>
+                                handleDeleteUser(
+                                  u.id,
+                                  u.displayName || u.username
+                                )}
+                              class="cursor-pointer rounded-md border border-rose-200 bg-rose-50 p-1 text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/40"
+                              title="削除"
+                            >
+                              <Trash2 class="h-3 w-3" />
+                            </button>
+                          {/if}
                         </div>
                       </div>
                     {/each}
                   </div>
+                  {#if userTotal > USER_PAGE_SIZE}
+                    <div
+                      class="flex items-center justify-between text-[11px] text-slate-500"
+                    >
+                      <span>
+                        {userPage * USER_PAGE_SIZE + 1}–{Math.min(
+                          (userPage + 1) * USER_PAGE_SIZE,
+                          userTotal
+                        )}
+                        / {userTotal.toLocaleString()}
+                      </span>
+                      <div class="flex gap-1.5">
+                        <button
+                          type="button"
+                          disabled={userPage === 0}
+                          onclick={() => {
+                            userPage -= 1;
+                            void loadUsers();
+                          }}
+                          class="cursor-pointer rounded-md border border-slate-200 px-2 py-1 font-bold disabled:opacity-40 dark:border-slate-700"
+                          >前へ</button
+                        >
+                        <button
+                          type="button"
+                          disabled={(userPage + 1) * USER_PAGE_SIZE >=
+                            userTotal}
+                          onclick={() => {
+                            userPage += 1;
+                            void loadUsers();
+                          }}
+                          class="cursor-pointer rounded-md border border-slate-200 px-2 py-1 font-bold disabled:opacity-40 dark:border-slate-700"
+                          >次へ</button
+                        >
+                      </div>
+                    </div>
+                  {/if}
                 {/if}
                 <p class="text-[10px] text-slate-400 dark:text-slate-500">
-                  ※
-                  管理者権限を持つユーザーは、システム設定の更新、他サイトとのデータ同期、および全投稿の編集・削除が可能です。
+                  管理者は設定変更・データ同期・全投稿の編集ができます。一覧は50件ずつ読みます。
                 </p>
               </div>
 
@@ -3044,7 +3251,8 @@
                       <p
                         class="mt-1.5 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400"
                       >
-                        自治体の Excel / CSV を取り込むタブです。国土地理院の指定避難所は、発災登録した災害カードから対象地域ごとに取得します。
+                        自治体の Excel / CSV
+                        を取り込むタブです。国土地理院の指定避難所は、発災登録した災害カードから対象地域ごとに取得します。
                       </p>
 
                       <div

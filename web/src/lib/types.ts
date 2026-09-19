@@ -126,6 +126,9 @@ export interface User {
   displayName: string;
   role: 'admin' | 'moderator' | 'user';
   e2ee_public_key?: string | null;
+  email?: string | null;
+  emailVerified?: boolean;
+  pendingEmail?: string | null;
 }
 
 // ================= E2EE Messaging Types =================

@@ -81,4 +81,9 @@ max_batch_timeout = 5
 [triggers]
 crons = ["0 3 * * *"] # Daily at 12:00 JST (03:00 UTC)
 
+# Transactional email (onboard tossa.app in Email Sending first)
+[[send_email]]
+name = "EMAIL"
+allowed_sender_addresses = ["noreply@tossa.app"]
+
 
