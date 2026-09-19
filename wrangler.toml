@@ -3,6 +3,8 @@ name = "tossa"
 main = "src/index.ts"
 compatibility_date = "2025-02-04"
 compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+preview_urls = false
 
 # Static Assets (Svelte 5 Single Page Application)
 [assets]
@@ -39,10 +41,10 @@ id = "f22ffac4a48c4c2eb9bc117711e724dd"
 # binding = "HYPERDRIVE"
 # id = ""
 
-# Custom Domain (Cloudflare Registrar)
-[[routes]]
-pattern = "tossa.app"
-custom_domain = true
+# tossa.app is attached as a Workers Custom Domain in the dashboard
+# (account /workers/domains). Do not add [[routes]] here: wrangler 4 GETs
+# /zones/:id/workers/routes as a conflict check for every route, including
+# custom_domain, and the deploy token has no Zone Workers Routes permission.
 
 # Environment Variables
 [vars]
