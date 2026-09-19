@@ -20,6 +20,7 @@ import {
   enqueuePostCreation,
   enqueueStatusUpdate,
 } from '../services/writeBuffer';
+import { renderOgpSvg } from '../ogp';
 
 type PostsVariables = { deviceSessionId: string };
 
@@ -172,6 +173,22 @@ postsRoute.get('/:id', async (c) => {
     },
     history,
   });
+});
+
+// GET /api/posts/:id/ogp.svg - Dynamic vector OGP banner with QR code
+postsRoute.get('/:id/ogp.svg', async (c) => {
+  const id = c.req.param('id');
+  const post = await getPostById(c.env.DB, id);
+  if (!post) {
+    return c.text('Post not found', 404);
+  }
+
+  const origin = c.env.EXPECTED_ORIGIN || new URL(c.req.url).origin;
+  const svg = await renderOgpSvg(post, origin);
+
+  c.header('Content-Type', 'image/svg+xml; charset=utf-8');
+  c.header('Cache-Control', 'public, max-age=60, s-maxage=300');
+  return c.body(svg);
 });
 
 // POST /api/posts - Create new post (Cookie or Passkey authenticated)

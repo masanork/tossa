@@ -201,6 +201,91 @@
     csvImportResult = null;
   }
 
+  let openDataPresets = $state<
+    { id: string; name: string; description: string; itemCount: number }[]
+  >([]);
+  let selectedPresetId = $state<string>('');
+  let isLoadingPreset = $state(false);
+
+  async function fetchOpenDataPresets() {
+    try {
+      const res = await fetch('/api/opendata/presets');
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.success && json.presets) {
+          openDataPresets = json.presets;
+          if (openDataPresets.length > 0 && openDataPresets[0]) {
+            selectedPresetId = openDataPresets[0].id;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load opendata presets', e);
+    }
+  }
+
+  async function handleLoadOpenDataPreset(presetId: string) {
+    if (!presetId) return;
+    try {
+      isLoadingPreset = true;
+      const res = await fetch(`/api/opendata/presets/${presetId}`);
+      if (!res.ok) throw new Error('プリセットの取得に失敗しました');
+      const json: any = await res.json();
+      if (!json.success || !json.preset)
+        throw new Error('データが見つかりません');
+
+      const preset = json.preset;
+      const headers = [
+        '施設名称',
+        '市区町村名',
+        '施設所在地',
+        '施設種別',
+        '開設状況',
+        '緯度',
+        '経度',
+        '備考',
+        'ホームページURL',
+      ];
+      const rows = preset.items.map((item: any) => [
+        item.name,
+        item.area,
+        item.address,
+        item.category,
+        item.status_label,
+        String(item.lat),
+        String(item.lng),
+        item.note,
+        item.source_url,
+      ]);
+      const csvLines = [
+        headers.join(','),
+        ...rows.map((r: string[]) =>
+          r.map((v) => `"${(v || '').replace(/"/g, '""')}"`).join(',')
+        ),
+      ].join('\n');
+
+      csvRawText = csvLines;
+      csvFileName = `${preset.id}.csv`;
+      const parsed = parseCsv(csvLines);
+      availableSheets = [{ name: preset.name, data: parsed }];
+      isExcelMode = false;
+      selectedSheetIndex = 0;
+      applySheetData(parsed);
+      csvStatusMessage = {
+        type: 'success',
+        text: `「${preset.name}」から ${preset.items.length} 件の避難所・給水拠点データを読み込みました。マッピングを確認して「一括登録」を実行してください。`,
+      };
+      csvImportResult = null;
+    } catch (e: any) {
+      csvStatusMessage = {
+        type: 'error',
+        text: `オープンデータの読み込みに失敗しました: ${e.message}`,
+      };
+    } finally {
+      isLoadingPreset = false;
+    }
+  }
+
   function handleDownloadSampleCsv() {
     const sample = generateSampleCsv();
     const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), sample], {
@@ -466,6 +551,7 @@
     if (user?.role === 'admin' && token) {
       await loadUsers();
     }
+    void fetchOpenDataPresets();
   });
 
   async function loadUsers() {
@@ -1597,6 +1683,49 @@
                           </option>
                         {/each}
                       </select>
+                    </div>
+                  {/if}
+
+                  <!-- Official Government Open Data Presets -->
+                  {#if openDataPresets.length > 0}
+                    <div
+                      class="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-3 dark:border-blue-900/50 dark:bg-blue-950/40"
+                    >
+                      <div
+                        class="flex items-center justify-between text-xs font-bold text-blue-900 dark:text-blue-200"
+                      >
+                        <span class="flex items-center gap-1.5">
+                          <span class="text-sm">🏛️</span>
+                          国土地理院・公式避難所データから取得
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <select
+                          bind:value={selectedPresetId}
+                          class="flex-1 rounded-lg border border-blue-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-blue-700 dark:bg-slate-900 dark:text-slate-100"
+                        >
+                          {#each openDataPresets as preset}
+                            <option value={preset.id}>
+                              {preset.name} ({preset.itemCount}件)
+                            </option>
+                          {/each}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={isLoadingPreset}
+                          onclick={() =>
+                            handleLoadOpenDataPreset(selectedPresetId)}
+                          class="cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {isLoadingPreset ? '取得中...' : '読込'}
+                        </button>
+                      </div>
+                      <p
+                        class="text-[10px] leading-tight text-blue-800/80 dark:text-blue-300/80"
+                      >
+                        ※
+                        国土地理院・自治体標準オープンデータ仕様の指定避難所・給水拠点をワンクリックで取り込めます。
+                      </p>
                     </div>
                   {/if}
 

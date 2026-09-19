@@ -17,6 +17,7 @@
     X,
     Navigation,
     QrCode,
+    Printer,
     Star,
     MessageSquareText,
     ChevronDown,
@@ -50,6 +51,7 @@
     onDeletePost?: (postId: string) => void;
     onContactPost?: (post: Post) => void;
     onOpenQrShare?: (post: Post) => void;
+    onOpenPrintSheet?: (post: Post) => void;
   }
 
   const {
@@ -61,6 +63,7 @@
     onDeletePost,
     onContactPost,
     onOpenQrShare,
+    onOpenPrintSheet,
   }: Props = $props();
 
   const isAuthorOrAdmin = $derived.by(() => {
@@ -836,6 +839,20 @@
         <QrCode class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
         <span>{m.qr_share_btn()}</span>
       </button>
+
+      <!-- Print Notice Sheet button -->
+      {#if onOpenPrintSheet}
+        <button
+          type="button"
+          onclick={() => onOpenPrintSheet(post)}
+          class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          title={m.btn_print_sheet()}
+          aria-label={m.btn_print_sheet()}
+        >
+          <Printer class="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+          <span class="hidden min-[480px]:inline">{m.btn_print_sheet()}</span>
+        </button>
+      {/if}
 
       <!-- Speech Read-Aloud button -->
       {#if speechManager.isSupported}

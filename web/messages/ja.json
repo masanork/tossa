@@ -232,5 +232,14 @@
   "post_source_media": "報道機関",
   "post_source_sns": "SNS公式・現地ポスト",
   "post_delete_confirm": "「{title}」を削除してもよろしいですか？",
-  "header_more_menu": "その他の機能（マイページ・通知・QR・言語・テーマ・ヘルプ）"
+  "header_more_menu": "その他の機能（マイページ・通知・QR・言語・テーマ・ヘルプ）",
+  "btn_print_sheet": "掲示用シート印刷",
+  "print_sheet_title": "生活情報・避難所 掲示シート",
+  "print_sheet_desc": "避難所や公民館、店頭の壁に貼り出すためのA4印刷用レイアウトです。QRコードから誰でもスマホで最新状況を確認・更新できます。",
+  "print_btn_action": "今すぐ印刷する",
+  "print_qr_instruction": "スマートフォンでこのQRコードを読み取ると、現在の最新状況の確認や、現地からの状況報告（混雑・物資など）が行えます。",
+  "map_official_layer_toggle": "🏛️ 公式避難所",
+  "map_official_badge": "🏛️ 国土地理院・公的指定避難場所",
+  "map_official_unreported": "※ 現在の開設・混雑状況は未報告です",
+  "map_official_report_btn": "＋ この避難所の状況を報告する"
 }

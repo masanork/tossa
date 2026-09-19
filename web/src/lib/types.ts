@@ -167,3 +167,19 @@ export interface BackupResult {
   deletedOldBackups?: string[];
   error?: string;
 }
+
+export interface OpenDataShelter {
+  id?: string;
+  name: string;
+  area: string;
+  address: string;
+  category: string;
+  lat: number;
+  lng: number;
+  current_status: string;
+  status_label: string;
+  note: string;
+  source_url: string;
+  preset_id?: string;
+}
+

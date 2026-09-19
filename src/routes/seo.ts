@@ -491,11 +491,12 @@ export async function renderHtmlWithSeo(
         `状況: ${statusText}`,
         post.note,
       ].filter(Boolean);
-      description = descParts.join('。');
       if (post.image_url) {
         imageUrl = post.image_url.startsWith('http')
           ? post.image_url
           : `${origin}${post.image_url}`;
+      } else {
+        imageUrl = `${origin}/api/posts/${post.id}/ogp.svg`;
       }
 
       // Schema.org entity for single post
@@ -658,7 +659,7 @@ export async function renderHtmlWithSeo(
     `<meta property="og:site_name" content="${escapeHtml(siteTitle)}" />`,
     `<meta property="og:type" content="${targetPostId ? 'article' : 'website'}" />`,
     `<meta property="og:image" content="${escapeHtml(imageUrl)}" />`,
-    `<meta name="twitter:card" content="${post?.image_url ? 'summary_large_image' : 'summary'}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
     `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(imageUrl)}" />`,

@@ -41,6 +41,7 @@
     availableAreas?: string[];
     token: string | null;
     editingPost?: Post | null;
+    initialDraftPost?: Partial<Post> | null;
     isTop?: boolean;
     zIndex?: number;
     onClose: () => void;
@@ -55,6 +56,7 @@
     availableAreas = [],
     token,
     editingPost = null,
+    initialDraftPost = null,
     isTop = true,
     zIndex = 50,
     onClose,
@@ -349,6 +351,27 @@
               : (editingPost.attributes as Record<string, string>);
         } catch {}
       }
+    } else if (initialDraftPost) {
+      title = initialDraftPost.title || '';
+      area = initialDraftPost.area || '';
+      address = initialDraftPost.address || '';
+      currentStatus = initialDraftPost.current_status || 'available';
+      statusLabel = initialDraftPost.status_label || '受付中 / 利用可能';
+      note = initialDraftPost.note || '';
+      sourceUrl = initialDraftPost.source_url || '';
+      url = initialDraftPost.url || '';
+      if (initialDraftPost.tags) {
+        try {
+          selectedTags =
+            typeof initialDraftPost.tags === 'string'
+              ? JSON.parse(initialDraftPost.tags)
+              : initialDraftPost.tags;
+        } catch {
+          if (Array.isArray(initialDraftPost.tags)) {
+            selectedTags = initialDraftPost.tags;
+          }
+        }
+      }
     }
 
     // Leaflet initialization
@@ -369,25 +392,27 @@
     leaflet
       .tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap',
+        attribution: '&copy; OpenStreetMap contributors',
         crossOrigin: true,
       })
       .addTo(pickerMap);
 
-    // Set/move pin on map click
+    pickerMarker = null;
+
     pickerMap.on('click', (e: L.LeafletMouseEvent) => {
       setCoordinates(e.latlng.lat, e.latlng.lng);
       geoStatusMessage = {
         type: 'success',
         text: '地図をタップしてピンを配置しました',
       };
+      reverseGeocode(e.latlng.lat, e.latlng.lng);
     });
 
     setTimeout(() => {
       pickerMap?.invalidateSize();
     }, 250);
 
-    // Center on existing post location, or fallback to defaultArea
+    // Center on existing post location, initialDraftPost location, or fallback to defaultArea
     if (
       editingPost &&
       editingPost.lat !== null &&
@@ -396,6 +421,14 @@
       editingPost.lng !== undefined
     ) {
       setCoordinates(editingPost.lat, editingPost.lng, 15);
+    } else if (
+      initialDraftPost &&
+      initialDraftPost.lat !== null &&
+      initialDraftPost.lng !== null &&
+      initialDraftPost.lat !== undefined &&
+      initialDraftPost.lng !== undefined
+    ) {
+      setCoordinates(initialDraftPost.lat, initialDraftPost.lng, 15);
     } else if (defaultArea) {
       try {
         const res = await fetch(

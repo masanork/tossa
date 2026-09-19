@@ -10,7 +10,8 @@ export type ModalName =
   | 'qr_scanner'
   | 'push'
   | 'help'
-  | 'mypage';
+  | 'mypage'
+  | 'print_sheet';
 
 class ModalManager {
   stack = $state<ModalName[]>([]);

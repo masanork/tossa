@@ -232,5 +232,14 @@
   "post_source_media": "News & Media",
   "post_source_sns": "Official Social / Field Post",
   "post_delete_confirm": "Are you sure you want to delete \"{title}\"?",
-  "header_more_menu": "More features (My Page, alerts, QR, language, theme, guide)"
+  "header_more_menu": "More features (My Page, alerts, QR, language, theme, guide)",
+  "btn_print_sheet": "Print Notice Sheet",
+  "print_sheet_title": "Living Info & Shelter Notice Sheet",
+  "print_sheet_desc": "A4 printable layout for posting on walls at shelters or public spaces. Visitors can scan the QR code to view and report real-time updates.",
+  "print_btn_action": "Print Now",
+  "print_qr_instruction": "Scan this QR code with your smartphone to view the latest updates or report on-site conditions (crowding, supplies, etc.).",
+  "map_official_layer_toggle": "🏛️ Official Shelters",
+  "map_official_badge": "🏛️ Designated Emergency Shelter (GSI)",
+  "map_official_unreported": "* Real-time status has not yet been reported",
+  "map_official_report_btn": "+ Report Current Status for Shelter"
 }

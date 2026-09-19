@@ -15,12 +15,15 @@ import { pushRoute } from './routes/push';
 import { mcpRoute } from './routes/mcp';
 import { seoRoute } from './routes/seo';
 import { imagesRoute } from './routes/images';
+import { opendataRoute } from './routes/opendata';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 import { rateLimiter } from './middleware/rateLimit';
 import { processPushQueueBatch } from './services/push';
 import { processWriteQueueBatch } from './services/writeBuffer';
 import { performDatabaseBackup } from './services/backup';
 import { sendErrorAlert } from './services/alert';
+import { renderOgpSvg } from './ogp';
+import { getPostById } from './db/queries';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -257,6 +260,22 @@ app.route('/mcp', mcpRoute);
 app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
 app.route('/api/images', imagesRoute);
+app.route('/api/opendata', opendataRoute);
+
+// Direct OGP banner endpoint (/ogp/:id or /ogp/:id.svg)
+app.get('/ogp/:id', async (c) => {
+  const rawId = c.req.param('id');
+  const id = rawId.endsWith('.svg') ? rawId.slice(0, -4) : rawId;
+  const post = await getPostById(c.env.DB, id);
+  if (!post) {
+    return c.text('Not found', 404);
+  }
+  const origin = c.env.EXPECTED_ORIGIN || new URL(c.req.url).origin;
+  const svg = await renderOgpSvg(post, origin);
+  c.header('Content-Type', 'image/svg+xml; charset=utf-8');
+  c.header('Cache-Control', 'public, max-age=60, s-maxage=300');
+  return c.body(svg);
+});
 
 // SEO, AI Discovery & SSR Routes
 app.route('/', seoRoute);

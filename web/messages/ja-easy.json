@@ -232,5 +232,14 @@
   "post_source_media": "ニュース・しんぶん",
   "post_source_sns": "SNSの じょうほう",
   "post_delete_confirm": "「{title}」を けしても いいですか？",
-  "header_more_menu": "そのほかの メニュー"
+  "header_more_menu": "そのほかの メニュー",
+  "btn_print_sheet": "かみ に いんさつする",
+  "print_sheet_title": "ばしょの ようす (はりがみ)",
+  "print_sheet_desc": "かべに はるための A4のかみ です。スマホで QRコードを よみとると、いまの ようすが わかります。",
+  "print_btn_action": "いんさつする",
+  "print_qr_instruction": "スマホの カメラで このQRコードを うつすと、いまの ようすが みられます。",
+  "map_official_layer_toggle": "🏛️ こうしきの ひなんじょ",
+  "map_official_badge": "🏛️ おやくしょの ひなんじょ",
+  "map_official_unreported": "※ いまの ようすは まだ かかれていません",
+  "map_official_report_btn": "＋ いまの ようすを おしえる"
 }

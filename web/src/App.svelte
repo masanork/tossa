@@ -1,7 +1,13 @@
 <!-- web/src/App.svelte -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { Post, SystemSettings, User, TagCount } from './lib/types';
+  import type {
+    Post,
+    SystemSettings,
+    User,
+    TagCount,
+    OpenDataShelter,
+  } from './lib/types';
   import {
     fetchSettings,
     fetchPosts,
@@ -74,8 +80,15 @@
   // Modal context state
   let updatingPost = $state<Post | null>(null);
   let editingPost = $state<Post | null>(null);
+  let initialDraftPost = $state<Partial<Post> | null>(null);
   let messageContextPost = $state<Post | null>(null);
   let activeQrPost = $state<Post | null>(null);
+  let printingPost = $state<Post | null>(null);
+
+  function handleOpenPrintSheet(post: Post) {
+    printingPost = post;
+    modalManager.open('print_sheet');
+  }
 
   function handleOpenQrShare(post: Post) {
     activeQrPost = post;
@@ -191,7 +204,10 @@
 
   function handleCloseModal(name: ModalName) {
     modalManager.close(name);
-    if (name === 'create') editingPost = null;
+    if (name === 'create') {
+      editingPost = null;
+      initialDraftPost = null;
+    }
     if (name === 'update_status') updatingPost = null;
     if (name === 'messages') messageContextPost = null;
     if (name === 'qr_code') activeQrPost = null;
@@ -498,12 +514,32 @@
   // Open create post (cookie identification allows instant posting without login)
   function handleOpenCreate() {
     editingPost = null;
+    initialDraftPost = null;
+    modalManager.open('create');
+  }
+
+  // Report status for official shelter (Ideas B: instantiate official shelter as tossa post)
+  function handleReportOfficialShelter(shelter: OpenDataShelter) {
+    editingPost = null;
+    initialDraftPost = {
+      title: shelter.name,
+      area: shelter.area,
+      address: shelter.address,
+      lat: shelter.lat,
+      lng: shelter.lng,
+      current_status: shelter.current_status || 'available',
+      status_label: shelter.status_label || '開設中',
+      note: shelter.note || '',
+      source_url: shelter.source_url || '',
+      tags: JSON.stringify([shelter.category || '避難所']),
+    };
     modalManager.open('create');
   }
 
   // Open edit post
   function handleEditPost(post: Post) {
     editingPost = post;
+    initialDraftPost = null;
     modalManager.open('create');
   }
 
@@ -1036,6 +1072,7 @@
             defaultArea={settings.default_area || ''}
             {focusWaypointTrigger}
             onOpenUpdateStatus={handleOpenUpdateStatus}
+            onReportOfficialShelter={handleReportOfficialShelter}
             onOpenOfflineMap={handleOpenOfflineMap}
           />
         {/await}
@@ -1155,6 +1192,7 @@
               onDeletePost={handleDeletePost}
               onContactPost={handleContactPost}
               onOpenQrShare={handleOpenQrShare}
+              onOpenPrintSheet={handleOpenPrintSheet}
             />
           {/each}
         </div>
@@ -1212,10 +1250,12 @@
         {availableAreas}
         token={authToken}
         {editingPost}
+        {initialDraftPost}
         isTop={modalManager.isTop('create')}
         zIndex={modalManager.getZIndex('create')}
         onClose={() => handleCloseModal('create')}
         onCreated={(newPost) => {
+          initialDraftPost = null;
           pendingCount = getPendingQueueCount();
           if (newPost) {
             posts = [newPost, ...posts.filter((p) => p.id !== newPost.id)];
@@ -1224,6 +1264,7 @@
           reloadPosts(true);
         }}
         onUpdated={() => {
+          initialDraftPost = null;
           pendingCount = getPendingQueueCount();
           reloadPosts(true);
         }}
@@ -1333,6 +1374,18 @@
         onDeletePost={handleDeletePost}
         onOpenQrShare={handleOpenQrShare}
         onContactPost={handleContactPost}
+      />
+    {/await}
+  {/if}
+
+  {#if modalManager.isOpen('print_sheet') && printingPost}
+    {#await import('./lib/PrintSheetModal.svelte') then { default: PrintSheetModal }}
+      <PrintSheetModal
+        post={printingPost}
+        onClose={() => {
+          modalManager.close('print_sheet');
+          printingPost = null;
+        }}
       />
     {/await}
   {/if}
