@@ -53,7 +53,6 @@
     Users,
     Sliders,
     Crown,
-    UserCheck,
     Palette,
     BellRing,
     Radio,
@@ -109,7 +108,6 @@
   }: Props = $props();
 
   let username = $state('');
-  let displayName = $state('');
   let isAuthenticating = $state(false);
   let statusMessage = $state<{
     type: 'success' | 'error';
@@ -910,76 +908,74 @@
     }
   });
 
-  // Execute Passkey login
-  async function handlePasskeyLogin() {
-    isAuthenticating = true;
-    statusMessage = null;
+  function isPasskeyCancelled(error?: string) {
+    if (!error) return false;
+    const text = error.toLowerCase();
+    return (
+      text.includes('cancel') ||
+      text.includes('abort') ||
+      text.includes('notallowed') ||
+      text.includes('キャンセル')
+    );
+  }
 
-    try {
-      const res = await loginPasskey(username.trim() || undefined);
-      if (res.success && res.user && res.token) {
-        onAuthSuccess(res.user, res.token);
-        statusMessage = {
-          type: 'success',
-          text: `認証成功: ${res.user.displayName} さんとしてログインしました`,
-        };
-        if (res.user.role === 'admin') {
-          await loadUsers();
-        }
-      } else {
-        statusMessage = {
-          type: 'error',
-          text: res.error || 'Passkey認証に失敗しました',
-        };
-      }
-    } catch (err: any) {
-      statusMessage = {
-        type: 'error',
-        text: err.message || 'Passkey認証エラーが発生しました',
-      };
-    } finally {
-      isAuthenticating = false;
+  async function finishAuth(authed: User, authToken: string) {
+    onAuthSuccess(authed, authToken);
+    const adminNote =
+      authed.role === 'admin' && isFirstUserSetup
+        ? '（最初の認証のため管理者になりました）'
+        : '';
+    statusMessage = {
+      type: 'success',
+      text: `${authed.displayName} さんとして認証しました${adminNote}`,
+    };
+    if (authed.role === 'admin') {
+      await loadUsers();
     }
   }
 
-  // Execute new Passkey registration
-  async function handlePasskeyRegister() {
-    if (!username.trim()) {
-      statusMessage = { type: 'error', text: 'ユーザー名を入力してください' };
-      return;
-    }
-
+  async function handlePasskeyAuth() {
     isAuthenticating = true;
     statusMessage = null;
+    const name = username.trim();
 
     try {
-      const res = await registerPasskey(
-        username.trim(),
-        displayName.trim() || undefined
-      );
-      if (res.success && res.user && res.token) {
-        onAuthSuccess(res.user, res.token);
-        const roleNotice =
-          res.user.role === 'admin'
-            ? '（最初の登録者のため管理者権限が付与されました）'
-            : '';
-        statusMessage = {
-          type: 'success',
-          text: `Passkey登録完了: ${res.user.displayName} として認証されました${roleNotice}`,
-        };
-        if (res.user.role === 'admin') {
-          await loadUsers();
-        }
-      } else {
+      const login = await loginPasskey(name || undefined);
+      if (login.success && login.user && login.token) {
+        await finishAuth(login.user, login.token);
+        return;
+      }
+      if (isPasskeyCancelled(login.error)) {
+        statusMessage = { type: 'error', text: 'キャンセルしました' };
+        return;
+      }
+
+      if (!name) {
         statusMessage = {
           type: 'error',
-          text: res.error || 'Passkey登録に失敗しました',
+          text: 'お名前を入力して、Passkey で認証してください',
         };
+        return;
       }
+
+      const registered = await registerPasskey(name, name);
+      if (registered.success && registered.user && registered.token) {
+        await finishAuth(registered.user, registered.token);
+        return;
+      }
+      if (isPasskeyCancelled(registered.error)) {
+        statusMessage = { type: 'error', text: 'キャンセルしました' };
+        return;
+      }
+      statusMessage = {
+        type: 'error',
+        text:
+          registered.error || login.error || 'Passkey で認証できませんでした',
+      };
     } catch (err: any) {
       statusMessage = {
         type: 'error',
-        text: err.message || 'Passkey登録エラーが発生しました',
+        text: err.message || 'Passkey で認証できませんでした',
       };
     } finally {
       isAuthenticating = false;
@@ -1204,7 +1200,7 @@
             ? user.role === 'admin'
               ? 'システム管理ダッシュボード'
               : 'アカウント設定'
-            : 'Passkey 認証・設定'}
+            : 'Passkey で認証'}
         </h2>
         {#if user}
           <span
@@ -1269,7 +1265,6 @@
         </div>
       {/if}
 
-      <!-- 1. Unauthenticated state: Passkey Register / Login -->
       {#if !user}
         <div class="flex flex-col gap-3.5">
           {#if isFirstUserSetup}
@@ -1279,82 +1274,45 @@
               <Crown
                 class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"
               />
-              <div>
-                <span class="font-bold">初回管理者セットアップ:</span>
-                <p
-                  class="mt-0.5 text-[11px] leading-relaxed text-amber-800 dark:text-amber-300"
-                >
-                  現在システムに管理者が登録されていません。最初にPasskey登録を行った利用者に、自動的にシステム管理者（admin）権限が付与されます。
-                </p>
-              </div>
+              <p class="leading-relaxed text-amber-800 dark:text-amber-300">
+                最初に認証した人が管理者になります。お名前を入れて Passkey
+                で認証してください。
+              </p>
             </div>
           {:else}
             <p
               class="text-xs leading-relaxed text-slate-600 dark:text-slate-400"
             >
-              パスワードは不要です。端末の生体認証（Touch ID / Face ID / Windows
-              Hello）で即座にログイン・登録できます。認証すると情報の投稿や、自分が投稿した情報の編集・削除が可能です。
+              指紋や顔認証で入れます。パスワードは不要です。
             </p>
           {/if}
 
-          <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <div>
-              <label
-                for="auth-username"
-                class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-              >
-                ユーザー名（ID） <span class="text-rose-600 dark:text-rose-400"
-                  >*</span
-                >
-              </label>
-              <input
-                id="auth-username"
-                type="text"
-                bind:value={username}
-                placeholder="例: yamada"
-                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-              />
-            </div>
-            <div>
-              <label
-                for="auth-display-name"
-                class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-              >
-                表示名・ニックネーム（任意）
-              </label>
-              <input
-                id="auth-display-name"
-                type="text"
-                bind:value={displayName}
-                placeholder="例: 山田太郎"
-                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-              />
-            </div>
+          <div>
+            <label
+              for="auth-username"
+              class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+            >
+              お名前
+            </label>
+            <input
+              id="auth-username"
+              type="text"
+              bind:value={username}
+              placeholder="例: 山田太郎"
+              autocomplete="username webauthn"
+              class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            />
           </div>
 
-          <div class="flex flex-col gap-2 pt-2 sm:flex-row">
-            <button
-              type="button"
-              onclick={handlePasskeyLogin}
-              disabled={isAuthenticating}
-              class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
-            >
-              <KeyRound class="h-4 w-4" />
-              <span
-                >{isAuthenticating ? '認証中...' : 'Passkey でログイン'}</span
-              >
-            </button>
-
-            <button
-              type="button"
-              onclick={handlePasskeyRegister}
-              disabled={isAuthenticating || !username.trim()}
-              class="flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              <UserCheck class="h-4 w-4 text-blue-600" />
-              <span>Passkey で新規登録</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onclick={handlePasskeyAuth}
+            disabled={isAuthenticating}
+            class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-bold text-white shadow-xs transition hover:bg-blue-700 disabled:opacity-50"
+          >
+            <KeyRound class="h-4 w-4" />
+            <span>{isAuthenticating ? '認証中...' : 'Passkey で認証'}</span>
+          </button>
         </div>
 
         <!-- 2. Authenticated state -->
@@ -1419,13 +1377,12 @@
                 class="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-200"
               >
                 <Shield class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span>Passkey 認証完了</span>
+                <span>認証できました</span>
               </div>
               <p
                 class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"
               >
-                あなたの端末は安全に認証されています。生活情報の投稿や、ご自身が投稿したカードの「✏️
-                編集」「🗑️ 削除」が行えます。
+                投稿のほか、自分が書いた情報の編集と削除ができます。
               </p>
             </div>
 
@@ -1930,7 +1887,9 @@
 
                     <!-- Active Disasters List Cards -->
                     {#if isLoadingDisasters}
-                      <div class="flex items-center justify-center p-4 text-xs text-slate-500">
+                      <div
+                        class="flex items-center justify-center p-4 text-xs text-slate-500"
+                      >
                         <RefreshCw class="mr-1.5 h-3.5 w-3.5 animate-spin" />
                         <span>災害情報を読み込み中...</span>
                       </div>

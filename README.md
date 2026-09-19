@@ -247,10 +247,10 @@ npm run deploy
 
 ---
 
-## 🔒 Passkey (WebAuthn) Admin Setup
+## 🔒 Sign in with Passkey
 
-1. Click the **"Admin" / "Auth"** button in the top navigation header.
-2. Keep the username `admin` and click **"Register Passkey"**.
-3. Complete registration using your device biometric sensor (Touch ID / Face ID / Windows Hello).
-4. Subsequent logins only require a single click on **"Login with Passkey"**.
-5. Once authenticated, administrators can configure regional metadata, emergency announcement banners, manage team permissions, and synchronize federated disaster databases.
+1. Open **Passkey** in the top-right header.
+2. Enter your name and tap **Continue with Passkey**.
+3. Confirm with fingerprint or face ID. No password.
+4. The first person to authenticate becomes the administrator.
+5. After that, you can set the service area and emergency banner.

@@ -95,7 +95,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     // Click Auth / Passkey button in Header
     const authBtn = page.locator(
-      'header button:has-text("認証"), header button:has-text("Passkey")'
+      'header button:has-text("Passkey"), header button:has-text("パスキー")'
     );
     await authBtn.click();
 
@@ -103,13 +103,10 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     const modal = page.locator('div[role="dialog"], div.fixed.inset-0');
     await expect(modal.first()).toBeVisible();
 
-    // Check for username input or passkey guidance
-    const usernameInput = page.locator(
-      'input[placeholder*="ユーザー名"], input[name="username"], input#username'
-    );
-    if (await usernameInput.isVisible()) {
-      await expect(usernameInput).toBeVisible();
-    }
+    await expect(page.locator('#auth-username')).toBeVisible();
+    await expect(
+      page.locator('button:has-text("Passkey で認証")')
+    ).toBeVisible();
   });
 
   test('5. Mobile multi-modal bottom sheet and history back dismissal', async ({
@@ -133,13 +130,13 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     // Click passkey login link inside CreatePostModal to open stacked AdminModal
     const passkeyLink = page.locator(
-      'form button:has-text("Passkeyでログイン"), form button:has-text("Passkey Login")'
+      'form button:has-text("Passkey で認証"), form button:has-text("Continue with Passkey")'
     );
     await expect(passkeyLink).toBeVisible();
     await passkeyLink.click();
 
     // Verify AdminModal opened as stacked modal
-    const adminModal = page.locator('h2:has-text("Passkey 認証・設定")');
+    const adminModal = page.locator('h2:has-text("Passkey で認証")');
     await expect(adminModal).toBeVisible();
 
     // Verify CreateModal remains in DOM behind AdminModal
