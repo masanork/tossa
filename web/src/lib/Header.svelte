@@ -126,7 +126,7 @@
             showMoreMenu = false;
           }}
           class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-slate-100 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          title="テーマ切替 / 省電力・夜間モード"
+          title={`テーマ切替 / ${m.theme_title()}`}
           aria-label="テーマ切替"
         >
           <span>
@@ -134,8 +134,13 @@
               '☀️'}
           </span>
           <span class="hidden text-xs md:inline">
-            {THEME_OPTIONS.find((t) => t.mode === themeManager.mode)
-              ?.shortLabel || 'テーマ'}
+            {themeManager.mode === 'system'
+              ? m.theme_system()
+              : themeManager.mode === 'light'
+                ? m.theme_light()
+                : themeManager.mode === 'dark'
+                  ? m.theme_dark()
+                  : m.theme_contrast()}
           </span>
         </button>
 
@@ -143,7 +148,7 @@
           <!-- Dropdown menu -->
           <div
             data-dropdown
-            class="absolute right-0 z-50 mt-1.5 flex w-48 flex-col rounded-xl border border-slate-200 bg-white py-1 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-800"
+            class="absolute right-0 z-50 mt-1.5 flex w-56 flex-col rounded-xl border border-slate-200 bg-white py-1 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-800"
           >
             {#each THEME_OPTIONS as opt (opt.mode)}
               <button
@@ -352,8 +357,8 @@
               ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/60 dark:text-blue-300'
               : 'border-slate-200/80 bg-white/80 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
           }`}
-          title="その他の機能（マイページ・通知・QR・言語・テーマ・ヘルプ）"
-          aria-label="その他のメニュー"
+          title={m.header_more_menu()}
+          aria-label={m.header_more_menu()}
         >
           <Ellipsis class="h-4 w-4" />
           {#if pushManager.isSubscribed || favoritesManager.count > 0}
@@ -556,7 +561,7 @@
           onOpenMessages();
         }}
         class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:bg-blue-50/60 hover:text-blue-700 sm:px-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        title="管理者や投稿者への連絡・相談"
+        title={m.btn_messages()}
         aria-label={m.btn_messages()}
       >
         <MessageSquareLock
@@ -573,9 +578,7 @@
           onOpenAdmin();
         }}
         class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white/80 px-2 py-1.5 text-xs text-slate-600 shadow-2xs transition hover:bg-slate-100 hover:text-slate-900 sm:px-2.5 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        title={user
-          ? `${user.displayName}（設定・メンバー管理）`
-          : 'Passkey 認証・登録'}
+        title={user ? user.displayName : m.btn_auth()}
         aria-label={user ? user.displayName : m.btn_auth()}
       >
         {#if user}

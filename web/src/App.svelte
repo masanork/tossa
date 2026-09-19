@@ -39,7 +39,8 @@
     ChevronUp,
     X,
   } from '@lucide/svelte';
-  import { m } from './lib/i18n.svelte';
+  import { m, i18n } from './lib/i18n.svelte';
+  import { getTagDisplay } from './lib/tagDictionary';
   import {
     getPendingQueueCount,
     flushOfflineQueue,
@@ -615,13 +616,13 @@
           onclick={handleInstallPwa}
           class="cursor-pointer rounded-lg bg-white px-2.5 py-1 text-xs font-bold text-blue-700 shadow-2xs transition hover:bg-blue-50"
         >
-          インストール
+          {m.btn_install()}
         </button>
         <button
           type="button"
           onclick={handleDismissInstall}
           class="cursor-pointer rounded-md p-1 text-blue-200 transition hover:text-white"
-          aria-label="閉じる"
+          aria-label={m.btn_close()}
         >
           ✕
         </button>
@@ -791,13 +792,13 @@
           disabled={isSyncing}
           class="cursor-pointer rounded bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-white/30"
         >
-          再試行
+          {m.btn_retry()}
         </button>
         <button
           type="button"
           onclick={() => (offlineError = null)}
           class="cursor-pointer rounded p-0.5 text-white/80 hover:text-white"
-          aria-label="閉じる"
+          aria-label={m.btn_close()}
         >
           <X class="h-4 w-4" />
         </button>
@@ -1118,15 +1119,24 @@
             {/if}
           </div>
           {#if selectedTag}
+            {@const selTagInfo = getTagDisplay(selectedTag, i18n.current)}
             <span
-              class="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 font-bold text-blue-600"
+              class="inline-flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 font-bold text-blue-600 dark:bg-blue-950/50 dark:text-blue-300"
             >
-              {m.filtering_by_tag({ tag: selectedTag })}
+              <span>{m.filtering_by_tag({ tag: selTagInfo.displayName })}</span>
+              {#if selTagInfo.badgeSub}
+                <span class="text-[10px] font-normal opacity-75">
+                  ({selTagInfo.badgeSub})
+                </span>
+              {/if}
               <button
                 type="button"
                 onclick={() => handleSelectTag(null)}
-                class="hover:text-blue-800">×</button
+                class="cursor-pointer hover:text-blue-800 dark:hover:text-blue-200"
+                aria-label={m.btn_close()}
               >
+                ×
+              </button>
             </span>
           {/if}
           <span class="text-[11px] text-slate-600 dark:text-slate-400"

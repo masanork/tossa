@@ -38,6 +38,7 @@
     getRelativeAngle,
   } from './geoDistance';
   import { isPeerPostId } from './peerPosts';
+  import { getTagDisplay } from './tagDictionary';
   import { isMyPost } from './myPosts';
 
   interface Props {
@@ -236,7 +237,7 @@
       const host = parsed.hostname.toLowerCase();
       if (host.endsWith('.go.jp') || host.endsWith('.lg.jp')) {
         return {
-          label: '公的機関・自治体公式',
+          label: m.post_source_gov(),
           color: 'bg-emerald-50 text-emerald-800 border-emerald-300',
           icon: '🏛️',
           host,
@@ -244,7 +245,7 @@
       }
       if (host.endsWith('.ac.jp')) {
         return {
-          label: '大学・学術機関',
+          label: m.post_source_academic(),
           color: 'bg-blue-50 text-blue-800 border-blue-300',
           icon: '🎓',
           host,
@@ -259,7 +260,7 @@
         host.includes('kyodonews.jp')
       ) {
         return {
-          label: '報道機関',
+          label: m.post_source_media(),
           color: 'bg-indigo-50 text-indigo-800 border-indigo-300',
           icon: '📰',
           host,
@@ -267,14 +268,14 @@
       }
       if (host.includes('x.com') || host.includes('twitter.com')) {
         return {
-          label: 'SNS公式・現地ポスト',
+          label: m.post_source_sns(),
           color: 'bg-slate-100 text-slate-800 border-slate-300',
           icon: '📱',
           host,
         };
       }
       return {
-        label: '情報源',
+        label: m.post_source_label(),
         color: 'bg-slate-50 text-slate-700 border-slate-200',
         icon: '🔗',
         host,
@@ -290,11 +291,13 @@
     const now = new Date();
     const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (isNaN(diffSec) || diffSec < 0) return 'たった今';
-    if (diffSec < 60) return `${diffSec}秒前`;
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}分前`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}時間前`;
-    return `${Math.floor(diffSec / 86400)}日前`;
+    if (isNaN(diffSec) || diffSec < 0) return m.post_time_just_now();
+    if (diffSec < 60) return m.post_time_seconds_ago({ sec: diffSec });
+    if (diffSec < 3600)
+      return m.post_time_minutes_ago({ min: Math.floor(diffSec / 60) });
+    if (diffSec < 86400)
+      return m.post_time_hours_ago({ hours: Math.floor(diffSec / 3600) });
+    return m.post_time_days_ago({ days: Math.floor(diffSec / 86400) });
   }
 
   // Color mapping by status (ensuring WCAG 2.1 AA 4.5:1 contrast on white text)
@@ -449,7 +452,7 @@
           class="absolute inset-0 flex items-center justify-center gap-1 bg-black/20 text-xs font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
         >
           <span>🔍</span>
-          <span>タップして拡大</span>
+          <span>{m.post_tap_to_zoom()}</span>
         </div>
       </button>
 
@@ -461,7 +464,7 @@
           {#if photoTakenTime}
             <span class="inline-flex items-center gap-1 text-slate-300">
               <Clock class="h-3 w-3 text-slate-400" />
-              <span>{photoTakenTime} 撮影</span>
+              <span>{m.post_photo_taken({ time: photoTakenTime })}</span>
             </span>
           {/if}
 
@@ -470,13 +473,13 @@
               class="inline-flex items-center gap-1 rounded border border-blue-400/30 bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-300"
             >
               <ShieldCheck class="h-3 w-3 text-blue-400" />
-              <span>C2PA真正性検証済</span>
+              <span>{m.post_c2pa_verified()}</span>
             </span>
           {/if}
         </div>
 
         {#if post.lat && post.lng}
-          <span class="font-mono text-slate-400">📍 GPS位置あり</span>
+          <span class="font-mono text-slate-400">{m.post_gps_attached()}</span>
         {/if}
       </div>
     </div>
@@ -640,7 +643,9 @@
     <div
       class="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50 p-2 text-xs dark:border-slate-800 dark:bg-slate-800/80"
     >
-      <span class="shrink-0 text-slate-400 dark:text-slate-500">情報源:</span>
+      <span class="shrink-0 text-slate-400 dark:text-slate-500"
+        >{m.post_source_label()}:</span
+      >
       <a
         href={post.source_url}
         target="_blank"
@@ -685,19 +690,32 @@
   {#if parsedTags.length > 0}
     <div class="flex flex-wrap items-center gap-1.5">
       {#each parsedTags as t (t)}
+        {@const tagInfo = getTagDisplay(t, i18n.current)}
         {#if onSelectTag}
           <button
             type="button"
             onclick={() => onSelectTag?.(t)}
-            class="inline-flex cursor-pointer items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
+            title={tagInfo.tooltip}
+            class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
           >
-            #{t}
+            <span>#{tagInfo.displayName}</span>
+            {#if tagInfo.badgeSub}
+              <span class="text-[10px] font-normal opacity-75">
+                ({tagInfo.badgeSub})
+              </span>
+            {/if}
           </button>
         {:else}
           <span
-            class="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
+            title={tagInfo.tooltip}
+            class="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300"
           >
-            #{t}
+            <span>#{tagInfo.displayName}</span>
+            {#if tagInfo.badgeSub}
+              <span class="text-[10px] font-normal opacity-75">
+                ({tagInfo.badgeSub})
+              </span>
+            {/if}
           </span>
         {/if}
       {/each}
@@ -744,7 +762,7 @@
           type="button"
           onclick={() => onEditPost?.(post)}
           class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          title="この投稿を編集"
+          title={m.btn_edit()}
         >
           <Edit3 class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           <span>{m.btn_edit()}</span>
@@ -753,12 +771,12 @@
         <button
           type="button"
           onclick={() => {
-            if (confirm(`「${post.title}」を削除してもよろしいですか？`)) {
+            if (confirm(m.post_delete_confirm({ title: post.title }))) {
               onDeletePost?.(post.id);
             }
           }}
           class="inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-bold text-rose-600 shadow-2xs transition hover:border-rose-300 hover:bg-rose-50 dark:border-rose-900/50 dark:bg-slate-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
-          title="この投稿を削除"
+          title={m.btn_delete()}
         >
           <Trash2 class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
           <span>{m.btn_delete()}</span>
