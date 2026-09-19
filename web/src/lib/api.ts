@@ -903,3 +903,45 @@ export async function fetchBackupsApi(
     };
   }
 }
+
+export interface ImportCsvParams {
+  posts?: import('./csvHelper').NormalizedImportPost[];
+  rawCsv?: string;
+  updateDuplicates?: boolean;
+  defaultCategoryId?: string;
+}
+
+export interface ImportCsvResponse {
+  success: boolean;
+  message?: string;
+  stats?: {
+    added: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+  };
+  error?: string;
+}
+
+export async function importCsvApi(
+  params: ImportCsvParams,
+  token: string
+): Promise<ImportCsvResponse> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/import-csv`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Failed to import CSV dataset',
+    };
+  }
+}
+

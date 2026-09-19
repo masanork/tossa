@@ -106,3 +106,59 @@ settingsRoute.get('/backups', async (c) => {
     backups,
   });
 });
+
+// POST /api/settings/import-csv - Batch import posts from CSV (Admin & Moderator)
+settingsRoute.post('/import-csv', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return c.json({ success: false, error: 'Unauthorized' }, 401);
+  }
+
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  }
+
+  const body = await c.req.json<{
+    posts?: import('../db/queries').CsvImportPostInput[];
+    rawCsv?: string;
+    updateDuplicates?: boolean;
+    defaultCategoryId?: string;
+  }>();
+
+  let postsToImport: import('../db/queries').CsvImportPostInput[] = [];
+
+  if (body.posts && Array.isArray(body.posts)) {
+    postsToImport = body.posts;
+  } else if (body.rawCsv && typeof body.rawCsv === 'string') {
+    const { parseCsv, inferColumnMapping, normalizeRows } = await import('../utils/csv');
+    const parsed = parseCsv(body.rawCsv);
+    if (parsed.rows.length === 0) {
+      return c.json({ success: false, error: 'CSVデータに有効な行が含まれていません' }, 400);
+    }
+    const mapping = inferColumnMapping(parsed.headers);
+    const normalized = normalizeRows(parsed.rows, mapping);
+    postsToImport = normalized.valid;
+  } else {
+    return c.json({ success: false, error: 'posts配列またはrawCsvテキストが必要です' }, 400);
+  }
+
+  if (postsToImport.length === 0) {
+    return c.json({ success: false, error: 'インポート可能な有効データがありません' }, 400);
+  }
+
+  const { importCsvPosts } = await import('../db/queries');
+  const stats = await importCsvPosts(c.env.DB, postsToImport, {
+    updateDuplicates: body.updateDuplicates ?? true,
+    defaultCategoryId: body.defaultCategoryId,
+    authorId: session.userId,
+  });
+
+  return c.json({
+    success: true,
+    message: `${stats.added}件を追加、${stats.updated}件を更新しました（${stats.skipped}件スキップ）`,
+    stats,
+  });
+});
+

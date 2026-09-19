@@ -18,8 +18,18 @@
     issueApiTokenApi,
     triggerBackupApi,
     fetchBackupsApi,
+    importCsvApi,
   } from './api';
   import type { BackupRecord, BackupResult } from './types';
+  import {
+    readFileAsText,
+    parseCsv,
+    inferColumnMapping,
+    normalizeRows,
+    generateSampleCsv,
+    type ColumnMapping,
+    type ColumnField,
+  } from './csvHelper';
   import {
     X,
     KeyRound,
@@ -45,6 +55,8 @@
     FileText,
     Maximize2,
     Minimize2,
+    FileSpreadsheet,
+    FileUp,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
@@ -59,6 +71,7 @@
     onAuthSuccess: (user: User, token: string) => void;
     onLogout: () => void;
     onSettingsUpdated: (newSettings: SystemSettings) => void;
+    onPostsUpdated?: () => void;
   }
 
   const {
@@ -71,6 +84,7 @@
     onAuthSuccess,
     onLogout,
     onSettingsUpdated,
+    onPostsUpdated,
   }: Props = $props();
 
   let username = $state('');
@@ -89,8 +103,139 @@
 
   // Admin tabs
   let activeTab = $state<
-    'settings' | 'federation' | 'users' | 'mcp' | 'backup'
+    'settings' | 'import' | 'users' | 'federation' | 'mcp' | 'backup'
   >('settings');
+
+  // CSV Import state
+  let csvRawText = $state('');
+  let csvFileName = $state('');
+  let csvHeaders = $state<string[]>([]);
+  let csvRows = $state<string[][]>([]);
+  let columnMapping = $state<ColumnMapping>({
+    title: null,
+    area: null,
+    address: null,
+    category: null,
+    lat: null,
+    lng: null,
+    currentStatus: null,
+    note: null,
+    url: null,
+  });
+  let updateDuplicates = $state(true);
+  let defaultCategoryId = $state('shelter');
+  let isImportingCsv = $state(false);
+  let csvImportResult = $state<import('./api').ImportCsvResponse['stats'] | null>(null);
+  let csvStatusMessage = $state<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+  let isDraggingCsv = $state(false);
+  let fileInputRef = $state<HTMLInputElement | null>(null);
+
+  const normalizedPreview = $derived.by(() => {
+    if (csvRows.length === 0 || csvHeaders.length === 0) {
+      return { valid: [], errors: [] };
+    }
+    return normalizeRows(
+      csvRows,
+      columnMapping,
+      defaultArea || settings.default_area || ''
+    );
+  });
+
+  async function handleCsvFile(file: File) {
+    try {
+      csvStatusMessage = null;
+      csvImportResult = null;
+      const text = await readFileAsText(file);
+      csvRawText = text;
+      csvFileName = file.name;
+      const parsed = parseCsv(text);
+      csvHeaders = parsed.headers;
+      csvRows = parsed.rows;
+      columnMapping = inferColumnMapping(parsed.headers);
+    } catch (err: any) {
+      csvStatusMessage = {
+        type: 'error',
+        text: `CSVファイルの読み込みに失敗しました: ${err?.message}`,
+      };
+    }
+  }
+
+  function handleLoadSampleCsv() {
+    const sample = generateSampleCsv();
+    csvRawText = sample;
+    csvFileName = 'tossa_shelter_sample.csv';
+    const parsed = parseCsv(sample);
+    csvHeaders = parsed.headers;
+    csvRows = parsed.rows;
+    columnMapping = inferColumnMapping(parsed.headers);
+    csvStatusMessage = null;
+    csvImportResult = null;
+  }
+
+  function handleDownloadSampleCsv() {
+    const sample = generateSampleCsv();
+    const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), sample], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tossa_shelter_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleExecuteCsvImport() {
+    if (!token) return;
+    if (normalizedPreview.valid.length === 0) {
+      csvStatusMessage = {
+        type: 'error',
+        text: 'インポート可能な有効データがありません',
+      };
+      return;
+    }
+
+    isImportingCsv = true;
+    csvStatusMessage = null;
+    try {
+      const res = await importCsvApi(
+        {
+          posts: normalizedPreview.valid,
+          updateDuplicates,
+          defaultCategoryId,
+        },
+        token
+      );
+
+      if (res.success && res.stats) {
+        csvImportResult = res.stats;
+        csvStatusMessage = {
+          type: 'success',
+          text:
+            res.message ||
+            `${res.stats.added}件を追加、${res.stats.updated}件を更新しました`,
+        };
+        if (onPostsUpdated) {
+          onPostsUpdated();
+        }
+      } else {
+        csvStatusMessage = {
+          type: 'error',
+          text: res.error || '一括インポートに失敗しました',
+        };
+      }
+    } catch (err: any) {
+      csvStatusMessage = {
+        type: 'error',
+        text: `エラーが発生しました: ${err?.message}`,
+      };
+    } finally {
+      isImportingCsv = false;
+    }
+  }
 
   // Backup state
   let backups = $state<BackupRecord[]>([]);
@@ -970,6 +1115,21 @@
               <button
                 type="button"
                 onclick={() => {
+                  activeTab = 'import';
+                }}
+                class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
+                  activeTab === 'import'
+                    ? 'border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <FileSpreadsheet class="h-3.5 w-3.5" />
+                <span>データ取込 (CSV)</span>
+              </button>
+
+              <button
+                type="button"
+                onclick={() => {
                   activeTab = 'federation';
                 }}
                 class={`flex cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 transition-all ${
@@ -1306,6 +1466,539 @@
                   ※
                   管理者権限を持つユーザーは、システム設定の更新、他サイトとのデータ同期、および全投稿の編集・削除が可能です。
                 </p>
+              </div>
+
+              <!-- Tab: CSV / TSV Batch Dataset Import -->
+            {:else if activeTab === 'import'}
+              <div class="grid grid-cols-1 gap-5 lg:grid-cols-12">
+                <!-- Left Column: File Drop & Column Mapping Config (5 cols) -->
+                <div class="flex flex-col gap-4 lg:col-span-5">
+                  <!-- File Drag & Drop Zone -->
+                  <div
+                    role="region"
+                    aria-label="CSVファイルアップロードエリア"
+                    ondragover={(e) => {
+                      e.preventDefault();
+                      isDraggingCsv = true;
+                    }}
+                    ondragleave={() => {
+                      isDraggingCsv = false;
+                    }}
+                    ondrop={(e) => {
+                      e.preventDefault();
+                      isDraggingCsv = false;
+                      const file = e.dataTransfer?.files?.[0];
+                      if (file) void handleCsvFile(file);
+                    }}
+                    class={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 text-center transition-all ${
+                      isDraggingCsv
+                        ? 'border-blue-500 bg-blue-50/70 dark:border-blue-400 dark:bg-blue-950/40'
+                        : 'border-slate-300 bg-slate-50/50 hover:bg-slate-100/60 dark:border-slate-700 dark:bg-slate-800/30 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      accept=".csv,.tsv,.txt"
+                      bind:this={fileInputRef}
+                      onchange={(e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) void handleCsvFile(file);
+                      }}
+                      class="hidden"
+                    />
+
+                    <div
+                      class="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400"
+                    >
+                      <FileUp class="h-5 w-5" />
+                    </div>
+
+                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      ここに CSV / TSV ファイルをドロップ
+                    </div>
+                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                      または
+                      <button
+                        type="button"
+                        onclick={() => fileInputRef?.click()}
+                        class="cursor-pointer font-bold text-blue-600 underline hover:text-blue-700 dark:text-blue-400"
+                      >
+                        ファイルを選択
+                      </button>
+                    </p>
+
+                    <div class="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+                      <span
+                        class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                      >
+                        UTF-8 / Shift_JIS 自動対応
+                      </span>
+                      <span
+                        class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                      >
+                        カンマ / タブ (TSV) 自動検出
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Sample & Template Helper Buttons -->
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onclick={handleLoadSampleCsv}
+                      class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      <FileSpreadsheet class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>サンプルを読込</span>
+                    </button>
+                    <button
+                      type="button"
+                      onclick={handleDownloadSampleCsv}
+                      class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    >
+                      <Download class="h-3.5 w-3.5 text-slate-500" />
+                      <span>テンプレート保存</span>
+                    </button>
+                  </div>
+
+                  <!-- Import Options -->
+                  <div
+                    class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
+                  >
+                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      取込オプション設定
+                    </h4>
+
+                    <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        bind:checked={updateDuplicates}
+                        class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700"
+                      />
+                      <span>同名・同地域の既存データがあれば上書き更新する</span>
+                    </label>
+
+                    <div>
+                      <label
+                        for="default-category-select"
+                        class="mb-1 block text-[11px] font-bold text-slate-600 dark:text-slate-400"
+                      >
+                        種別未指定時のデフォルトカテゴリ
+                      </label>
+                      <select
+                        id="default-category-select"
+                        bind:value={defaultCategoryId}
+                        class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      >
+                        <option value="shelter">⛺ 避難所 (shelter)</option>
+                        <option value="water">💧 給水所 (water)</option>
+                        <option value="food">🍙 食料・炊き出し (food)</option>
+                        <option value="safety">🦺 安否確認 (safety)</option>
+                        <option value="restroom">🚻 トイレ (restroom)</option>
+                        <option value="charging">🔋 充電スポット (charging)</option>
+                        <option value="bath">♨️ 入浴・シャワー (bath)</option>
+                        <option value="supplies">📦 物資・支援物資 (supplies)</option>
+                        <option value="store">🏪 店舗・日用品 (store)</option>
+                        <option value="general">📌 一般・その他 (general)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Column Mapping Selectors (shown when CSV is loaded) -->
+                  {#if csvHeaders.length > 0}
+                    <div
+                      class="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50/40 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20"
+                    >
+                      <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          列の自動判別・マッピング設定
+                        </h4>
+                        <span class="text-[10px] text-blue-600 dark:text-blue-400">
+                          検出: {csvHeaders.length} 列
+                        </span>
+                      </div>
+                      <p class="text-[11px] text-slate-600 dark:text-slate-400">
+                        CSVのヘッダー列と tossa の項目を紐付けます（自動判定済みですが変更可能）:
+                      </p>
+
+                      <div class="grid grid-cols-1 gap-2.5">
+                        <!-- Title (Required) -->
+                        <div>
+                          <label
+                            for="map-title"
+                            class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            <span>施設名・タイトル <span class="text-rose-500">*</span></span>
+                            {#if columnMapping.title !== null}
+                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.title + 1}</span>
+                            {/if}
+                          </label>
+                          <select
+                            id="map-title"
+                            bind:value={columnMapping.title}
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            <option value={null}>-- 未選択 --</option>
+                            {#each csvHeaders as h, i}
+                              <option value={i}>列 {i + 1}: {h}</option>
+                            {/each}
+                          </select>
+                        </div>
+
+                        <!-- Area (Required) -->
+                        <div>
+                          <label
+                            for="map-area"
+                            class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            <span>市区町村・地域名 <span class="text-rose-500">*</span></span>
+                            {#if columnMapping.area !== null}
+                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.area + 1}</span>
+                            {/if}
+                          </label>
+                          <select
+                            id="map-area"
+                            bind:value={columnMapping.area}
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            <option value={null}>-- 未選択 (デフォルト地域を使用) --</option>
+                            {#each csvHeaders as h, i}
+                              <option value={i}>列 {i + 1}: {h}</option>
+                            {/each}
+                          </select>
+                        </div>
+
+                        <!-- Address -->
+                        <div>
+                          <label
+                            for="map-address"
+                            class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            <span>所在地・住所</span>
+                            {#if columnMapping.address !== null}
+                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.address + 1}</span>
+                            {/if}
+                          </label>
+                          <select
+                            id="map-address"
+                            bind:value={columnMapping.address}
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            <option value={null}>-- 未選択 --</option>
+                            {#each csvHeaders as h, i}
+                              <option value={i}>列 {i + 1}: {h}</option>
+                            {/each}
+                          </select>
+                        </div>
+
+                        <!-- Category -->
+                        <div>
+                          <label
+                            for="map-category"
+                            class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            <span>施設種別・区分</span>
+                            {#if columnMapping.category !== null}
+                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.category + 1}</span>
+                            {/if}
+                          </label>
+                          <select
+                            id="map-category"
+                            bind:value={columnMapping.category}
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            <option value={null}>-- 未選択 (デフォルトカテゴリを使用) --</option>
+                            {#each csvHeaders as h, i}
+                              <option value={i}>列 {i + 1}: {h}</option>
+                            {/each}
+                          </select>
+                        </div>
+
+                        <!-- Lat / Lng Grid -->
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label
+                              for="map-lat"
+                              class="mb-0.5 block text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                            >
+                              緯度 (lat)
+                            </label>
+                            <select
+                              id="map-lat"
+                              bind:value={columnMapping.lat}
+                              class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                              <option value={null}>-- 未選択 --</option>
+                              {#each csvHeaders as h, i}
+                                <option value={i}>列 {i + 1}: {h}</option>
+                              {/each}
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              for="map-lng"
+                              class="mb-0.5 block text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                            >
+                              経度 (lng)
+                            </label>
+                            <select
+                              id="map-lng"
+                              bind:value={columnMapping.lng}
+                              class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                              <option value={null}>-- 未選択 --</option>
+                              {#each csvHeaders as h, i}
+                                <option value={i}>列 {i + 1}: {h}</option>
+                              {/each}
+                            </select>
+                          </div>
+                        </div>
+
+                        <!-- Current Status -->
+                        <div>
+                          <label
+                            for="map-status"
+                            class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                          >
+                            <span>開設状況・ステータス</span>
+                            {#if columnMapping.currentStatus !== null}
+                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.currentStatus + 1}</span>
+                            {/if}
+                          </label>
+                          <select
+                            id="map-status"
+                            bind:value={columnMapping.currentStatus}
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            <option value={null}>-- 未選択 (「開設中」として登録) --</option>
+                            {#each csvHeaders as h, i}
+                              <option value={i}>列 {i + 1}: {h}</option>
+                            {/each}
+                          </select>
+                        </div>
+
+                        <!-- Note & URL -->
+                        <div class="grid grid-cols-2 gap-2">
+                          <div>
+                            <label
+                              for="map-note"
+                              class="mb-0.5 block text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                            >
+                              備考・収容定員
+                            </label>
+                            <select
+                              id="map-note"
+                              bind:value={columnMapping.note}
+                              class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                              <option value={null}>-- 未選択 --</option>
+                              {#each csvHeaders as h, i}
+                                <option value={i}>列 {i + 1}: {h}</option>
+                              {/each}
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              for="map-url"
+                              class="mb-0.5 block text-[11px] font-bold text-slate-700 dark:text-slate-300"
+                            >
+                              関連URL
+                            </label>
+                            <select
+                              id="map-url"
+                              bind:value={columnMapping.url}
+                              class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                              <option value={null}>-- 未選択 --</option>
+                              {#each csvHeaders as h, i}
+                                <option value={i}>列 {i + 1}: {h}</option>
+                              {/each}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
+
+                <!-- Right Column: Data Preview & Execution (7 cols) -->
+                <div class="flex flex-col gap-4 lg:col-span-7">
+                  {#if csvStatusMessage}
+                    <div
+                      class={`flex items-center gap-2 rounded-xl p-3 text-xs font-medium ${
+                        csvStatusMessage.type === 'success'
+                          ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+                          : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-300'
+                      }`}
+                    >
+                      {#if csvStatusMessage.type === 'success'}
+                        <Check class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      {:else}
+                        <AlertCircle class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                      {/if}
+                      <span>{csvStatusMessage.text}</span>
+                    </div>
+                  {/if}
+
+                  {#if csvRows.length > 0}
+                    <!-- Data Stats Summary Bar -->
+                    <div
+                      class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/60"
+                    >
+                      <div class="flex items-center gap-2">
+                        <FileSpreadsheet class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          {csvFileName || 'アップロードデータ'}
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-2 text-xs">
+                        <span
+                          class="rounded-full bg-blue-100 px-2.5 py-0.5 font-bold text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
+                        >
+                          検出 {csvRows.length} 行
+                        </span>
+                        <span
+                          class="rounded-full bg-emerald-100 px-2.5 py-0.5 font-bold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                        >
+                          有効 {normalizedPreview.valid.length} 件
+                        </span>
+                        {#if normalizedPreview.errors.length > 0}
+                          <span
+                            class="rounded-full bg-rose-100 px-2.5 py-0.5 font-bold text-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                          >
+                            不備 {normalizedPreview.errors.length} 行
+                          </span>
+                        {/if}
+                      </div>
+                    </div>
+
+                    <!-- Errors warning if any -->
+                    {#if normalizedPreview.errors.length > 0}
+                      <div
+                        class="rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
+                      >
+                        <div class="font-bold">一部の行でタイトル等が欠落しているためスキップされます:</div>
+                        <ul class="mt-1 list-inside list-disc text-[11px] text-amber-800 dark:text-amber-300">
+                          {#each normalizedPreview.errors.slice(0, 4) as err}
+                            <li>行 {err.row}: {err.reason}</li>
+                          {/each}
+                          {#if normalizedPreview.errors.length > 4}
+                            <li>他 {normalizedPreview.errors.length - 4} 件</li>
+                          {/if}
+                        </ul>
+                      </div>
+                    {/if}
+
+                    <!-- Preview Table -->
+                    <div
+                      class="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div
+                        class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300"
+                      >
+                        <span>マッピング結果プレビュー (先頭 {Math.min(normalizedPreview.valid.length, 6)} 件)</span>
+                        <span class="text-[10px] font-normal text-slate-400">
+                          全 {normalizedPreview.valid.length} 件中
+                        </span>
+                      </div>
+
+                      <div class="max-h-72 overflow-x-auto overflow-y-auto">
+                        <table class="w-full text-left text-xs">
+                          <thead class="sticky top-0 bg-slate-100/90 backdrop-blur-xs dark:bg-slate-800/90">
+                            <tr class="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                              <th class="p-2 font-bold">施設名</th>
+                              <th class="p-2 font-bold">地域</th>
+                              <th class="p-2 font-bold">所在地</th>
+                              <th class="p-2 font-bold">状況</th>
+                              <th class="p-2 font-bold">緯度/経度</th>
+                            </tr>
+                          </thead>
+                          <tbody class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800">
+                            {#each normalizedPreview.valid.slice(0, 6) as item}
+                              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                <td class="p-2 font-sans font-bold text-slate-900 dark:text-slate-100">
+                                  {item.title}
+                                </td>
+                                <td class="p-2 text-slate-600 dark:text-slate-300">
+                                  {item.area}
+                                </td>
+                                <td class="max-w-[160px] truncate p-2 text-slate-500 dark:text-slate-400" title={item.address || ''}>
+                                  {item.address || '-'}
+                                </td>
+                                <td class="p-2 font-sans">
+                                  <span
+                                    class={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                                      item.currentStatus === 'available'
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                        : item.currentStatus === 'crowded'
+                                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                          : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                                    }`}
+                                  >
+                                    {item.statusLabel}
+                                  </span>
+                                </td>
+                                <td class="p-2 text-slate-400">
+                                  {item.lat && item.lng ? `${item.lat.toFixed(3)}, ${item.lng.toFixed(3)}` : '-'}
+                                </td>
+                              </tr>
+                            {/each}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Import Execution Action -->
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                      <button
+                        type="button"
+                        onclick={handleExecuteCsvImport}
+                        disabled={isImportingCsv || normalizedPreview.valid.length === 0}
+                        class="flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
+                      >
+                        {#if isImportingCsv}
+                          <RefreshCw class="h-4 w-4 animate-spin" />
+                          <span>一括インポート実行中...</span>
+                        {:else}
+                          <Upload class="h-4 w-4" />
+                          <span>{normalizedPreview.valid.length} 件のデータを一括インポート</span>
+                        {/if}
+                      </button>
+                    </div>
+                  {:else}
+                    <!-- Empty state guide -->
+                    <div
+                      class="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50/50 p-8 text-center dark:border-slate-800 dark:bg-slate-800/30"
+                    >
+                      <div
+                        class="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
+                      >
+                        <FileSpreadsheet class="h-6 w-6" />
+                      </div>
+                      <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        避難所・給水所などのデータを一括登録
+                      </h4>
+                      <p class="mt-1.5 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                        自治体が公開している「避難所オープンデータ」や、Excelで管理されている施設一覧（CSV/TSV）を取り込むことで、発災初動の数分で地図と一覧へ一括展開できます。
+                      </p>
+
+                      <div class="mt-5 grid w-full max-w-md grid-cols-3 gap-2 text-left">
+                        <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800">
+                          <div class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">Step 1</div>
+                          <div class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300">ファイルをドロップ</div>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800">
+                          <div class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">Step 2</div>
+                          <div class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300">列マッピング確認</div>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800">
+                          <div class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">Step 3</div>
+                          <div class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300">ワンクリック登録</div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                </div>
               </div>
 
               <!-- Tab 3: Data Federation -->

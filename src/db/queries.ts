@@ -1187,3 +1187,228 @@ export async function getAccessLogsByUser(
     }>();
   return res.results;
 }
+
+// ================= CSV / TSV Batch Dataset Import =================
+
+export interface CsvImportPostInput {
+  title: string;
+  area: string;
+  address?: string;
+  categoryName?: string;
+  categoryId?: string;
+  lat?: number | null;
+  lng?: number | null;
+  currentStatus: string;
+  statusLabel: string;
+  note?: string;
+  url?: string;
+}
+
+export interface CsvImportOptions {
+  updateDuplicates?: boolean;
+  defaultCategoryId?: string;
+  authorId?: string;
+}
+
+export interface CsvImportResult {
+  added: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+/**
+ * Batch import posts from structured/normalized CSV records into D1.
+ * Supports duplicate detection by (title, area), category fuzzy mapping, and batch transactions.
+ */
+export async function importCsvPosts(
+  db: D1Database,
+  posts: CsvImportPostInput[],
+  options: CsvImportOptions = {}
+): Promise<CsvImportResult> {
+  const { updateDuplicates = true, defaultCategoryId, authorId } = options;
+
+  let added = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+
+  // Fetch existing categories to resolve categoryId
+  const allCategories = await getCategories(db);
+  const catMapById = new Map<string, string>(allCategories.map((c) => [c.id, c.id]));
+  const catMapByName = new Map<string, string>(
+    allCategories.map((c) => [c.name.trim().toLowerCase(), c.id])
+  );
+
+  const fallbackCatId =
+    (defaultCategoryId && catMapById.get(defaultCategoryId)) ||
+    catMapById.get('shelter') ||
+    catMapById.get('general') ||
+    allCategories[0]?.id ||
+    'general';
+
+  // Process posts in chunks to avoid D1 batch statement limits
+  const CHUNK_SIZE = 40;
+  for (let i = 0; i < posts.length; i += CHUNK_SIZE) {
+    const chunk = posts.slice(i, i + CHUNK_SIZE);
+    const statements: D1PreparedStatement[] = [];
+
+    for (const post of chunk) {
+      if (!post.title || !post.title.trim()) {
+        skipped++;
+        continue;
+      }
+
+      const cleanTitle = post.title.trim();
+      const cleanArea = (post.area && post.area.trim()) || '地域未設定';
+
+      // Resolve category
+      let targetCategoryId = fallbackCatId;
+      if (post.categoryId && catMapById.has(post.categoryId)) {
+        targetCategoryId = post.categoryId;
+      } else if (post.categoryName) {
+        const normName = post.categoryName.trim().toLowerCase();
+        if (catMapByName.has(normName)) {
+          targetCategoryId = catMapByName.get(normName)!;
+        } else {
+          // Partial matching
+          for (const [name, id] of catMapByName.entries()) {
+            if (normName.includes(name) || name.includes(normName)) {
+              targetCategoryId = id;
+              break;
+            }
+          }
+        }
+      }
+
+      // Check if duplicate post exists with same (title, area)
+      const existing = await db
+        .prepare('SELECT id, current_status, status_label FROM posts WHERE title = ? AND area = ?')
+        .bind(cleanTitle, cleanArea)
+        .first<{ id: string; current_status: string; status_label: string }>();
+
+      const now = new Date().toISOString();
+
+      if (existing) {
+        if (!updateDuplicates) {
+          skipped++;
+          continue;
+        }
+
+        // Update existing record
+        statements.push(
+          db
+            .prepare(
+              `UPDATE posts SET 
+                category_id = ?, 
+                address = COALESCE(?, address), 
+                lat = COALESCE(?, lat), 
+                lng = COALESCE(?, lng), 
+                current_status = ?, 
+                status_label = ?, 
+                note = COALESCE(?, note), 
+                url = COALESCE(?, url), 
+                is_verified = 1, 
+                updated_at = ? 
+              WHERE id = ?`
+            )
+            .bind(
+              targetCategoryId,
+              post.address?.trim() || null,
+              post.lat ?? null,
+              post.lng ?? null,
+              post.currentStatus,
+              post.statusLabel,
+              post.note?.trim() || null,
+              post.url?.trim() || null,
+              now,
+              existing.id
+            )
+        );
+
+        // Add history if status changed
+        if (
+          existing.current_status !== post.currentStatus ||
+          existing.status_label !== post.statusLabel
+        ) {
+          const updateId = `upd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+          statements.push(
+            db
+              .prepare(
+                'INSERT INTO status_updates (id, post_id, status, status_label, note, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+              )
+              .bind(
+                updateId,
+                existing.id,
+                post.currentStatus,
+                post.statusLabel,
+                'CSV一括更新',
+                now
+              )
+          );
+        }
+
+        updated++;
+      } else {
+        // Insert new post
+        const newPostId = `post_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        statements.push(
+          db
+            .prepare(
+              `INSERT INTO posts (
+                id, category_id, title, area, address, lat, lng,
+                current_status, status_label, note, url,
+                is_verified, author_id, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
+            )
+            .bind(
+              newPostId,
+              targetCategoryId,
+              cleanTitle,
+              cleanArea,
+              post.address?.trim() || null,
+              post.lat ?? null,
+              post.lng ?? null,
+              post.currentStatus,
+              post.statusLabel,
+              post.note?.trim() || null,
+              post.url?.trim() || null,
+              authorId || null,
+              now,
+              now
+            )
+        );
+
+        // Add initial status update history
+        const updateId = `upd_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        statements.push(
+          db
+            .prepare(
+              'INSERT INTO status_updates (id, post_id, status, status_label, note, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+            )
+            .bind(
+              updateId,
+              newPostId,
+              post.currentStatus,
+              post.statusLabel,
+              'CSV一括初期登録',
+              now
+            )
+        );
+
+        added++;
+      }
+    }
+
+    if (statements.length > 0) {
+      try {
+        await db.batch(statements);
+      } catch (err: any) {
+        errors.push(`バッチ書き込みエラー (${i + 1}〜${i + chunk.length}件目): ${err?.message}`);
+      }
+    }
+  }
+
+  return { added, updated, skipped, errors };
+}
+

@@ -1236,6 +1236,7 @@
         onAuthSuccess={handleAuthSuccess}
         onLogout={handleLogout}
         onSettingsUpdated={handleSettingsUpdated}
+        onPostsUpdated={() => reloadPosts(true)}
       />
     {/await}
   {/if}
