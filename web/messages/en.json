@@ -218,7 +218,7 @@
   "font_size_large": "Large",
   "font_size_xlarge": "X-Large",
   "tag_filter_all": "All",
-  "tag_filter_empty_hint": "Add tags to posts to see community filters appear here automatically",
+  "tag_filter_empty_hint": "Starter tags like Shop and Event appear from the start",
   "post_time_just_now": "Just now",
   "post_time_seconds_ago": "{sec}s ago",
   "post_time_minutes_ago": "{min}m ago",

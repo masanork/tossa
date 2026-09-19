@@ -1,6 +1,7 @@
 // test/tagDictionary.test.ts: Tests for tag multilingual dictionary
 import { describe, it, expect } from 'vitest';
-import { getTagDisplay, TAG_DICTIONARY } from '../web/src/lib/tagDictionary';
+import { getTagDisplay } from '../web/src/lib/tagDictionary';
+import { mergeVocabularyWithSeeds } from '../web/src/lib/seedTags';
 
 describe('tagDictionary', () => {
   it('translates common disaster tags to English', () => {
@@ -55,5 +56,35 @@ describe('tagDictionary', () => {
     expect(empty.raw).toBe('');
     expect(empty.displayName).toBe('');
     expect(empty.isTranslated).toBe(false);
+  });
+});
+
+describe('seed tag chips', () => {
+  it('puts peacetime seeds first even when unused', () => {
+    const merged = mergeVocabularyWithSeeds(
+      [{ name: 'ペット可', count: 3 }],
+      'normal'
+    );
+    expect(merged.map((t) => t.name)).toEqual(['お店', 'イベント', 'ペット可']);
+    expect(merged[0]?.count).toBe(0);
+  });
+
+  it('puts disaster seeds first and keeps organic tags after', () => {
+    const merged = mergeVocabularyWithSeeds(
+      [
+        { name: '給水', count: 12 },
+        { name: 'ペット可', count: 2 },
+      ],
+      'disaster'
+    );
+    expect(merged.map((t) => t.name)).toEqual([
+      '避難所',
+      '給水',
+      '炊き出し',
+      '断水',
+      '停電',
+      'ペット可',
+    ]);
+    expect(merged.find((t) => t.name === '給水')?.count).toBe(12);
   });
 });

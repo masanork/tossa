@@ -218,7 +218,7 @@
   "font_size_large": "大",
   "font_size_xlarge": "特大",
   "tag_filter_all": "すべて",
-  "tag_filter_empty_hint": "投稿にタグをつけると、ここにフィルターが自発的に並びます",
+  "tag_filter_empty_hint": "お店・イベントなどの種は最初から並びます",
   "post_time_just_now": "たった今",
   "post_time_seconds_ago": "{sec}秒前",
   "post_time_minutes_ago": "{min}分前",

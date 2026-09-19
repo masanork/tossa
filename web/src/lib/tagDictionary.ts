@@ -31,6 +31,30 @@ interface TagDefinition {
 export const TAG_DICTIONARY: TagDefinition[] = [
   // Water & Lifeline
   {
+    patterns: /^(断水|水が出ない|断水中)$/i,
+    translations: {
+      en: 'Water Outage',
+      'ja-easy': 'みずが でない',
+      ja: '断水',
+    },
+  },
+  {
+    patterns: /^(停電|電気が止まった|停電中)$/i,
+    translations: {
+      en: 'Power Outage',
+      'ja-easy': 'でんきが とまった',
+      ja: '停電',
+    },
+  },
+  {
+    patterns: /^(お店|店舗|商店|ショップ)$/i,
+    translations: {
+      en: 'Shop',
+      'ja-easy': 'おみせ',
+      ja: 'お店',
+    },
+  },
+  {
     patterns: /^(給水|給水所|みず|飲料水|水)$/i,
     translations: {
       en: 'Water Station',

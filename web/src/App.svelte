@@ -48,6 +48,7 @@
   } from '@lucide/svelte';
   import { m, i18n } from './lib/i18n.svelte';
   import { getTagDisplay } from './lib/tagDictionary';
+  import { mergeVocabularyWithSeeds } from './lib/seedTags';
   import {
     getPendingQueueCount,
     flushOfflineQueue,
@@ -68,6 +69,12 @@
 
   let posts = $state<Post[]>([]);
   let vocabularyTags = $state<TagCount[]>([]);
+  let filterTags = $derived(
+    mergeVocabularyWithSeeds(
+      vocabularyTags,
+      settings.operation_mode === 'disaster' ? 'disaster' : 'normal'
+    )
+  );
   let totalPosts = $state(0);
   let isLoading = $state(true);
 
@@ -871,7 +878,7 @@
 
   <!-- Organic vocabulary tag filter bar -->
   <VocabularyFilter
-    tags={vocabularyTags}
+    tags={filterTags}
     {selectedTag}
     totalCount={totalPosts}
     onSelectTag={handleSelectTag}

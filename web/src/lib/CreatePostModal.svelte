@@ -33,6 +33,7 @@
     ChevronRight,
   } from '@lucide/svelte';
   import { m } from './i18n.svelte';
+  import { mergeVocabularyWithSeeds } from './seedTags';
   import { geolocationManager } from './geolocation.svelte';
 
   interface Props {
@@ -68,6 +69,9 @@
   }: Props = $props();
 
   const isDisaster = $derived(operationMode === 'disaster');
+  const suggestedTags = $derived(
+    mergeVocabularyWithSeeds(vocabularyTags, operationMode)
+  );
 
   let title = $state('');
   let area = $state('');
@@ -1014,10 +1018,10 @@
               class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
             >
               <Sparkles class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              <span>タグ（地域のボキャブラリ）</span>
+              <span>タグ</span>
             </div>
             <span class="text-[10px] text-slate-500 dark:text-slate-400"
-              >複数追加可能</span
+              >任意・複数可</span
             >
           </div>
 
@@ -1040,36 +1044,36 @@
             </div>
           {/if}
 
-          {#if vocabularyTags.length > 0}
-            <div>
-              <span
-                class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
-              >
-                地域のボキャブラリから選ぶ（タップで追加）:
-              </span>
-              <div
-                class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
-              >
-                {#each vocabularyTags as vt (vt.name)}
-                  <button
-                    type="button"
-                    onclick={() => toggleTag(vt.name)}
-                    class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
-                      selectedTags.includes(vt.name)
-                        ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                        : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <span>#{vt.name}</span>
+          <div>
+            <span
+              class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+            >
+              よく使うタグ（タップで付ける）
+            </span>
+            <div
+              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
+            >
+              {#each suggestedTags as vt (vt.name)}
+                <button
+                  type="button"
+                  onclick={() => toggleTag(vt.name)}
+                  class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+                    selectedTags.includes(vt.name)
+                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <span>#{vt.name}</span>
+                  {#if vt.count > 0}
                     <span
                       class="text-[9px] font-medium text-slate-600 dark:text-slate-400"
                       >({vt.count})</span
                     >
-                  </button>
-                {/each}
-              </div>
+                  {/if}
+                </button>
+              {/each}
             </div>
-          {/if}
+          </div>
 
           <div>
             <span
@@ -1087,7 +1091,7 @@
                   type="text"
                   bind:value={newTagInput}
                   onkeydown={handleTagKeydown}
-                  placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
+                  placeholder="例: ペット可, Wi-Fi"
                   class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
               </div>
