@@ -1269,6 +1269,9 @@
         {vocabularyTags}
         defaultArea={settings.default_area || ''}
         {availableAreas}
+        operationMode={settings.operation_mode === 'disaster'
+          ? 'disaster'
+          : 'normal'}
         token={authToken}
         {editingPost}
         {initialDraftPost}

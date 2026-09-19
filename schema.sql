@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS posts (
     id TEXT PRIMARY KEY,
     category_id TEXT DEFAULT 'general',
     title TEXT NOT NULL,
-    area TEXT NOT NULL,           -- 市区町村・地区名 (熊本市中央区, 東区 等)
+    area TEXT NOT NULL DEFAULT '', -- 市区町村・地区名（任意。空文字可）
     address TEXT,                 -- 詳細住所・施設名
     lat REAL,                     -- 緯度
     lng REAL,                     -- 経度
@@ -62,6 +62,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_author_cookie ON posts(author_cookie_id);
 CREATE INDEX IF NOT EXISTS idx_posts_disaster ON posts(disaster_id);
 CREATE INDEX IF NOT EXISTS idx_posts_updated ON posts(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(current_status);
 
 -- ステータス更新履歴（マイクロアップデート追跡・通報対応）
 CREATE TABLE IF NOT EXISTS status_updates (

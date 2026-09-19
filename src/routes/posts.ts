@@ -197,11 +197,11 @@ postsRoute.post('/', async (c) => {
   const deviceId = c.get('deviceSessionId'); // Set by deviceCookie middleware
 
   const body = await c.req.json();
-  if (!body.title || !body.area || !body.currentStatus) {
+  if (!body.title || typeof body.title !== 'string' || !body.title.trim()) {
     return c.json(
       {
         success: false,
-        error: 'Missing required fields (title, area, currentStatus)',
+        error: 'Missing required field (title)',
       },
       400
     );
@@ -221,13 +221,13 @@ postsRoute.post('/', async (c) => {
     authorId: session?.userId || null,
     authorCookieId: deviceId || null,
     categoryId: body.categoryId,
-    title: body.title,
-    area: body.area,
+    title: body.title.trim(),
+    area: typeof body.area === 'string' ? body.area.trim() : '',
     address: body.address,
     lat: body.lat ? parseFloat(body.lat) : undefined,
     lng: body.lng ? parseFloat(body.lng) : undefined,
-    currentStatus: body.currentStatus,
-    statusLabel: body.statusLabel || body.currentStatus,
+    currentStatus: body.currentStatus || 'available',
+    statusLabel: body.statusLabel || body.currentStatus || 'お知らせ',
     note: body.note,
     url: body.url,
     sourceUrl: body.sourceUrl,

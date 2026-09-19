@@ -48,6 +48,7 @@
     onCreated: (newPost?: Post) => void;
     onUpdated?: () => void;
     onOpenAuth?: () => void;
+    operationMode?: 'normal' | 'disaster';
   }
 
   const {
@@ -63,24 +64,28 @@
     onCreated,
     onUpdated,
     onOpenAuth,
+    operationMode = 'normal',
   }: Props = $props();
+
+  const isDisaster = $derived(operationMode === 'disaster');
 
   let title = $state('');
   let area = $state('');
   let address = $state('');
   let currentStatus = $state('available');
-  let statusLabel = $state('受付中 / 利用可能');
+  let statusLabel = $state('お知らせ');
   let note = $state('');
   let sourceUrl = $state('');
   let url = $state('');
 
   const STATUS_PRESETS = [
-    { value: 'available', symbol: '○', label: '受付中 / 利用可能' },
-    { value: 'crowded', symbol: '▲', label: '混雑中 / 順番待ち' },
-    { value: 'few', symbol: '▲', label: '残りわずか' },
-    { value: 'closed', symbol: '✕', label: '終了 / 休止中' },
-    { value: 'unknown', symbol: '?', label: '確認中 / 不明' },
+    { value: 'available', symbol: '○', label: '開いている' },
+    { value: 'crowded', symbol: '▲', label: '混んでいる' },
+    { value: 'closed', symbol: '✕', label: '終わり' },
   ];
+
+  let showLocation = $state(false);
+  let showDetails = $state(false);
 
   // Photo, EXIF & C2PA state
   let fileInput = $state<HTMLInputElement | null>(null);
@@ -106,7 +111,7 @@
     text: string;
   } | null>(null);
 
-  let pickerMapContainer: HTMLDivElement;
+  let pickerMapContainer = $state<HTMLDivElement | null>(null);
   let pickerMap: L.Map | null = null;
   let pickerMarker: L.Marker | null = null;
   let leaflet: typeof L | null = null;
@@ -231,6 +236,7 @@
 
       // Automatically set pin if EXIF GPS coordinates are present
       if (result.gpsCoordinates) {
+        showLocation = true;
         setCoordinates(
           result.gpsCoordinates.lat,
           result.gpsCoordinates.lng,
@@ -351,12 +357,23 @@
               : (editingPost.attributes as Record<string, string>);
         } catch {}
       }
+      showLocation = Boolean(
+        editingPost.area ||
+        editingPost.address ||
+        editingPost.lat != null ||
+        editingPost.lng != null
+      );
+      showDetails = Boolean(
+        editingPost.note ||
+        editingPost.source_url ||
+        (editingPost.tags && editingPost.tags !== '[]')
+      );
     } else if (initialDraftPost) {
       title = initialDraftPost.title || '';
       area = initialDraftPost.area || '';
       address = initialDraftPost.address || '';
       currentStatus = initialDraftPost.current_status || 'available';
-      statusLabel = initialDraftPost.status_label || '受付中 / 利用可能';
+      statusLabel = initialDraftPost.status_label || 'お知らせ';
       note = initialDraftPost.note || '';
       sourceUrl = initialDraftPost.source_url || '';
       url = initialDraftPost.url || '';
@@ -372,9 +389,23 @@
           }
         }
       }
+      showLocation = Boolean(
+        initialDraftPost.area ||
+        initialDraftPost.address ||
+        initialDraftPost.lat != null ||
+        initialDraftPost.lng != null
+      );
+      showDetails = Boolean(
+        initialDraftPost.note ||
+        initialDraftPost.source_url ||
+        (Array.isArray(initialDraftPost.tags) &&
+          initialDraftPost.tags.length > 0)
+      );
     }
+  });
 
-    // Leaflet initialization
+  async function initPickerMap() {
+    if (pickerMap || !pickerMapContainer) return;
     leaflet = await import('leaflet');
 
     const initialLat = 36.2048;
@@ -412,7 +443,6 @@
       pickerMap?.invalidateSize();
     }, 250);
 
-    // Center on existing post location, initialDraftPost location, or fallback to defaultArea
     if (
       editingPost &&
       editingPost.lat !== null &&
@@ -443,6 +473,12 @@
         // Fallback
       }
     }
+  }
+
+  $effect(() => {
+    if (!showLocation) return;
+    if (!pickerMapContainer) return;
+    void initPickerMap();
   });
 
   onDestroy(() => {
@@ -620,8 +656,8 @@
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
-    if (!title.trim() || !area.trim()) {
-      errorMessage = '施設名と地区名は必須です';
+    if (!title.trim()) {
+      errorMessage = '本文を入力してください';
       return;
     }
 
@@ -638,8 +674,9 @@
             address: address.trim() || undefined,
             lat: lat !== null ? lat : null,
             lng: lng !== null ? lng : null,
-            currentStatus,
-            statusLabel,
+            currentStatus: currentStatus || 'available',
+            statusLabel:
+              statusLabel || (isDisaster ? '開いている' : 'お知らせ'),
             note: note.trim() || null,
             url: url.trim() || null,
             sourceUrl: sourceUrl.trim() || null,
@@ -665,8 +702,9 @@
             address: address.trim() || undefined,
             lat: lat !== null ? lat : undefined,
             lng: lng !== null ? lng : undefined,
-            currentStatus,
-            statusLabel,
+            currentStatus: currentStatus || 'available',
+            statusLabel:
+              statusLabel || (isDisaster ? '開いている' : 'お知らせ'),
             note: note.trim() || undefined,
             url: url.trim() || undefined,
             sourceUrl: sourceUrl.trim() || undefined,
@@ -686,8 +724,9 @@
             address: address.trim() || undefined,
             lat: lat !== null ? lat : undefined,
             lng: lng !== null ? lng : undefined,
-            currentStatus,
-            statusLabel,
+            currentStatus: currentStatus || 'available',
+            statusLabel:
+              statusLabel || (isDisaster ? '開いている' : 'お知らせ'),
             note: note.trim() || undefined,
             url: url.trim() || undefined,
             sourceUrl: sourceUrl.trim() || undefined,
@@ -893,274 +932,218 @@
         </div>
       {/if}
 
-      <!-- Facility / Place name -->
       <div>
         <label
           for="post-title"
           class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
         >
-          施設・拠点・情報タイトル <span class="text-rose-600">*</span>
+          いまどうなってる？ <span class="text-rose-600">*</span>
         </label>
-        <input
-          id="post-title"
-          type="text"
-          bind:value={title}
-          placeholder="例: 中央公民館 給水所、〇〇カフェ、市民総合体育館"
-          required
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-        />
-      </div>
-
-      <!-- Area name & address -->
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <div>
-          <label
-            for="post-area"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-          >
-            地区・地域名 <span class="text-rose-600">*</span>
-          </label>
-          <input
-            id="post-area"
-            type="text"
-            bind:value={area}
-            placeholder={defaultArea
-              ? `例: ${defaultArea}`
-              : '例: 中央区、本町、北地区'}
-            required
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-          {#if availableAreas.length > 0}
-            <div class="mt-1.5 flex flex-wrap gap-1">
-              <span
-                class="py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-400"
-                >候補:</span
-              >
-              {#each availableAreas.slice(0, 5) as a (a)}
-                <button
-                  type="button"
-                  onclick={() => {
-                    area = a;
-                  }}
-                  class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  {a}
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-        <div class="sm:col-span-2">
-          <label
-            for="post-address"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-            >住所・場所の詳細（任意）</label
-          >
-          <input
-            id="post-address"
-            type="text"
-            bind:value={address}
-            placeholder="例: 〇〇町1-2-3 正門前、体育館入口付近"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-        </div>
-      </div>
-
-      <!-- Status selection -->
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <div>
-          <label
-            for="post-status-select"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-            >現在の状況（大分類）</label
-          >
-          <select
-            id="post-status-select"
-            bind:value={currentStatus}
-            onchange={(e) => {
-              const val = (e.target as HTMLSelectElement).value;
-              const preset = STATUS_PRESETS.find((p) => p.value === val);
-              if (preset) {
-                statusLabel = preset.label;
-              }
-            }}
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            {#each STATUS_PRESETS as opt (opt.value)}
-              <option value={opt.value}>[{opt.symbol}] {opt.label}</option>
-            {/each}
-          </select>
-        </div>
-        <div>
-          <label
-            for="post-status-label"
-            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-            >状況の表示名（カード表示文）</label
-          >
-          <input
-            id="post-status-label"
-            type="text"
-            bind:value={statusLabel}
-            placeholder="例: 受付中 / 利用可能、給水中、15分待ち"
-            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-        </div>
-      </div>
-
-      <!-- Detailed notes -->
-      <div>
-        <label
-          for="post-note"
-          class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-          >補足メモ・備考（任意）</label
-        >
         <textarea
-          id="post-note"
-          bind:value={note}
+          id="post-title"
+          bind:value={title}
           rows="2"
-          placeholder="持参が必要な物（ポリタンク等）、営業時間、連絡先など"
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+          placeholder={isDisaster
+            ? '例: 中央公民館で給水しています'
+            : '例: 〇〇カフェ、今日やってます'}
+          required
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
         ></textarea>
       </div>
 
-      <!-- Voluntary vocabulary (tags) -->
-      <div
-        class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/50"
-      >
-        <div class="flex items-center justify-between">
-          <div
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+      {#if isDisaster}
+        <div>
+          <span
+            class="mb-1.5 block text-xs font-bold text-slate-700 dark:text-slate-300"
+            >いまの状況</span
           >
-            <Sparkles class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span>タグ（地域のボキャブラリ）</span>
-          </div>
-          <span class="text-[10px] text-slate-500 dark:text-slate-400"
-            >複数追加可能</span
-          >
-        </div>
-
-        {#if selectedTags.length > 0}
-          <div class="flex flex-wrap gap-1.5">
-            {#each selectedTags as tag (tag)}
-              <span
-                class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+          <div class="grid grid-cols-3 gap-1.5">
+            {#each STATUS_PRESETS as opt (opt.value)}
+              <button
+                type="button"
+                onclick={() => {
+                  currentStatus = opt.value;
+                  statusLabel = opt.label;
+                }}
+                class={`rounded-xl border px-2 py-2 text-center text-xs font-bold transition ${
+                  currentStatus === opt.value
+                    ? 'border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-500/20 dark:border-blue-400 dark:bg-blue-950/50 dark:text-blue-200'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                }`}
               >
-                <span>#{tag}</span>
-                <button
-                  type="button"
-                  onclick={() => toggleTag(tag)}
-                  class="ml-0.5 cursor-pointer text-blue-200 transition hover:text-white"
-                >
-                  ×
-                </button>
-              </span>
+                {opt.symbol}
+                {opt.label}
+              </button>
             {/each}
           </div>
-        {/if}
+        </div>
+      {/if}
 
-        {#if vocabularyTags.length > 0}
+      <button
+        type="button"
+        onclick={() => {
+          showDetails = !showDetails;
+        }}
+        class="flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+      >
+        <span>詳しく書く（メモ・タグ・リンク）</span>
+        <span class="text-slate-400">{showDetails ? '−' : '+'}</span>
+      </button>
+
+      {#if showDetails}
+        <div>
+          <label
+            for="post-note"
+            class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+            >補足</label
+          >
+          <textarea
+            id="post-note"
+            bind:value={note}
+            rows="2"
+            placeholder="営業時間、持ち物、連絡先など"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+          ></textarea>
+        </div>
+
+        <div
+          class="flex flex-col gap-2.5 rounded-xl border border-blue-100 bg-blue-50/60 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+        >
+          <div class="flex items-center justify-between">
+            <div
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <Sparkles class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span>タグ（地域のボキャブラリ）</span>
+            </div>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400"
+              >複数追加可能</span
+            >
+          </div>
+
+          {#if selectedTags.length > 0}
+            <div class="flex flex-wrap gap-1.5">
+              {#each selectedTags as tag (tag)}
+                <span
+                  class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-2xs"
+                >
+                  <span>#{tag}</span>
+                  <button
+                    type="button"
+                    onclick={() => toggleTag(tag)}
+                    class="ml-0.5 cursor-pointer text-blue-200 transition hover:text-white"
+                  >
+                    ×
+                  </button>
+                </span>
+              {/each}
+            </div>
+          {/if}
+
+          {#if vocabularyTags.length > 0}
+            <div>
+              <span
+                class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+              >
+                地域のボキャブラリから選ぶ（タップで追加）:
+              </span>
+              <div
+                class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
+              >
+                {#each vocabularyTags as vt (vt.name)}
+                  <button
+                    type="button"
+                    onclick={() => toggleTag(vt.name)}
+                    class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
+                      selectedTags.includes(vt.name)
+                        ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
+                        : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>#{vt.name}</span>
+                    <span
+                      class="text-[9px] font-medium text-slate-600 dark:text-slate-400"
+                      >({vt.count})</span
+                    >
+                  </button>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
           <div>
             <span
               class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
             >
-              地域のボキャブラリから選ぶ（タップで追加）:
+              新しいタグを追加する:
             </span>
-            <div
-              class="flex max-h-24 flex-wrap gap-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-800"
-            >
-              {#each vocabularyTags as vt (vt.name)}
-                <button
-                  type="button"
-                  onclick={() => toggleTag(vt.name)}
-                  class={`flex cursor-pointer items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition ${
-                    selectedTags.includes(vt.name)
-                      ? 'border border-blue-300 bg-blue-100 font-bold text-blue-800 dark:border-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                      : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700'
-                  }`}
+            <div class="flex items-center gap-1.5">
+              <div class="relative flex-1">
+                <span
+                  class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-600 dark:text-slate-400"
+                  >#</span
                 >
-                  <span>#{vt.name}</span>
-                  <span
-                    class="text-[9px] font-medium text-slate-600 dark:text-slate-400"
-                    >({vt.count})</span
-                  >
-                </button>
-              {/each}
-            </div>
-          </div>
-        {/if}
-
-        <div>
-          <span
-            class="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
-          >
-            新しいタグを追加する:
-          </span>
-          <div class="flex items-center gap-1.5">
-            <div class="relative flex-1">
-              <span
-                class="absolute top-1/2 left-2.5 -translate-y-1/2 text-xs font-bold text-slate-600 dark:text-slate-400"
-                >#</span
+                <input
+                  type="text"
+                  bind:value={newTagInput}
+                  onkeydown={handleTagKeydown}
+                  placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
+                  class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+              </div>
+              <button
+                type="button"
+                onclick={addNewTag}
+                class="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700"
               >
-              <input
-                type="text"
-                bind:value={newTagInput}
-                onkeydown={handleTagKeydown}
-                placeholder="例: Wi-Fi, 給水, ペット可, 電源あり, テイクアウト"
-                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-6 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-              />
+                {m.btn_add()}
+              </button>
             </div>
-            <button
-              type="button"
-              onclick={addNewTag}
-              class="shrink-0 cursor-pointer rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs transition hover:bg-blue-700"
-            >
-              {m.btn_add()}
-            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Source / reference link (optional) -->
-      <div
-        class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50"
-      >
-        <div class="flex items-center justify-between">
-          <label
-            for="post-source-url"
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
-          >
-            <Link class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-            <span>情報源・参照リンク（任意）</span>
-          </label>
-          <span class="text-[10px] text-slate-500 dark:text-slate-400"
-            >正確性検証用</span
-          >
-        </div>
-
-        <input
-          id="post-source-url"
-          type="url"
-          bind:value={sourceUrl}
-          placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-        />
-
-        {#if sourceTrustBadge}
-          <div class="flex items-center gap-2">
-            <span
-              class={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${sourceTrustBadge.color}`}
+        <!-- Source / reference link (optional) -->
+        <div
+          class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/50"
+        >
+          <div class="flex items-center justify-between">
+            <label
+              for="post-source-url"
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300"
             >
-              <span>{sourceTrustBadge.icon}</span>
-              <span>{sourceTrustBadge.label}</span>
-            </span>
+              <Link class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span>情報源・参照リンク（任意）</span>
+            </label>
             <span class="text-[10px] text-slate-500 dark:text-slate-400"
-              >信頼できる情報源として識別されます</span
+              >正確性検証用</span
             >
           </div>
-        {/if}
-      </div>
 
-      <!-- Photo attachment (EXIF auto location & C2PA authenticity) -->
+          <input
+            id="post-source-url"
+            type="url"
+            bind:value={sourceUrl}
+            placeholder="例: https://www.city.example.lg.jp/... または 公式XポストURL"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+          />
+
+          {#if sourceTrustBadge}
+            <div class="flex items-center gap-2">
+              <span
+                class={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${sourceTrustBadge.color}`}
+              >
+                <span>{sourceTrustBadge.icon}</span>
+                <span>{sourceTrustBadge.label}</span>
+              </span>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400"
+                >信頼できる情報源として識別されます</span
+              >
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Photo attachment -->
       <div
         class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
       >
@@ -1169,11 +1152,8 @@
             class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
           >
             <Camera class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span>{m.photo_attach()}</span>
+            <span>写真</span>
           </div>
-          <span class="text-[10px] text-slate-500 dark:text-slate-400"
-            >{m.photo_subtext()}</span
-          >
         </div>
 
         {#if imagePreviewUrl}
@@ -1211,16 +1191,13 @@
                     <ShieldCheck
                       class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
                     />
-                    <span
-                      >C2PA 真正性確認済 ({c2paInfo?.generator ||
-                        '認証カメラ'})</span
-                    >
+                    <span>撮影元を確認済み</span>
                   </span>
                 {:else}
                   <span
                     class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
-                    <span>標準画像</span>
+                    <span>写真</span>
                   </span>
                 {/if}
 
@@ -1238,7 +1215,7 @@
                 <span
                   class="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400"
                 >
-                  ✓ EXIF座標連動済
+                  ✓ 位置つき
                 </span>
               {/if}
             </div>
@@ -1260,7 +1237,7 @@
                 class="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
               ></div>
               <span class="text-xs text-slate-500 dark:text-slate-400"
-                >EXIF解析・C2PA検証中...</span
+                >写真を読み込み中...</span
               >
             {:else}
               <div
@@ -1269,231 +1246,300 @@
                 <Camera class="h-4 w-4" />
               </div>
               <div class="text-xs font-bold text-slate-700 dark:text-slate-200">
-                写真を撮影または選択
+                写真を追加
               </div>
               <p
                 class="text-center text-[10px] leading-tight text-slate-600 dark:text-slate-400"
               >
-                写真の位置情報（EXIF GPS）からピンが自動配置されます。<br />
-                C2PA来歴署名も自動検知し真正性を担保します。
+                位置が写っていれば、地図に自動で載ります
               </p>
             {/if}
           </label>
         {/if}
       </div>
 
-      <!-- Pin location on map (lat/lng) -->
-      <div
-        class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
+      <button
+        type="button"
+        onclick={() => {
+          showLocation = !showLocation;
+        }}
+        class="flex w-full cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
       >
-        <div class="flex items-center justify-between">
-          <div
-            class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
-          >
-            <MapPin class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span>地図上の位置（ピン設定）</span>
-          </div>
+        <span class="flex items-center gap-1.5">
+          <MapPin class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           {#if lat !== null && lng !== null}
-            <span
-              class="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-            >
-              <Check class="h-3 w-3" />
-              <span>ピン設定済み</span>
-            </span>
+            <span>場所つき{area ? ` · ${area}` : ''}</span>
           {:else}
-            <span class="text-[10px] text-slate-500 dark:text-slate-400"
-              >写真EXIF、GPS、住所または地図タップで設定</span
-            >
+            <span>場所を付ける</span>
           {/if}
-        </div>
+        </span>
+        <span class="text-slate-400">{showLocation ? '−' : '+'}</span>
+      </button>
 
-        <!-- Quick coordinate action buttons -->
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick={handleGetCurrentLocation}
-            disabled={isLocating}
-            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            <Navigation
-              class={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400 ${isLocating ? 'animate-spin' : ''}`}
-            />
-            <span
-              >{isLocating ? '現在地を取得中...' : '📍 現在地からセット'}</span
-            >
-          </button>
-
-          <button
-            type="button"
-            onclick={handleGeocodeAddress}
-            disabled={isGeocoding ||
-              (!address.trim() && !title.trim() && !area.trim())}
-            class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            title="入力した住所や拠点名から地図位置を自動検索します"
-          >
-            <Search
-              class={`h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 ${isGeocoding ? 'animate-spin' : ''}`}
-            />
-            <span>{isGeocoding ? '住所検索中...' : '🔍 住所からピン配置'}</span>
-          </button>
-        </div>
-
-        {#if geoStatusMessage}
-          <div
-            class={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] ${
-              geoStatusMessage.type === 'success'
-                ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
-                : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
-            }`}
-          >
-            <span>{geoStatusMessage.text}</span>
-            <button
-              type="button"
-              onclick={() => {
-                geoStatusMessage = null;
-              }}
-              class="ml-1 cursor-pointer font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-            >
-              ×
-            </button>
-          </div>
-        {/if}
-
-        <!-- Interactive minimap -->
+      {#if showLocation}
         <div
-          class={`relative w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner transition-all duration-200 dark:border-slate-700 dark:bg-slate-800 ${isMapExpanded ? 'h-80' : 'h-48'}`}
+          class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
         >
-          <div bind:this={pickerMapContainer} class="z-0 h-full w-full"></div>
-
-          <div
-            class="pointer-events-none absolute top-2 right-12 left-2 z-[400] flex justify-center"
-          >
-            <div
-              class="rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-medium text-white shadow-xs backdrop-blur-xs"
-            >
-              👆 地図タップでピン配置、ピンのドラッグで位置微調整
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div>
+              <label
+                for="post-area"
+                class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+                >地区</label
+              >
+              <input
+                id="post-area"
+                type="text"
+                bind:value={area}
+                placeholder={defaultArea
+                  ? `例: ${defaultArea}`
+                  : '例: 中央区、本町'}
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+              />
+              {#if availableAreas.length > 0}
+                <div class="mt-1.5 flex flex-wrap gap-1">
+                  {#each availableAreas.slice(0, 5) as a (a)}
+                    <button
+                      type="button"
+                      onclick={() => {
+                        area = a;
+                      }}
+                      class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    >
+                      {a}
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+            <div class="sm:col-span-2">
+              <label
+                for="post-address"
+                class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
+                >住所・目印</label
+              >
+              <input
+                id="post-address"
+                type="text"
+                bind:value={address}
+                placeholder="例: 正門前、体育館入口"
+                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+              />
             </div>
           </div>
 
-          <!-- Map expand/collapse toggle -->
-          <button
-            type="button"
-            onclick={toggleMapExpand}
-            class="absolute top-2 right-2 z-[400] cursor-pointer rounded-lg bg-white/90 p-1.5 text-slate-700 shadow-md backdrop-blur-xs transition hover:bg-white dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-900"
-            title={isMapExpanded ? '地図を縮小' : '地図を拡大'}
-            aria-label={isMapExpanded ? '地図を縮小' : '地図を拡大'}
-          >
-            {#if isMapExpanded}
-              <Minimize2 class="h-3.5 w-3.5" />
+          <div class="flex items-center justify-between">
+            <div
+              class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
+            >
+              <MapPin class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>地図</span>
+            </div>
+            {#if lat !== null && lng !== null}
+              <span
+                class="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+              >
+                <Check class="h-3 w-3" />
+                <span>ピン設定済み</span>
+              </span>
             {:else}
-              <Maximize2 class="h-3.5 w-3.5" />
+              <span class="text-[10px] text-slate-500 dark:text-slate-400"
+                >現在地・住所・地図から選べます</span
+              >
             {/if}
-          </button>
-        </div>
-
-        {#if isReverseGeocoding}
-          <div
-            class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400"
-          >
-            <Search class="h-3.5 w-3.5 animate-spin text-blue-500" />
-            <span>周辺住所を取得中...</span>
           </div>
-        {:else if reverseGeocodedAddress && (!address.trim() || !area.trim())}
-          <div
-            class="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs dark:border-blue-800 dark:bg-blue-950/40"
-          >
-            <span
-              class="truncate text-[11px] font-medium text-blue-900 dark:text-blue-200"
-            >
-              📍 周辺住所: {reverseGeocodedAddress}
-            </span>
+
+          <!-- Quick coordinate action buttons -->
+          <div class="flex items-center gap-2">
             <button
               type="button"
-              onclick={applyReverseAddress}
-              class="ml-2 shrink-0 cursor-pointer rounded bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white transition hover:bg-blue-700"
+              onclick={handleGetCurrentLocation}
+              disabled={isLocating}
+              class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
             >
-              住所に反映
+              <Navigation
+                class={`h-3.5 w-3.5 text-blue-600 dark:text-blue-400 ${isLocating ? 'animate-spin' : ''}`}
+              />
+              <span
+                >{isLocating
+                  ? '現在地を取得中...'
+                  : '📍 現在地からセット'}</span
+              >
+            </button>
+
+            <button
+              type="button"
+              onclick={handleGeocodeAddress}
+              disabled={isGeocoding ||
+                (!address.trim() && !title.trim() && !area.trim())}
+              class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              title="入力した住所や拠点名から地図位置を自動検索します"
+            >
+              <Search
+                class={`h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 ${isGeocoding ? 'animate-spin' : ''}`}
+              />
+              <span
+                >{isGeocoding ? '住所検索中...' : '🔍 住所からピン配置'}</span
+              >
             </button>
           </div>
-        {/if}
 
-        {#if lat !== null && lng !== null}
-          <!-- Fine-tuning nudge controls (10m steps) -->
-          <div
-            class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-800/60"
-          >
-            <span
-              class="text-[11px] font-bold text-slate-600 dark:text-slate-400"
-            >
-              位置微調整 (約10m単位)
-            </span>
-            <div class="flex items-center gap-1">
-              <button
-                type="button"
-                onclick={() => nudgePin(0.0001, 0)}
-                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                title="北へ約10m移動"
-                aria-label="北へ約10m移動"
-              >
-                <ChevronUp class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onclick={() => nudgePin(-0.0001, 0)}
-                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                title="南へ約10m移動"
-                aria-label="南へ約10m移動"
-              >
-                <ChevronDown class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onclick={() => nudgePin(0, -0.0001)}
-                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                title="西へ約10m移動"
-                aria-label="西へ約10m移動"
-              >
-                <ChevronLeft class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onclick={() => nudgePin(0, 0.0001)}
-                class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
-                title="東へ約10m移動"
-                aria-label="東へ約10m移動"
-              >
-                <ChevronRight class="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        {/if}
-
-        <!-- Numeric coordinate display & clear button -->
-        <div
-          class="flex items-center justify-between pt-0.5 text-[11px] text-slate-600 dark:text-slate-400"
-        >
-          {#if lat !== null && lng !== null}
+          {#if geoStatusMessage}
             <div
-              class="font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200"
+              class={`flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] ${
+                geoStatusMessage.type === 'success'
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                  : 'border border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300'
+              }`}
             >
-              緯度: {lat.toFixed(5)}, 経度: {lng.toFixed(5)}
+              <span>{geoStatusMessage.text}</span>
+              <button
+                type="button"
+                onclick={() => {
+                  geoStatusMessage = null;
+                }}
+                class="ml-1 cursor-pointer font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              >
+                ×
+              </button>
             </div>
+          {/if}
+
+          <!-- Interactive minimap -->
+          <div
+            class={`relative w-full overflow-hidden rounded-xl border border-slate-300 bg-slate-200 shadow-inner transition-all duration-200 dark:border-slate-700 dark:bg-slate-800 ${isMapExpanded ? 'h-80' : 'h-48'}`}
+          >
+            <div bind:this={pickerMapContainer} class="z-0 h-full w-full"></div>
+
+            <div
+              class="pointer-events-none absolute top-2 right-12 left-2 z-[400] flex justify-center"
+            >
+              <div
+                class="rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-medium text-white shadow-xs backdrop-blur-xs"
+              >
+                👆 地図タップでピン配置、ピンのドラッグで位置微調整
+              </div>
+            </div>
+
+            <!-- Map expand/collapse toggle -->
             <button
               type="button"
-              onclick={clearLocation}
-              class="flex cursor-pointer items-center gap-1 font-bold text-rose-600 hover:text-rose-800 hover:underline dark:text-rose-400 dark:hover:text-rose-300"
+              onclick={toggleMapExpand}
+              class="absolute top-2 right-2 z-[400] cursor-pointer rounded-lg bg-white/90 p-1.5 text-slate-700 shadow-md backdrop-blur-xs transition hover:bg-white dark:bg-slate-900/90 dark:text-slate-200 dark:hover:bg-slate-900"
+              title={isMapExpanded ? '地図を縮小' : '地図を拡大'}
+              aria-label={isMapExpanded ? '地図を縮小' : '地図を拡大'}
             >
-              <RotateCcw class="h-3 w-3" />
-              <span>ピンを解除</span>
+              {#if isMapExpanded}
+                <Minimize2 class="h-3.5 w-3.5" />
+              {:else}
+                <Maximize2 class="h-3.5 w-3.5" />
+              {/if}
             </button>
-          {:else}
-            <span class="text-[10px] text-slate-600 dark:text-slate-400">
-              ※
-              地図上をクリックするか「現在地」「住所検索」または写真EXIFでピンを置けます
-            </span>
+          </div>
+
+          {#if isReverseGeocoding}
+            <div
+              class="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400"
+            >
+              <Search class="h-3.5 w-3.5 animate-spin text-blue-500" />
+              <span>周辺住所を取得中...</span>
+            </div>
+          {:else if reverseGeocodedAddress && (!address.trim() || !area.trim())}
+            <div
+              class="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-2 text-xs dark:border-blue-800 dark:bg-blue-950/40"
+            >
+              <span
+                class="truncate text-[11px] font-medium text-blue-900 dark:text-blue-200"
+              >
+                📍 周辺住所: {reverseGeocodedAddress}
+              </span>
+              <button
+                type="button"
+                onclick={applyReverseAddress}
+                class="ml-2 shrink-0 cursor-pointer rounded bg-blue-600 px-2 py-0.5 text-[11px] font-bold text-white transition hover:bg-blue-700"
+              >
+                住所に反映
+              </button>
+            </div>
           {/if}
+
+          {#if lat !== null && lng !== null}
+            <!-- Fine-tuning nudge controls (10m steps) -->
+            <div
+              class="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-800/60"
+            >
+              <span
+                class="text-[11px] font-bold text-slate-600 dark:text-slate-400"
+              >
+                位置微調整 (約10m単位)
+              </span>
+              <div class="flex items-center gap-1">
+                <button
+                  type="button"
+                  onclick={() => nudgePin(0.0001, 0)}
+                  class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  title="北へ約10m移動"
+                  aria-label="北へ約10m移動"
+                >
+                  <ChevronUp class="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => nudgePin(-0.0001, 0)}
+                  class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  title="南へ約10m移動"
+                  aria-label="南へ約10m移動"
+                >
+                  <ChevronDown class="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => nudgePin(0, -0.0001)}
+                  class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  title="西へ約10m移動"
+                  aria-label="西へ約10m移動"
+                >
+                  <ChevronLeft class="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onclick={() => nudgePin(0, 0.0001)}
+                  class="cursor-pointer rounded border border-slate-300 bg-white p-1 text-slate-700 shadow-2xs hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                  title="東へ約10m移動"
+                  aria-label="東へ約10m移動"
+                >
+                  <ChevronRight class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          {/if}
+
+          <!-- Numeric coordinate display & clear button -->
+          <div
+            class="flex items-center justify-between pt-0.5 text-[11px] text-slate-600 dark:text-slate-400"
+          >
+            {#if lat !== null && lng !== null}
+              <div
+                class="font-mono text-[11px] font-semibold text-slate-800 dark:text-slate-200"
+              >
+                緯度: {lat.toFixed(5)}, 経度: {lng.toFixed(5)}
+              </div>
+              <button
+                type="button"
+                onclick={clearLocation}
+                class="flex cursor-pointer items-center gap-1 font-bold text-rose-600 hover:text-rose-800 hover:underline dark:text-rose-400 dark:hover:text-rose-300"
+              >
+                <RotateCcw class="h-3 w-3" />
+                <span>ピンを解除</span>
+              </button>
+            {:else}
+              <span class="text-[10px] text-slate-600 dark:text-slate-400">
+                地図をタップするか、現在地・住所からピンを置けます
+              </span>
+            {/if}
+          </div>
         </div>
-      </div>
+      {/if}
 
       <!-- Footer -->
       <div

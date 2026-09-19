@@ -225,7 +225,7 @@ export async function createPost(
       post.authorCookieId || null,
       post.categoryId || 'general',
       post.title,
-      post.area,
+      post.area || '',
       post.address || null,
       post.lat || null,
       post.lng || null,

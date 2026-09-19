@@ -54,6 +54,44 @@ describe('Posts API (Cookie & Passkey Auth)', () => {
     expect(log!.metadata).toContain(body.id);
   });
 
+  it('allows posting with title only (no area or status)', async () => {
+    const { request, db } = createTestContext();
+    const deviceId = 'device_test_post_title_only';
+
+    const res = await request('/api/posts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: `${DEVICE_COOKIE}=${deviceId}`,
+        'cf-connecting-ip': '203.0.113.51',
+      },
+      body: JSON.stringify({
+        title: '〇〇カフェ、今日やってます',
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+
+    const post = await db
+      .prepare(
+        'SELECT title, area, current_status, status_label FROM posts WHERE id = ?'
+      )
+      .bind(body.id)
+      .first<{
+        title: string;
+        area: string;
+        current_status: string;
+        status_label: string;
+      }>();
+
+    expect(post?.title).toBe('〇〇カフェ、今日やってます');
+    expect(post?.area).toBe('');
+    expect(post?.current_status).toBe('available');
+    expect(post?.status_label).toBe('お知らせ');
+  });
+
   it('correctly sets is_owner based on device cookie in GET /api/posts', async () => {
     const { request } = createTestContext();
     const myDevice = 'my_phone_device_123';

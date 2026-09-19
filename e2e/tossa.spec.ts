@@ -53,7 +53,6 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     // Fill form
     const postTitle = `E2E 防災拠点テスト ${Date.now()}`;
     await page.fill('#post-title', postTitle);
-    await page.fill('#post-area', '本町中央地区');
 
     // Submit form
     const submitBtn = page.locator('button[type="submit"]');
@@ -274,7 +273,8 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     const postTitle = `避難所（直線距離テスト） ${Date.now()}`;
     await page.fill('#post-title', postTitle);
-    await page.fill('#post-area', '丸の内地区');
+
+    await page.locator('button:has-text("場所を付ける")').click();
 
     const geoBtn = page.locator('button:has-text("現在地からセット")');
     await expect(geoBtn).toBeVisible();
@@ -493,7 +493,6 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     const testTitle = `マイページ・お気に入りテスト ${Date.now()}`;
     await page.fill('#post-title', testTitle);
-    await page.fill('#post-area', '本町中央地区');
     await page.locator('button[type="submit"]').click();
 
     const postCard = page.locator(`article:has-text("${testTitle}")`);
