@@ -63,7 +63,8 @@ export const TAG_DICTIONARY: TagDefinition[] = [
     },
   },
   {
-    patterns: /^(充電|電源|スマホ充電|携帯充電|コンセント|モバイルバッテリー)$/i,
+    patterns:
+      /^(充電|電源|スマホ充電|携帯充電|コンセント|モバイルバッテリー)$/i,
     translations: {
       en: 'Phone Charging',
       'ja-easy': 'じゅうでん・でんき',

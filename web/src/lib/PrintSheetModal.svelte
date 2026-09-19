@@ -42,7 +42,10 @@
     window.print();
   }
 
-  function getStatusBadgeText(status: string, customLabel?: string | null): string {
+  function getStatusBadgeText(
+    status: string,
+    customLabel?: string | null
+  ): string {
     if (customLabel) return customLabel;
     switch (status) {
       case 'available':
@@ -70,7 +73,7 @@
 
 <!-- Backdrop (hidden during print) -->
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/80 p-2 backdrop-blur-sm sm:p-4 print:p-0 print:bg-white"
+  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/80 p-2 backdrop-blur-sm sm:p-4 print:bg-white print:p-0"
   role="dialog"
   aria-modal="true"
   aria-label={m.print_sheet_title()}
@@ -118,34 +121,44 @@
 
     <!-- Scrollable A4 Sheet Paper Preview -->
     <div
-      class="overflow-y-auto p-4 sm:p-6 bg-slate-100 dark:bg-slate-950/60 print:p-0 print:bg-white"
+      class="overflow-y-auto bg-slate-100 p-4 sm:p-6 dark:bg-slate-950/60 print:bg-white print:p-0"
     >
       <!-- A4 Sheet (aspect-ratio close to A4: 1:1.414) -->
       <div
         class="print-sheet-paper mx-auto w-full max-w-[640px] rounded-lg border-2 border-slate-800 bg-white p-6 text-slate-950 shadow-md sm:p-8 print:m-0 print:w-full print:max-w-none print:border-4 print:border-black print:p-8 print:shadow-none"
       >
         <!-- Sheet Header -->
-        <div class="flex items-center justify-between border-b-2 border-black pb-3">
+        <div
+          class="flex items-center justify-between border-b-2 border-black pb-3"
+        >
           <div>
-            <span class="text-xs font-black tracking-wider uppercase text-slate-700 print:text-black">
+            <span
+              class="text-xs font-black tracking-wider text-slate-700 uppercase print:text-black"
+            >
               tossa 地域の生活情報・防災速報 掲示板
             </span>
             <div class="text-[11px] text-slate-500 print:text-black">
               発行日時: {printedAt}
             </div>
           </div>
-          <div class="rounded border border-black px-2 py-0.5 text-[11px] font-black">
+          <div
+            class="rounded border border-black px-2 py-0.5 text-[11px] font-black"
+          >
             📍 {post.area}
           </div>
         </div>
 
         <!-- Facility Name & Status Banner -->
         <div class="my-5">
-          <div class="inline-block rounded-md border-2 border-black bg-black px-3 py-1 text-sm font-black text-white">
+          <div
+            class="inline-block rounded-md border-2 border-black bg-black px-3 py-1 text-sm font-black text-white"
+          >
             {getStatusBadgeText(post.current_status, post.status_label)}
           </div>
 
-          <h1 class="mt-3 text-2xl font-black leading-tight tracking-tight sm:text-3xl print:text-4xl">
+          <h1
+            class="mt-3 text-2xl leading-tight font-black tracking-tight sm:text-3xl print:text-4xl"
+          >
             {post.title}
           </h1>
 
@@ -158,11 +171,17 @@
 
         <!-- Details / Notes Box -->
         {#if post.note}
-          <div class="my-4 rounded-lg border-2 border-black bg-slate-50 p-4 print:bg-white">
-            <div class="text-xs font-black text-slate-500 uppercase print:text-black">
+          <div
+            class="my-4 rounded-lg border-2 border-black bg-slate-50 p-4 print:bg-white"
+          >
+            <div
+              class="text-xs font-black text-slate-500 uppercase print:text-black"
+            >
               ■ 現在の状況・連絡事項
             </div>
-            <p class="mt-1 text-base font-semibold leading-relaxed whitespace-pre-wrap">
+            <p
+              class="mt-1 text-base leading-relaxed font-semibold whitespace-pre-wrap"
+            >
               {post.note}
             </p>
           </div>
@@ -170,12 +189,16 @@
 
         <!-- QR Code & Scanner Instructions -->
         <div class="my-6 rounded-xl border-2 border-dashed border-black p-4">
-          <div class="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            class="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between"
+          >
             <div class="space-y-1.5 text-center sm:text-left">
               <div class="text-sm font-black text-blue-900 print:text-black">
                 【スマホで最新状況を確認・更新】
               </div>
-              <p class="text-xs leading-relaxed text-slate-700 print:text-black">
+              <p
+                class="text-xs leading-relaxed text-slate-700 print:text-black"
+              >
                 {m.print_qr_instruction()}
               </p>
               <div class="text-[11px] text-slate-500 print:text-black">
@@ -184,7 +207,7 @@
             </div>
 
             {#if qrDataUrl}
-              <div class="shrink-0 border-2 border-black p-1 bg-white">
+              <div class="shrink-0 border-2 border-black bg-white p-1">
                 <img
                   src={qrDataUrl}
                   alt="QR Code"
@@ -196,8 +219,11 @@
         </div>
 
         <!-- Footer -->
-        <div class="mt-auto border-t border-slate-300 pt-3 text-center text-[10px] text-slate-500 print:border-black print:text-black">
-          tossa（咄嗟）- 通信途絶時もオフライン動作する超軽量・地域生活情報システム
+        <div
+          class="mt-auto border-t border-slate-300 pt-3 text-center text-[10px] text-slate-500 print:border-black print:text-black"
+        >
+          tossa（咄嗟）-
+          通信途絶時もオフライン動作する超軽量・地域生活情報システム
         </div>
       </div>
     </div>

@@ -21,7 +21,7 @@ function escapeXml(unsafe: string): string {
         return '&gt;';
       case '&':
         return '&amp;';
-      case '\'':
+      case "'":
         return '&apos;';
       case '"':
         return '&quot;';
@@ -52,7 +52,9 @@ export async function renderOgpSvg(
         light: '#ffffff',
       },
     });
-    qrSvgContent = rawQr.replace(/<\?xml.*?\?>/i, '').replace(/<!DOCTYPE.*?>/i, '');
+    qrSvgContent = rawQr
+      .replace(/<\?xml.*?\?>/i, '')
+      .replace(/<!DOCTYPE.*?>/i, '');
   } catch {
     qrSvgContent = '';
   }
@@ -152,11 +154,15 @@ export async function renderOgpSvg(
     </text>
 
     <!-- Address / Location -->
-    ${safeAddress ? `
+    ${
+      safeAddress
+        ? `
     <text x="0" y="165" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="500" fill="#cbd5e1">
       ${safeAddress.length > 34 ? safeAddress.slice(0, 33) + '…' : safeAddress}
     </text>
-    ` : ''}
+    `
+        : ''
+    }
 
     <!-- Timestamp -->
     <text x="0" y="280" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="600" fill="#64748b">

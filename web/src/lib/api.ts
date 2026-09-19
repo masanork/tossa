@@ -16,6 +16,7 @@ import type {
   ThreadType,
   BackupRecord,
   BackupResult,
+  DisasterEvent,
 } from './types';
 import {
   deriveKeyFromPrfSeed,
@@ -29,7 +30,11 @@ const API_BASE = '/api';
 export async function fetchSettings(): Promise<SystemSettings> {
   const res = await fetch(`${API_BASE}/settings`);
   const data = await res.json();
-  return data.settings || {};
+  const settings = data.settings || {};
+  if (data.active_disasters) {
+    settings.active_disasters = data.active_disasters;
+  }
+  return settings;
 }
 
 export async function updateSettings(
@@ -43,6 +48,96 @@ export async function updateSettings(
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(settings),
+  });
+  return await res.json();
+}
+
+// Disaster Events API Client
+export async function fetchDisasters(
+  status?: string
+): Promise<DisasterEvent[]> {
+  const url = status
+    ? `${API_BASE}/disasters?status=${encodeURIComponent(status)}`
+    : `${API_BASE}/disasters`;
+  const res = await fetch(url);
+  const data: any = await res.json();
+  return data.disasters || [];
+}
+
+export async function createDisasterApi(
+  disaster: Partial<DisasterEvent>,
+  token?: string | null
+): Promise<{ success: boolean; disaster?: DisasterEvent; error?: string }> {
+  const res = await fetch(`${API_BASE}/disasters`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(disaster),
+  });
+  return await res.json();
+}
+
+export async function updateDisasterApi(
+  id: string,
+  disaster: Partial<DisasterEvent>,
+  token?: string | null
+): Promise<{ success: boolean; disaster?: DisasterEvent; error?: string }> {
+  const res = await fetch(`${API_BASE}/disasters/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(disaster),
+  });
+  return await res.json();
+}
+
+export async function archiveDisasterApi(
+  id: string,
+  token?: string | null
+): Promise<{ success: boolean; disaster?: DisasterEvent; error?: string }> {
+  const res = await fetch(
+    `${API_BASE}/disasters/${encodeURIComponent(id)}/archive`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+  return await res.json();
+}
+
+export async function activateDisasterApi(
+  id: string,
+  token?: string | null
+): Promise<{ success: boolean; disaster?: DisasterEvent; error?: string }> {
+  const res = await fetch(
+    `${API_BASE}/disasters/${encodeURIComponent(id)}/activate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+  );
+  return await res.json();
+}
+
+export async function deleteDisasterApi(
+  id: string,
+  token?: string | null
+): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch(`${API_BASE}/disasters/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
   return await res.json();
 }
@@ -275,7 +370,9 @@ export async function registerPasskey(
         prf: {},
       },
     };
-    attestationResponse = await startRegistration({ optionsJSON: regOptions as any });
+    attestationResponse = await startRegistration({
+      optionsJSON: regOptions as any,
+    });
   } catch (err: any) {
     if (
       err.name === 'NotAllowedError' &&
@@ -286,9 +383,14 @@ export async function registerPasskey(
         error: err.message || 'Passkey registration cancelled',
       };
     }
-    console.warn('Registration with PRF extension failed, retrying without PRF:', err);
+    console.warn(
+      'Registration with PRF extension failed, retrying without PRF:',
+      err
+    );
     try {
-      attestationResponse = await startRegistration({ optionsJSON: optData.options });
+      attestationResponse = await startRegistration({
+        optionsJSON: optData.options,
+      });
     } catch (retryErr: any) {
       return {
         success: false,
@@ -356,19 +458,32 @@ export async function loginPasskey(username?: string): Promise<{
         },
       },
     };
-    assertionResponse = await startAuthentication({ optionsJSON: authOptions as any });
+    assertionResponse = await startAuthentication({
+      optionsJSON: authOptions as any,
+    });
   } catch (err: any) {
     if (
       err.name === 'NotAllowedError' &&
       (err.message?.includes('cancel') || err.message?.includes('abort'))
     ) {
-      return { success: false, error: err.message || 'Passkey login cancelled' };
+      return {
+        success: false,
+        error: err.message || 'Passkey login cancelled',
+      };
     }
-    console.warn('Authentication with PRF extension failed, retrying without PRF:', err);
+    console.warn(
+      'Authentication with PRF extension failed, retrying without PRF:',
+      err
+    );
     try {
-      assertionResponse = await startAuthentication({ optionsJSON: optData.options });
+      assertionResponse = await startAuthentication({
+        optionsJSON: optData.options,
+      });
     } catch (retryErr: any) {
-      return { success: false, error: retryErr.message || 'Passkey login cancelled' };
+      return {
+        success: false,
+        error: retryErr.message || 'Passkey login cancelled',
+      };
     }
   }
 
@@ -944,4 +1059,3 @@ export async function importCsvApi(
     };
   }
 }
-

@@ -19,6 +19,12 @@
     triggerBackupApi,
     fetchBackupsApi,
     importCsvApi,
+    fetchDisasters,
+    createDisasterApi,
+    archiveDisasterApi,
+    activateDisasterApi,
+    deleteDisasterApi,
+    fetchSettings,
   } from './api';
   import type { BackupRecord, BackupResult } from './types';
   import {
@@ -64,11 +70,17 @@
     MapPin,
     Building,
     Search,
+    Archive,
+    ArchiveRestore,
+    Plus,
+    Calendar,
+    ChevronDown,
+    ChevronUp,
   } from '@lucide/svelte';
   import { themeManager, THEME_OPTIONS } from './theme.svelte';
   import * as m from '../paraglide/messages.js';
   import { searchMunicipalities, type Municipality } from './municipalityCodes';
-  import type { DisasterArea } from './types';
+  import type { DisasterArea, DisasterEvent, DisasterType } from './types';
 
   interface Props {
     settings: SystemSettings;
@@ -134,7 +146,9 @@
   let updateDuplicates = $state(true);
   let defaultCategoryId = $state('shelter');
   let isImportingCsv = $state(false);
-  let csvImportResult = $state<import('./api').ImportCsvResponse['stats'] | null>(null);
+  let csvImportResult = $state<
+    import('./api').ImportCsvResponse['stats'] | null
+  >(null);
   let csvStatusMessage = $state<{
     type: 'success' | 'error';
     text: string;
@@ -542,18 +556,256 @@
     }
   }
 
-  // Operation mode & disaster areas state
-  let operationMode = $state<'normal' | 'disaster'>('normal');
-  let disasterAreas = $state<DisasterArea[]>([]);
-  let muniSearchQuery = $state('');
-  let muniSearchResults = $state<Municipality[]>([]);
-  let isSearchingMuni = $state(false);
+  // Multi-Disaster Events State
+  let disastersList = $state<DisasterEvent[]>([]);
+  let isLoadingDisasters = $state(false);
+  let showNewDisasterForm = $state(false);
+  let showArchivedDisasters = $state(false);
+
+  // New disaster form
+  let newDisasterName = $state('');
+  let newDisasterType = $state<DisasterType>('earthquake');
+  let newDisasterDesignatedAt = $state(new Date().toISOString().slice(0, 16));
+  let newDisasterAreas = $state<DisasterArea[]>([]);
+  let newDisasterBannerMessage = $state('');
+  let newDisasterNote = $state('');
+  let isSubmittingDisaster = $state(false);
+  let disasterFormError = $state<string | null>(null);
+
+  // Muni search for new disaster form
+  let newMuniSearchQuery = $state('');
+  let newMuniSearchResults = $state<Municipality[]>([]);
+  let isSearchingNewMuni = $state(false);
+  let newMuniSearchTimer: any = null;
+
+  const activeDisasters = $derived(
+    disastersList.filter((d) => d.status === 'active')
+  );
+  const archivedDisasters = $derived(
+    disastersList.filter((d) => d.status === 'archived')
+  );
+
+  function getDisasterTypeLabel(type: DisasterType): string {
+    switch (type) {
+      case 'earthquake':
+        return m.disaster_type_earthquake();
+      case 'flood':
+        return m.disaster_type_flood();
+      case 'landslide':
+        return m.disaster_type_landslide();
+      case 'tsunami':
+        return m.disaster_type_tsunami();
+      case 'storm':
+        return m.disaster_type_storm();
+      case 'volcano':
+        return m.disaster_type_volcano();
+      case 'snow':
+        return m.disaster_type_snow();
+      default:
+        return m.disaster_type_other();
+    }
+  }
+
+  async function loadDisasters() {
+    isLoadingDisasters = true;
+    try {
+      disastersList = await fetchDisasters();
+    } catch (err: any) {
+      console.error('Failed to load disasters', err);
+    } finally {
+      isLoadingDisasters = false;
+    }
+  }
+
+  function handleNewMuniInput(e: Event) {
+    const q = (e.target as HTMLInputElement).value;
+    newMuniSearchQuery = q;
+    clearTimeout(newMuniSearchTimer);
+    if (!q.trim()) {
+      newMuniSearchResults = [];
+      isSearchingNewMuni = false;
+      return;
+    }
+    isSearchingNewMuni = true;
+    newMuniSearchTimer = setTimeout(async () => {
+      newMuniSearchResults = await searchMunicipalities(q.trim());
+      isSearchingNewMuni = false;
+    }, 180);
+  }
+
+  function handleAddNewDisasterArea(muni: Municipality) {
+    if (
+      !newDisasterAreas.some(
+        (a) => a.code === muni.code || a.name === muni.name
+      )
+    ) {
+      newDisasterAreas = [
+        ...newDisasterAreas,
+        {
+          code: muni.code,
+          name: muni.name,
+          pref: muni.pref,
+          fullName: muni.fullName,
+          lat: muni.lat,
+          lng: muni.lng,
+          isPrefecture: muni.isPrefecture,
+        },
+      ];
+    }
+    newMuniSearchQuery = '';
+    newMuniSearchResults = [];
+  }
+
+  function handleRemoveNewDisasterArea(code: string) {
+    newDisasterAreas = newDisasterAreas.filter((a) => a.code !== code);
+  }
+
+  async function handleCreateDisaster() {
+    if (!newDisasterName.trim()) {
+      disasterFormError = '災害名を入力してください';
+      return;
+    }
+    isSubmittingDisaster = true;
+    disasterFormError = null;
+    try {
+      const res = await createDisasterApi(
+        {
+          name: newDisasterName.trim(),
+          disaster_type: newDisasterType,
+          designated_at: newDisasterDesignatedAt
+            ? new Date(newDisasterDesignatedAt).toISOString()
+            : new Date().toISOString(),
+          areas: newDisasterAreas,
+          banner_message: newDisasterBannerMessage.trim() || undefined,
+          note: newDisasterNote.trim() || undefined,
+        },
+        token
+      );
+      if (!res.success) {
+        throw new Error(res.error || '災害の登録に失敗しました');
+      }
+      newDisasterName = '';
+      newDisasterType = 'earthquake';
+      newDisasterDesignatedAt = new Date().toISOString().slice(0, 16);
+      newDisasterAreas = [];
+      newDisasterBannerMessage = '';
+      newDisasterNote = '';
+      showNewDisasterForm = false;
+
+      await loadDisasters();
+      const updated = await fetchSettings();
+      onSettingsUpdated(updated);
+    } catch (err: any) {
+      disasterFormError = err.message || '災害の登録に失敗しました';
+    } finally {
+      isSubmittingDisaster = false;
+    }
+  }
+
+  async function handleArchiveDisaster(disaster: DisasterEvent) {
+    if (
+      !confirm(
+        `災害「${disaster.name}」を収束・アーカイブしますか？\n進行中の災害が0件になると、システムは自動的に平時モードに戻ります。`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await archiveDisasterApi(disaster.id, token);
+      if (!res.success) {
+        throw new Error(res.error || 'アーカイブに失敗しました');
+      }
+      await loadDisasters();
+      const updated = await fetchSettings();
+      onSettingsUpdated(updated);
+    } catch (err: any) {
+      alert('アーカイブに失敗しました: ' + err.message);
+    }
+  }
+
+  async function handleActivateDisaster(disaster: DisasterEvent) {
+    try {
+      const res = await activateDisasterApi(disaster.id, token);
+      if (!res.success) {
+        throw new Error(res.error || '再開に失敗しました');
+      }
+      await loadDisasters();
+      const updated = await fetchSettings();
+      onSettingsUpdated(updated);
+    } catch (err: any) {
+      alert('再開に失敗しました: ' + err.message);
+    }
+  }
+
+  async function handleDeleteDisaster(disaster: DisasterEvent) {
+    if (
+      !confirm(
+        `災害「${disaster.name}」を削除しますか？\nこの操作は取り消せません。`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await deleteDisasterApi(disaster.id, token);
+      if (!res.success) {
+        throw new Error(res.error || '削除に失敗しました');
+      }
+      await loadDisasters();
+      const updated = await fetchSettings();
+      onSettingsUpdated(updated);
+    } catch (err: any) {
+      alert('削除に失敗しました: ' + err.message);
+    }
+  }
+
   let isFetchingDisasterShelters = $state(false);
   let disasterShelterMessage = $state<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
   let fetchedDisasterShelters = $state<any[]>([]);
+
+  async function handleFetchSheltersForDisaster(disaster: DisasterEvent) {
+    if (!disaster.areas || disaster.areas.length === 0) {
+      alert('この災害には対象地域が設定されていません。');
+      return;
+    }
+    isFetchingDisasterShelters = true;
+    disasterShelterMessage = null;
+    fetchedDisasterShelters = [];
+
+    try {
+      const res = await fetch('/api/opendata/disaster-areas/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ areas: disaster.areas }),
+      });
+
+      if (!res.ok) throw new Error('避難所データの取得に失敗しました');
+      const data: any = await res.json();
+      if (data.success && Array.isArray(data.shelters)) {
+        fetchedDisasterShelters = data.shelters;
+        disasterShelterMessage = {
+          type: 'success',
+          text: `【${disaster.name}】${m.admin_disaster_fetched_count({ count: data.count })}`,
+        };
+        handleTransferDisasterSheltersToImport();
+      } else {
+        throw new Error(data.error || 'データが見つかりませんでした');
+      }
+    } catch (err: any) {
+      disasterShelterMessage = {
+        type: 'error',
+        text: err.message || '取得エラーが発生しました',
+      };
+    } finally {
+      isFetchingDisasterShelters = false;
+    }
+  }
+
+  // Operation mode & disaster areas state (settings sync)
+  let operationMode = $state<'normal' | 'disaster'>('normal');
+  let disasterAreas = $state<DisasterArea[]>([]);
 
   $effect(() => {
     emergencyBanner = settings.emergency_banner || '';
@@ -568,87 +820,6 @@
       }
     }
   });
-
-  let muniSearchTimer: any = null;
-  function handleMuniInput(e: Event) {
-    const q = (e.target as HTMLInputElement).value;
-    muniSearchQuery = q;
-    clearTimeout(muniSearchTimer);
-    if (!q.trim()) {
-      muniSearchResults = [];
-      isSearchingMuni = false;
-      return;
-    }
-    isSearchingMuni = true;
-    muniSearchTimer = setTimeout(async () => {
-      muniSearchResults = await searchMunicipalities(q.trim());
-      isSearchingMuni = false;
-    }, 180);
-  }
-
-  function handleAddDisasterArea(muni: Municipality) {
-    if (
-      !disasterAreas.some(
-        (a) => a.code === muni.code || a.name === muni.name
-      )
-    ) {
-      disasterAreas = [
-        ...disasterAreas,
-        {
-          code: muni.code,
-          name: muni.name,
-          pref: muni.pref,
-          fullName: muni.fullName,
-          lat: muni.lat,
-          lng: muni.lng,
-          isPrefecture: muni.isPrefecture,
-        },
-      ];
-      if (!defaultArea) {
-        defaultArea = muni.fullName;
-      }
-    }
-    muniSearchQuery = '';
-    muniSearchResults = [];
-  }
-
-  function handleRemoveDisasterArea(code: string) {
-    disasterAreas = disasterAreas.filter((a) => a.code !== code);
-  }
-
-  async function handleFetchDisasterShelters() {
-    if (disasterAreas.length === 0) return;
-    isFetchingDisasterShelters = true;
-    disasterShelterMessage = null;
-    fetchedDisasterShelters = [];
-
-    try {
-      const res = await fetch('/api/opendata/disaster-areas/fetch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ areas: disasterAreas }),
-      });
-
-      if (!res.ok) throw new Error('避難所データの取得に失敗しました');
-      const data: any = await res.json();
-      if (data.success && Array.isArray(data.shelters)) {
-        fetchedDisasterShelters = data.shelters;
-        disasterShelterMessage = {
-          type: 'success',
-          text: `国土地理院・公的オープンデータから ${data.count} 件の指定緊急避難場所を取得しました`,
-        };
-      } else {
-        throw new Error(data.error || 'データが見つかりませんでした');
-      }
-    } catch (err: any) {
-      disasterShelterMessage = {
-        type: 'error',
-        text: err.message || '取得エラーが発生しました',
-      };
-    } finally {
-      isFetchingDisasterShelters = false;
-    }
-  }
 
   function handleTransferDisasterSheltersToImport() {
     if (fetchedDisasterShelters.length === 0) return;
@@ -683,7 +854,9 @@
     csvRawText = csvLines;
     csvFileName = 'disaster-shelters-opendata.csv';
     const parsed = parseCsv(csvLines);
-    availableSheets = [{ name: '国土地理院避難所オープンデータ', data: parsed }];
+    availableSheets = [
+      { name: '国土地理院避難所オープンデータ', data: parsed },
+    ];
     isExcelMode = false;
     selectedSheetIndex = 0;
     applySheetData(parsed);
@@ -1004,13 +1177,13 @@
     aria-labelledby="admin-modal-title"
     use:focusTrap={{ onEscape: onClose }}
     use:swipeDown={onClose}
-    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {
-      !user
-        ? 'w-full max-w-xl max-h-[94vh] sm:max-h-[90vh]'
-        : isFullscreen
-          ? 'w-full h-full max-w-none rounded-t-2xl sm:rounded-2xl'
-          : 'w-full max-w-5xl xl:max-w-6xl h-[96vh] sm:h-[90vh]'
-    } {isTop ? 'scale-100 opacity-100' : 'pointer-events-none scale-[0.97] opacity-85'}"
+    class="animate-in fade-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 flex flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-all duration-200 sm:rounded-2xl dark:bg-slate-900 dark:text-slate-100 {!user
+      ? 'max-h-[94vh] w-full max-w-xl sm:max-h-[90vh]'
+      : isFullscreen
+        ? 'h-full w-full max-w-none rounded-t-2xl sm:rounded-2xl'
+        : 'h-[96vh] w-full max-w-5xl sm:h-[90vh] xl:max-w-6xl'} {isTop
+      ? 'scale-100 opacity-100'
+      : 'pointer-events-none scale-[0.97] opacity-85'}"
   >
     <!-- Mobile drag handle -->
     <div
@@ -1027,11 +1200,16 @@
           id="admin-modal-title"
           class="text-base font-black text-slate-900 dark:text-white"
         >
-          {user ? (user.role === 'admin' ? 'システム管理ダッシュボード' : 'アカウント設定') : 'Passkey 認証・設定'}
+          {user
+            ? user.role === 'admin'
+              ? 'システム管理ダッシュボード'
+              : 'アカウント設定'
+            : 'Passkey 認証・設定'}
         </h2>
         {#if user}
           <span
-            class="hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold sm:inline-flex {user.role === 'admin'
+            class="hidden items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold sm:inline-flex {user.role ===
+            'admin'
               ? 'border border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
               : 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300'}"
           >
@@ -1045,7 +1223,9 @@
           <button
             type="button"
             onclick={() => (isFullscreen = !isFullscreen)}
-            aria-label={isFullscreen ? '元のサイズに戻す' : '画面いっぱいに広げる'}
+            aria-label={isFullscreen
+              ? '元のサイズに戻す'
+              : '画面いっぱいに広げる'}
             title={isFullscreen ? '元のサイズに戻す' : '画面いっぱいに広げる'}
             class="hidden cursor-pointer rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-800 sm:inline-flex dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
           >
@@ -1449,190 +1629,543 @@
                 <div
                   class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/30"
                 >
-                  <h3
-                    class="text-xs font-bold text-slate-800 dark:text-slate-200"
-                  >
-                    {m.admin_mode_title()}
-                  </h3>
-
-                  <!-- Operation Mode Selector (Normal vs Disaster) -->
+                  <!-- Current System Operation Mode Status Banner -->
                   <div
-                    class="grid grid-cols-2 gap-2 rounded-xl bg-slate-200/80 p-1.5 dark:bg-slate-800"
+                    class="flex flex-col gap-2 rounded-xl p-3.5 transition {activeDisasters.length >
+                    0
+                      ? 'border border-red-300 bg-red-50 text-red-900 shadow-xs dark:border-red-800 dark:bg-red-950/50 dark:text-red-200'
+                      : 'border border-emerald-200 bg-emerald-50/80 text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-200'}"
                   >
-                    <button
-                      type="button"
-                      onclick={() => {
-                        operationMode = 'normal';
-                      }}
-                      class="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition {operationMode ===
-                      'normal'
-                        ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
-                    >
-                      <Building class="h-3.5 w-3.5" />
-                      <span>{m.admin_mode_normal()}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onclick={() => {
-                        operationMode = 'disaster';
-                      }}
-                      class="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-bold transition {operationMode ===
-                      'disaster'
-                        ? 'bg-red-600 text-white shadow-sm shadow-red-500/30'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200'}"
-                    >
-                      <AlertTriangle class="h-3.5 w-3.5" />
-                      <span>{m.admin_mode_disaster()}</span>
-                    </button>
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        {#if activeDisasters.length > 0}
+                          <AlertTriangle
+                            class="h-4 w-4 text-red-600 dark:text-red-400"
+                          />
+                          <span class="text-xs font-black">
+                            {m.admin_disasters_active_count({
+                              count: activeDisasters.length,
+                            })}
+                          </span>
+                        {:else}
+                          <Building
+                            class="h-4 w-4 text-emerald-600 dark:text-emerald-400"
+                          />
+                          <span class="text-xs font-black">
+                            {m.admin_disasters_normal_state()}
+                          </span>
+                        {/if}
+                      </div>
+                      <span
+                        class="rounded-full px-2 py-0.5 text-[10px] font-semibold {activeDisasters.length >
+                        0
+                          ? 'bg-red-200 text-red-800 dark:bg-red-900/80 dark:text-red-200'
+                          : 'bg-emerald-200 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-200'}"
+                      >
+                        {activeDisasters.length > 0
+                          ? '自動発災モード中'
+                          : '通常稼働中'}
+                      </span>
+                    </div>
+                    <p class="text-[11px] leading-relaxed opacity-90">
+                      {activeDisasters.length > 0
+                        ? `現在 ${activeDisasters.length} 件の災害事象が進行中のため、システムは自動的に有事・発災モードとして稼働しています。`
+                        : '現在進行中の災害事象はありません。システムは平時（日常・地域生活情報）モードとして稼働しています。'}
+                    </p>
                   </div>
 
-                  <!-- Disaster Areas (Municipalities) Specification (when in disaster mode) -->
-                  {#if operationMode === 'disaster'}
-                    <div
-                      class="flex flex-col gap-2.5 rounded-xl border border-red-200 bg-red-50/60 p-3 dark:border-red-900/50 dark:bg-red-950/30"
-                    >
-                      <div class="flex items-center gap-1.5">
-                        <MapPin class="h-4 w-4 text-red-600 dark:text-red-400" />
-                        <span
-                          class="text-xs font-extrabold text-red-900 dark:text-red-300"
-                        >
-                          {m.admin_disaster_areas_title()}
-                        </span>
-                      </div>
-                      <p
-                        class="text-[11px] leading-relaxed text-red-800/90 dark:text-red-300/90"
+                  <!-- Active Disasters Management -->
+                  <div class="flex flex-col gap-3">
+                    <div class="flex items-center justify-between">
+                      <h4
+                        class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
                       >
-                        {m.admin_disaster_areas_desc()}
-                      </p>
+                        <AlertTriangle class="h-3.5 w-3.5 text-red-600" />
+                        <span>{m.admin_disasters_title()}</span>
+                      </h4>
+                      <button
+                        type="button"
+                        onclick={() =>
+                          (showNewDisasterForm = !showNewDisasterForm)}
+                        class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-red-300 bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-950/60 dark:text-red-300"
+                      >
+                        <Plus class="h-3.5 w-3.5" />
+                        <span>{m.admin_disasters_add_btn()}</span>
+                      </button>
+                    </div>
 
-                      <!-- Selected Municipality Chips -->
-                      {#if disasterAreas.length > 0}
-                        <div class="flex flex-wrap gap-1.5 py-1">
-                          {#each disasterAreas as area (area.code)}
-                            <span
-                              class="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-2 py-1 text-xs font-bold text-red-800 shadow-xs dark:border-red-800 dark:bg-slate-900 dark:text-red-200"
-                            >
-                              <span>{area.fullName}</span>
-                              {#if area.isPrefecture}
-                                <span
-                                  class="rounded bg-red-100 px-1 py-0.2 text-[9px] font-bold text-red-700 dark:bg-red-900/60 dark:text-red-300"
-                                >
-                                  県全域
-                                </span>
-                              {/if}
-                              <span
-                                class="text-[10px] text-slate-500 dark:text-slate-400"
-                              >
-                                ({area.code})
-                              </span>
-                              <button
-                                type="button"
-                                onclick={() => handleRemoveDisasterArea(area.code)}
-                                class="ml-0.5 cursor-pointer rounded text-red-500 hover:text-red-700 dark:hover:text-red-300"
-                                aria-label="{area.fullName}を削除"
-                              >
-                                <X class="h-3 w-3" />
-                              </button>
-                            </span>
-                          {/each}
-                        </div>
-                      {/if}
-
-                      <!-- Municipality Autocomplete Search Input -->
-                      <div class="relative">
-                        <div class="relative flex items-center">
-                          <Search
-                            class="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-slate-400"
-                          />
-                          <input
-                            type="text"
-                            value={muniSearchQuery}
-                            oninput={handleMuniInput}
-                            placeholder={m.admin_disaster_search_placeholder()}
-                            class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                          />
-                          {#if isSearchingMuni}
-                            <RefreshCw
-                              class="pointer-events-none absolute right-2.5 h-3.5 w-3.5 animate-spin text-slate-400"
-                            />
-                          {/if}
-                        </div>
-
-                        <!-- Autocomplete Suggestions Dropdown -->
-                        {#if muniSearchResults.length > 0}
-                          <div
-                            class="absolute top-full z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                    <!-- New Disaster Registration Form (Collapsible) -->
+                    {#if showNewDisasterForm}
+                      <div
+                        class="flex flex-col gap-3 rounded-xl border border-red-300 bg-red-50/70 p-3.5 shadow-xs dark:border-red-800 dark:bg-red-950/40"
+                      >
+                        <div
+                          class="flex items-center justify-between border-b border-red-200 pb-2 dark:border-red-900/60"
+                        >
+                          <span
+                            class="text-xs font-extrabold text-red-900 dark:text-red-200"
                           >
-                            {#each muniSearchResults as item (item.code + item.name)}
-                              <button
-                                type="button"
-                                onclick={() => handleAddDisasterArea(item)}
-                                class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-red-50 dark:hover:bg-red-950/40"
+                            {m.admin_disasters_add_btn()}
+                          </span>
+                          <button
+                            type="button"
+                            onclick={() => (showNewDisasterForm = false)}
+                            class="text-red-500 hover:text-red-700 dark:hover:text-red-300"
+                          >
+                            <X class="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <!-- Disaster Name -->
+                        <div>
+                          <label
+                            for="new-disaster-name"
+                            class="mb-1 block text-[11px] font-bold text-red-900 dark:text-red-300"
+                          >
+                            {m.admin_disasters_name_label()}
+                            <span class="text-red-500">*</span>
+                          </label>
+                          <input
+                            id="new-disaster-name"
+                            type="text"
+                            bind:value={newDisasterName}
+                            placeholder={m.admin_disasters_name_placeholder()}
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+
+                        <!-- Type & Designated At -->
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div>
+                            <label
+                              for="new-disaster-type"
+                              class="mb-1 block text-[11px] font-bold text-red-900 dark:text-red-300"
+                            >
+                              {m.admin_disasters_type_label()}
+                            </label>
+                            <select
+                              id="new-disaster-type"
+                              bind:value={newDisasterType}
+                              class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-red-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                            >
+                              <option value="earthquake"
+                                >{m.disaster_type_earthquake()}</option
                               >
-                                <span class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100">
-                                  {#if item.isPrefecture}
+                              <option value="flood"
+                                >{m.disaster_type_flood()}</option
+                              >
+                              <option value="landslide"
+                                >{m.disaster_type_landslide()}</option
+                              >
+                              <option value="tsunami"
+                                >{m.disaster_type_tsunami()}</option
+                              >
+                              <option value="storm"
+                                >{m.disaster_type_storm()}</option
+                              >
+                              <option value="volcano"
+                                >{m.disaster_type_volcano()}</option
+                              >
+                              <option value="snow"
+                                >{m.disaster_type_snow()}</option
+                              >
+                              <option value="other"
+                                >{m.disaster_type_other()}</option
+                              >
+                            </select>
+                          </div>
+                          <div>
+                            <label
+                              for="new-disaster-designated-at"
+                              class="mb-1 block text-[11px] font-bold text-red-900 dark:text-red-300"
+                            >
+                              発災・指定日時
+                            </label>
+                            <input
+                              id="new-disaster-designated-at"
+                              type="datetime-local"
+                              bind:value={newDisasterDesignatedAt}
+                              class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-red-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- Target Municipalities Selection -->
+                        <div>
+                          <span
+                            class="mb-1 block text-[11px] font-bold text-red-900 dark:text-red-300"
+                          >
+                            {m.admin_disaster_areas_title()}
+                          </span>
+                          <p
+                            class="mb-1.5 text-[10px] text-red-800/80 dark:text-red-300/80"
+                          >
+                            {m.admin_disaster_areas_desc()}
+                          </p>
+
+                          <!-- Selected Area Chips in Form -->
+                          {#if newDisasterAreas.length > 0}
+                            <div class="mb-2 flex flex-wrap gap-1">
+                              {#each newDisasterAreas as area (area.code)}
+                                <span
+                                  class="inline-flex items-center gap-1 rounded border border-red-300 bg-white px-2 py-0.5 text-xs font-bold text-red-800 shadow-2xs dark:border-red-800 dark:bg-slate-900 dark:text-red-200"
+                                >
+                                  <span>{area.fullName}</span>
+                                  {#if area.isPrefecture}
                                     <span
-                                      class="rounded bg-red-100 px-1 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-900/60 dark:text-red-300"
+                                      class="rounded bg-red-100 px-1 text-[9px] font-bold text-red-700 dark:bg-red-900/60 dark:text-red-300"
                                     >
                                       県全域
                                     </span>
                                   {/if}
-                                  {item.fullName}
+                                  <button
+                                    type="button"
+                                    onclick={() =>
+                                      handleRemoveNewDisasterArea(area.code)}
+                                    class="ml-0.5 text-red-500 hover:text-red-700 dark:hover:text-red-300"
+                                  >
+                                    <X class="h-3 w-3" />
+                                  </button>
                                 </span>
-                                <span
-                                  class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                              {/each}
+                            </div>
+                          {/if}
+
+                          <!-- Search Input -->
+                          <div class="relative">
+                            <div class="relative flex items-center">
+                              <Search
+                                class="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-slate-400"
+                              />
+                              <input
+                                type="text"
+                                value={newMuniSearchQuery}
+                                oninput={handleNewMuniInput}
+                                placeholder={m.admin_disaster_search_placeholder()}
+                                class="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-8 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                              />
+                              {#if isSearchingNewMuni}
+                                <RefreshCw
+                                  class="pointer-events-none absolute right-2.5 h-3.5 w-3.5 animate-spin text-slate-400"
+                                />
+                              {/if}
+                            </div>
+
+                            {#if newMuniSearchResults.length > 0}
+                              <div
+                                class="absolute top-full z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                              >
+                                {#each newMuniSearchResults as item (item.code + item.name)}
+                                  <button
+                                    type="button"
+                                    onclick={() =>
+                                      handleAddNewDisasterArea(item)}
+                                    class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-red-50 dark:hover:bg-red-950/40"
+                                  >
+                                    <span
+                                      class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-100"
+                                    >
+                                      {#if item.isPrefecture}
+                                        <span
+                                          class="rounded bg-red-100 px-1 py-0.5 text-[9px] font-bold text-red-700 dark:bg-red-900/60 dark:text-red-300"
+                                        >
+                                          県全域
+                                        </span>
+                                      {/if}
+                                      {item.fullName}
+                                    </span>
+                                    <span
+                                      class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                                    >
+                                      {item.code}
+                                    </span>
+                                  </button>
+                                {/each}
+                              </div>
+                            {/if}
+                          </div>
+                        </div>
+
+                        <!-- Banner Message & Note -->
+                        <div>
+                          <label
+                            for="new-disaster-banner"
+                            class="mb-1 block text-[11px] font-bold text-red-900 dark:text-red-300"
+                          >
+                            緊急告知文（任意）
+                          </label>
+                          <input
+                            id="new-disaster-banner"
+                            type="text"
+                            bind:value={newDisasterBannerMessage}
+                            placeholder="ヘッダーに表示する緊急テキスト（空欄時は災害名を表示）"
+                            class="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-red-500 focus:outline-hidden dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+
+                        {#if disasterFormError}
+                          <div
+                            class="text-xs font-bold text-red-600 dark:text-red-400"
+                          >
+                            ⚠️ {disasterFormError}
+                          </div>
+                        {/if}
+
+                        <button
+                          type="button"
+                          onclick={handleCreateDisaster}
+                          disabled={isSubmittingDisaster}
+                          class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-red-600 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {#if isSubmittingDisaster}
+                            <RefreshCw class="h-3.5 w-3.5 animate-spin" />
+                            <span>登録中...</span>
+                          {:else}
+                            <AlertTriangle class="h-3.5 w-3.5" />
+                            <span>{m.admin_disasters_save_btn()}</span>
+                          {/if}
+                        </button>
+                      </div>
+                    {/if}
+
+                    <!-- Active Disasters List Cards -->
+                    {#if isLoadingDisasters}
+                      <div class="flex items-center justify-center p-4 text-xs text-slate-500">
+                        <RefreshCw class="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        <span>災害情報を読み込み中...</span>
+                      </div>
+                    {:else if activeDisasters.length === 0}
+                      <div
+                        class="rounded-xl border border-dashed border-slate-300 p-4 text-center text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400"
+                      >
+                        {m.admin_disasters_empty()}
+                      </div>
+                    {:else}
+                      <div class="flex flex-col gap-2.5">
+                        {#each activeDisasters as disaster (disaster.id)}
+                          <div
+                            class="flex flex-col gap-2 rounded-xl border border-red-200 bg-white p-3 shadow-xs dark:border-red-900/60 dark:bg-slate-800/80"
+                          >
+                            <div class="flex items-start justify-between gap-2">
+                              <div>
+                                <div class="flex items-center gap-1.5">
+                                  <span
+                                    class="rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-black text-white"
+                                  >
+                                    {getDisasterTypeLabel(
+                                      disaster.disaster_type
+                                    )}
+                                  </span>
+                                  <h5
+                                    class="text-xs font-extrabold text-slate-900 dark:text-slate-100"
+                                  >
+                                    {disaster.name}
+                                  </h5>
+                                </div>
+                                {#if disaster.designated_at}
+                                  <div
+                                    class="mt-1 flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400"
+                                  >
+                                    <Calendar class="h-3 w-3" />
+                                    <span
+                                      >{new Date(
+                                        disaster.designated_at
+                                      ).toLocaleString()}</span
+                                    >
+                                  </div>
+                                {/if}
+                              </div>
+
+                              <div class="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onclick={() =>
+                                    handleArchiveDisaster(disaster)}
+                                  class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 shadow-2xs transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                                  title={m.admin_disasters_archive_btn()}
                                 >
-                                  {item.code}
+                                  <Archive
+                                    class="h-3 w-3 text-slate-600 dark:text-slate-300"
+                                  />
+                                  <span>{m.admin_disasters_archive_btn()}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onclick={() => handleDeleteDisaster(disaster)}
+                                  class="rounded-md p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                                  title="削除"
+                                >
+                                  <Trash2 class="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <!-- Designated Municipalities in this Disaster -->
+                            {#if disaster.areas && disaster.areas.length > 0}
+                              <div
+                                class="flex flex-wrap items-center gap-1 pt-1"
+                              >
+                                <span
+                                  class="flex items-center gap-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400"
+                                >
+                                  <MapPin class="h-3 w-3 text-red-500" />
+                                  <span>被災地域:</span>
                                 </span>
-                              </button>
+                                {#each disaster.areas as area (area.code)}
+                                  <span
+                                    class="inline-flex items-center gap-0.5 rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-300"
+                                  >
+                                    <span>{area.name}</span>
+                                    {#if area.isPrefecture}
+                                      <span class="text-[9px] opacity-75"
+                                        >(全域)</span
+                                      >
+                                    {/if}
+                                  </span>
+                                {/each}
+                              </div>
+                            {/if}
+
+                            <!-- Banner message if any -->
+                            {#if disaster.banner_message}
+                              <div
+                                class="rounded bg-red-50 px-2 py-1 text-[11px] text-red-800 dark:bg-red-950/40 dark:text-red-300"
+                              >
+                                📢 {disaster.banner_message}
+                              </div>
+                            {/if}
+
+                            <!-- Action: Fetch Shelters for this Disaster -->
+                            {#if disaster.areas && disaster.areas.length > 0}
+                              <div class="pt-1">
+                                <button
+                                  type="button"
+                                  onclick={() =>
+                                    handleFetchSheltersForDisaster(disaster)}
+                                  disabled={isFetchingDisasterShelters}
+                                  class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-950/50 dark:text-red-300"
+                                >
+                                  {#if isFetchingDisasterShelters}
+                                    <RefreshCw
+                                      class="h-3.5 w-3.5 animate-spin"
+                                    />
+                                    <span>{m.admin_disaster_fetching()}</span>
+                                  {:else}
+                                    <Building class="h-3.5 w-3.5" />
+                                    <span
+                                      >【{disaster.name}】{m.admin_disaster_fetch_btn()}</span
+                                    >
+                                  {/if}
+                                </button>
+                              </div>
+                            {/if}
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+
+                    <!-- Fetch result notice -->
+                    {#if disasterShelterMessage}
+                      <div
+                        class="rounded-lg p-2 text-xs font-semibold {disasterShelterMessage.type ===
+                        'success'
+                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}"
+                      >
+                        <p>{disasterShelterMessage.text}</p>
+                        {#if fetchedDisasterShelters.length > 0}
+                          <button
+                            type="button"
+                            onclick={handleTransferDisasterSheltersToImport}
+                            class="mt-1.5 flex cursor-pointer items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
+                          >
+                            <span
+                              >{m.admin_disaster_import_now()} (→ {fetchedDisasterShelters.length}
+                              件)</span
+                            >
+                          </button>
+                        {/if}
+                      </div>
+                    {/if}
+
+                    <!-- Archived Disasters Collapsible -->
+                    {#if archivedDisasters.length > 0}
+                      <div
+                        class="mt-2 rounded-xl border border-slate-200 bg-slate-100/70 p-3 dark:border-slate-700/60 dark:bg-slate-800/50"
+                      >
+                        <button
+                          type="button"
+                          onclick={() =>
+                            (showArchivedDisasters = !showArchivedDisasters)}
+                          class="flex w-full cursor-pointer items-center justify-between text-left text-xs font-bold text-slate-700 dark:text-slate-300"
+                        >
+                          <span class="flex items-center gap-1.5">
+                            <Archive class="h-3.5 w-3.5 text-slate-500" />
+                            <span
+                              >{m.admin_disasters_archived_title()} ({archivedDisasters.length}
+                              件)</span
+                            >
+                          </span>
+                          {#if showArchivedDisasters}
+                            <ChevronUp class="h-4 w-4 text-slate-400" />
+                          {:else}
+                            <ChevronDown class="h-4 w-4 text-slate-400" />
+                          {/if}
+                        </button>
+
+                        {#if showArchivedDisasters}
+                          <div class="mt-2.5 flex flex-col gap-2">
+                            {#each archivedDisasters as arch (arch.id)}
+                              <div
+                                class="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-2xs dark:border-slate-700 dark:bg-slate-800"
+                              >
+                                <div>
+                                  <div
+                                    class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200"
+                                  >
+                                    <span
+                                      class="py-0.2 rounded bg-slate-200 px-1.5 text-[9px] text-slate-700 dark:bg-slate-700 dark:text-slate-300"
+                                    >
+                                      {getDisasterTypeLabel(arch.disaster_type)}
+                                    </span>
+                                    <span>{arch.name}</span>
+                                  </div>
+                                  {#if arch.designated_at}
+                                    <span class="text-[10px] text-slate-400">
+                                      {new Date(
+                                        arch.designated_at
+                                      ).toLocaleDateString()}
+                                    </span>
+                                  {/if}
+                                </div>
+                                <div class="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onclick={() => handleActivateDisaster(arch)}
+                                    class="inline-flex cursor-pointer items-center gap-1 rounded bg-blue-50 px-2 py-1 text-[10px] font-bold text-blue-700 transition hover:bg-blue-100 dark:bg-blue-950/60 dark:text-blue-300"
+                                    title={m.admin_disasters_activate_btn()}
+                                  >
+                                    <ArchiveRestore class="h-3 w-3" />
+                                    <span
+                                      >{m.admin_disasters_activate_btn()}</span
+                                    >
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onclick={() => handleDeleteDisaster(arch)}
+                                    class="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400"
+                                    title="削除"
+                                  >
+                                    <Trash2 class="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
                             {/each}
                           </div>
                         {/if}
                       </div>
-
-                      <!-- Auto-fetch Shelters Button for Selected Areas -->
-                      {#if disasterAreas.length > 0}
-                        <div class="pt-1">
-                          <button
-                            type="button"
-                            onclick={handleFetchDisasterShelters}
-                            disabled={isFetchingDisasterShelters}
-                            class="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-red-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-red-700 disabled:opacity-50"
-                          >
-                            {#if isFetchingDisasterShelters}
-                              <RefreshCw class="h-3.5 w-3.5 animate-spin" />
-                              <span>{m.admin_disaster_fetching()}</span>
-                            {:else}
-                              <Building class="h-3.5 w-3.5" />
-                              <span>{m.admin_disaster_fetch_btn()}</span>
-                            {/if}
-                          </button>
-                        </div>
-                      {/if}
-
-                      <!-- Fetch result notice -->
-                      {#if disasterShelterMessage}
-                        <div
-                          class="rounded-lg p-2 text-xs font-semibold {disasterShelterMessage.type ===
-                          'success'
-                            ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200'}"
-                        >
-                          <p>{disasterShelterMessage.text}</p>
-                          {#if fetchedDisasterShelters.length > 0}
-                            <button
-                              type="button"
-                              onclick={handleTransferDisasterSheltersToImport}
-                              class="mt-1.5 flex cursor-pointer items-center gap-1 rounded bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700"
-                            >
-                              <span>{m.admin_disaster_import_now()} (→ {fetchedDisasterShelters.length} 件)</span>
-                            </button>
-                          {/if}
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
+                    {/if}
+                  </div>
 
                   <!-- Emergency announcement banner -->
                   <div>
@@ -1697,9 +2230,7 @@
                     <Radio class="h-4 w-4" />
                     <span>緊急プッシュ一斉配信 (Web Push Broadcast)</span>
                   </div>
-                  <p
-                    class="text-[11px] text-slate-600 dark:text-slate-400"
-                  >
+                  <p class="text-[11px] text-slate-600 dark:text-slate-400">
                     購読登録済みの全端末に、画面を閉じていても即座に通知をプッシュ配信します。
                   </p>
 
@@ -1796,7 +2327,9 @@
                   <div
                     class="py-12 text-center text-xs text-slate-400 dark:text-slate-500"
                   >
-                    <RefreshCw class="mx-auto mb-2 h-5 w-5 animate-spin text-blue-500" />
+                    <RefreshCw
+                      class="mx-auto mb-2 h-5 w-5 animate-spin text-blue-500"
+                    />
                     ユーザー一覧を読み込み中...
                   </div>
                 {:else if userList.length === 0}
@@ -1806,7 +2339,9 @@
                     ユーザーが見つかりません
                   </div>
                 {:else}
-                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                  >
                     {#each userList as u (u.id)}
                       <div
                         class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3.5 shadow-2xs transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-800/60 dark:hover:border-slate-700"
@@ -1823,7 +2358,9 @@
                             <div
                               class="flex items-center gap-1.5 truncate text-xs font-bold text-slate-900 dark:text-slate-100"
                             >
-                              <span class="truncate">{u.displayName || u.username}</span>
+                              <span class="truncate"
+                                >{u.displayName || u.username}</span
+                              >
                               {#if u.id === user.id}
                                 <span
                                   class="shrink-0 text-[10px] font-bold text-blue-600 dark:text-blue-400"
@@ -1840,13 +2377,17 @@
                         </div>
 
                         <!-- Role badge & update action -->
-                        <div class="flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-700/60">
+                        <div
+                          class="flex items-center justify-between border-t border-slate-100 pt-2.5 dark:border-slate-700/60"
+                        >
                           <div>
                             {#if u.role === 'admin'}
                               <span
                                 class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                               >
-                                <Crown class="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                                <Crown
+                                  class="h-3 w-3 text-amber-600 dark:text-amber-400"
+                                />
                                 管理者
                               </span>
                             {:else}
@@ -1966,10 +2507,14 @@
                       <FileUp class="h-5 w-5" />
                     </div>
 
-                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <div
+                      class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                    >
                       ここに Excel (.xlsx) / CSV / TSV ファイルをドロップ
                     </div>
-                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                    <p
+                      class="mt-1 text-[11px] text-slate-500 dark:text-slate-400"
+                    >
                       または
                       <button
                         type="button"
@@ -1980,7 +2525,9 @@
                       </button>
                     </p>
 
-                    <div class="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+                    <div
+                      class="mt-3 flex flex-wrap items-center justify-center gap-1.5"
+                    >
                       <span
                         class="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
                       >
@@ -1999,9 +2546,13 @@
                     <div
                       class="flex flex-col gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/30"
                     >
-                      <div class="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                      <div
+                        class="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200"
+                      >
                         <span class="flex items-center gap-1.5">
-                          <FileSpreadsheet class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          <FileSpreadsheet
+                            class="h-4 w-4 text-emerald-600 dark:text-emerald-400"
+                          />
                           複数のシートを検出 ({availableSheets.length} 枚)
                         </span>
                       </div>
@@ -2077,7 +2628,9 @@
                       onclick={handleLoadSampleCsv}
                       class="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     >
-                      <FileSpreadsheet class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      <FileSpreadsheet
+                        class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+                      />
                       <span>サンプルを読込</span>
                     </button>
                     <button
@@ -2094,17 +2647,22 @@
                   <div
                     class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-800/40"
                   >
-                    <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <h4
+                      class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                    >
                       取込オプション設定
                     </h4>
 
-                    <label class="flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <label
+                      class="flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-300"
+                    >
                       <input
                         type="checkbox"
                         bind:checked={updateDuplicates}
                         class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-700"
                       />
-                      <span>同名・同地域の既存データがあれば上書き更新する</span>
+                      <span>同名・同地域の既存データがあれば上書き更新する</span
+                      >
                     </label>
 
                     <div>
@@ -2124,11 +2682,17 @@
                         <option value="food">🍙 食料・炊き出し (food)</option>
                         <option value="safety">🦺 安否確認 (safety)</option>
                         <option value="restroom">🚻 トイレ (restroom)</option>
-                        <option value="charging">🔋 充電スポット (charging)</option>
+                        <option value="charging"
+                          >🔋 充電スポット (charging)</option
+                        >
                         <option value="bath">♨️ 入浴・シャワー (bath)</option>
-                        <option value="supplies">📦 物資・支援物資 (supplies)</option>
+                        <option value="supplies"
+                          >📦 物資・支援物資 (supplies)</option
+                        >
                         <option value="store">🏪 店舗・日用品 (store)</option>
-                        <option value="general">📌 一般・その他 (general)</option>
+                        <option value="general"
+                          >📌 一般・その他 (general)</option
+                        >
                       </select>
                     </div>
                   </div>
@@ -2139,15 +2703,20 @@
                       class="flex flex-col gap-3 rounded-xl border border-blue-200 bg-blue-50/40 p-3.5 dark:border-blue-900/50 dark:bg-blue-950/20"
                     >
                       <div class="flex items-center justify-between">
-                        <h4 class="text-xs font-bold text-slate-900 dark:text-slate-100">
+                        <h4
+                          class="text-xs font-bold text-slate-900 dark:text-slate-100"
+                        >
                           列の自動判別・マッピング設定
                         </h4>
-                        <span class="text-[10px] text-blue-600 dark:text-blue-400">
+                        <span
+                          class="text-[10px] text-blue-600 dark:text-blue-400"
+                        >
                           検出: {csvHeaders.length} 列
                         </span>
                       </div>
                       <p class="text-[11px] text-slate-600 dark:text-slate-400">
-                        CSVのヘッダー列と tossa の項目を紐付けます（自動判定済みですが変更可能）:
+                        CSVのヘッダー列と tossa
+                        の項目を紐付けます（自動判定済みですが変更可能）:
                       </p>
 
                       <div class="grid grid-cols-1 gap-2.5">
@@ -2157,9 +2726,16 @@
                             for="map-title"
                             class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
                           >
-                            <span>施設名・タイトル <span class="text-rose-500">*</span></span>
+                            <span
+                              >施設名・タイトル <span class="text-rose-500"
+                                >*</span
+                              ></span
+                            >
                             {#if columnMapping.title !== null}
-                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.title + 1}</span>
+                              <span
+                                class="font-mono text-[10px] text-emerald-600"
+                                >列 {columnMapping.title + 1}</span
+                              >
                             {/if}
                           </label>
                           <select
@@ -2180,9 +2756,16 @@
                             for="map-area"
                             class="mb-0.5 flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300"
                           >
-                            <span>市区町村・地域名 <span class="text-rose-500">*</span></span>
+                            <span
+                              >市区町村・地域名 <span class="text-rose-500"
+                                >*</span
+                              ></span
+                            >
                             {#if columnMapping.area !== null}
-                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.area + 1}</span>
+                              <span
+                                class="font-mono text-[10px] text-emerald-600"
+                                >列 {columnMapping.area + 1}</span
+                              >
                             {/if}
                           </label>
                           <select
@@ -2190,7 +2773,9 @@
                             bind:value={columnMapping.area}
                             class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           >
-                            <option value={null}>-- 未選択 (デフォルト地域を使用) --</option>
+                            <option value={null}
+                              >-- 未選択 (デフォルト地域を使用) --</option
+                            >
                             {#each csvHeaders as h, i}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
@@ -2205,7 +2790,10 @@
                           >
                             <span>所在地・住所</span>
                             {#if columnMapping.address !== null}
-                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.address + 1}</span>
+                              <span
+                                class="font-mono text-[10px] text-emerald-600"
+                                >列 {columnMapping.address + 1}</span
+                              >
                             {/if}
                           </label>
                           <select
@@ -2228,7 +2816,10 @@
                           >
                             <span>施設種別・区分</span>
                             {#if columnMapping.category !== null}
-                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.category + 1}</span>
+                              <span
+                                class="font-mono text-[10px] text-emerald-600"
+                                >列 {columnMapping.category + 1}</span
+                              >
                             {/if}
                           </label>
                           <select
@@ -2236,7 +2827,9 @@
                             bind:value={columnMapping.category}
                             class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           >
-                            <option value={null}>-- 未選択 (デフォルトカテゴリを使用) --</option>
+                            <option value={null}
+                              >-- 未選択 (デフォルトカテゴリを使用) --</option
+                            >
                             {#each csvHeaders as h, i}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
@@ -2291,7 +2884,10 @@
                           >
                             <span>開設状況・ステータス</span>
                             {#if columnMapping.currentStatus !== null}
-                              <span class="font-mono text-[10px] text-emerald-600">列 {columnMapping.currentStatus + 1}</span>
+                              <span
+                                class="font-mono text-[10px] text-emerald-600"
+                                >列 {columnMapping.currentStatus + 1}</span
+                              >
                             {/if}
                           </label>
                           <select
@@ -2299,7 +2895,9 @@
                             bind:value={columnMapping.currentStatus}
                             class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           >
-                            <option value={null}>-- 未選択 (「開設中」として登録) --</option>
+                            <option value={null}
+                              >-- 未選択 (「開設中」として登録) --</option
+                            >
                             {#each csvHeaders as h, i}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
@@ -2361,9 +2959,13 @@
                       }`}
                     >
                       {#if csvStatusMessage.type === 'success'}
-                        <Check class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <Check
+                          class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                        />
                       {:else}
-                        <AlertCircle class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                        <AlertCircle
+                          class="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400"
+                        />
                       {/if}
                       <span>{csvStatusMessage.text}</span>
                     </div>
@@ -2375,8 +2977,12 @@
                       class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-800/60"
                     >
                       <div class="flex items-center gap-2">
-                        <FileSpreadsheet class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        <span class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        <FileSpreadsheet
+                          class="h-4 w-4 text-blue-600 dark:text-blue-400"
+                        />
+                        <span
+                          class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
                           {csvFileName || 'アップロードデータ'}
                         </span>
                       </div>
@@ -2406,8 +3012,12 @@
                       <div
                         class="rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200"
                       >
-                        <div class="font-bold">一部の行でタイトル等が欠落しているためスキップされます:</div>
-                        <ul class="mt-1 list-inside list-disc text-[11px] text-amber-800 dark:text-amber-300">
+                        <div class="font-bold">
+                          一部の行でタイトル等が欠落しているためスキップされます:
+                        </div>
+                        <ul
+                          class="mt-1 list-inside list-disc text-[11px] text-amber-800 dark:text-amber-300"
+                        >
                           {#each normalizedPreview.errors.slice(0, 4) as err}
                             <li>行 {err.row}: {err.reason}</li>
                           {/each}
@@ -2425,7 +3035,12 @@
                       <div
                         class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-300"
                       >
-                        <span>マッピング結果プレビュー (先頭 {Math.min(normalizedPreview.valid.length, 6)} 件)</span>
+                        <span
+                          >マッピング結果プレビュー (先頭 {Math.min(
+                            normalizedPreview.valid.length,
+                            6
+                          )} 件)</span
+                        >
                         <span class="text-[10px] font-normal text-slate-400">
                           全 {normalizedPreview.valid.length} 件中
                         </span>
@@ -2433,8 +3048,12 @@
 
                       <div class="max-h-72 overflow-x-auto overflow-y-auto">
                         <table class="w-full text-left text-xs">
-                          <thead class="sticky top-0 bg-slate-100/90 backdrop-blur-xs dark:bg-slate-800/90">
-                            <tr class="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                          <thead
+                            class="sticky top-0 bg-slate-100/90 backdrop-blur-xs dark:bg-slate-800/90"
+                          >
+                            <tr
+                              class="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700 dark:text-slate-400"
+                            >
                               <th class="p-2 font-bold">施設名</th>
                               <th class="p-2 font-bold">地域</th>
                               <th class="p-2 font-bold">所在地</th>
@@ -2442,16 +3061,27 @@
                               <th class="p-2 font-bold">緯度/経度</th>
                             </tr>
                           </thead>
-                          <tbody class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800">
+                          <tbody
+                            class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800"
+                          >
                             {#each normalizedPreview.valid.slice(0, 6) as item}
-                              <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                                <td class="p-2 font-sans font-bold text-slate-900 dark:text-slate-100">
+                              <tr
+                                class="hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                              >
+                                <td
+                                  class="p-2 font-sans font-bold text-slate-900 dark:text-slate-100"
+                                >
                                   {item.title}
                                 </td>
-                                <td class="p-2 text-slate-600 dark:text-slate-300">
+                                <td
+                                  class="p-2 text-slate-600 dark:text-slate-300"
+                                >
                                   {item.area}
                                 </td>
-                                <td class="max-w-[160px] truncate p-2 text-slate-500 dark:text-slate-400" title={item.address || ''}>
+                                <td
+                                  class="max-w-[160px] truncate p-2 text-slate-500 dark:text-slate-400"
+                                  title={item.address || ''}
+                                >
                                   {item.address || '-'}
                                 </td>
                                 <td class="p-2 font-sans">
@@ -2468,7 +3098,9 @@
                                   </span>
                                 </td>
                                 <td class="p-2 text-slate-400">
-                                  {item.lat && item.lng ? `${item.lat.toFixed(3)}, ${item.lng.toFixed(3)}` : '-'}
+                                  {item.lat && item.lng
+                                    ? `${item.lat.toFixed(3)}, ${item.lng.toFixed(3)}`
+                                    : '-'}
                                 </td>
                               </tr>
                             {/each}
@@ -2482,7 +3114,8 @@
                       <button
                         type="button"
                         onclick={handleExecuteCsvImport}
-                        disabled={isImportingCsv || normalizedPreview.valid.length === 0}
+                        disabled={isImportingCsv ||
+                          normalizedPreview.valid.length === 0}
                         class="flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50"
                       >
                         {#if isImportingCsv}
@@ -2490,7 +3123,9 @@
                           <span>一括インポート実行中...</span>
                         {:else}
                           <Upload class="h-4 w-4" />
-                          <span>{normalizedPreview.valid.length} 件のデータを一括インポート</span>
+                          <span
+                            >{normalizedPreview.valid.length} 件のデータを一括インポート</span
+                          >
                         {/if}
                       </button>
                     </div>
@@ -2504,25 +3139,61 @@
                       >
                         <FileSpreadsheet class="h-6 w-6" />
                       </div>
-                      <h4 class="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      <h4
+                        class="text-sm font-bold text-slate-800 dark:text-slate-200"
+                      >
                         避難所・給水所などのデータを一括登録
                       </h4>
-                      <p class="mt-1.5 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                      <p
+                        class="mt-1.5 max-w-md text-xs leading-relaxed text-slate-500 dark:text-slate-400"
+                      >
                         自治体が公開している「避難所オープンデータ」や、Excelで管理されている施設一覧（CSV/TSV）を取り込むことで、発災初動の数分で地図と一覧へ一括展開できます。
                       </p>
 
-                      <div class="mt-5 grid w-full max-w-md grid-cols-3 gap-2 text-left">
-                        <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800">
-                          <div class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">Step 1</div>
-                          <div class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300">ファイルをドロップ</div>
+                      <div
+                        class="mt-5 grid w-full max-w-md grid-cols-3 gap-2 text-left"
+                      >
+                        <div
+                          class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800"
+                        >
+                          <div
+                            class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400"
+                          >
+                            Step 1
+                          </div>
+                          <div
+                            class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300"
+                          >
+                            ファイルをドロップ
+                          </div>
                         </div>
-                        <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800">
-                          <div class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">Step 2</div>
-                          <div class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300">列マッピング確認</div>
+                        <div
+                          class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800"
+                        >
+                          <div
+                            class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400"
+                          >
+                            Step 2
+                          </div>
+                          <div
+                            class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300"
+                          >
+                            列マッピング確認
+                          </div>
                         </div>
-                        <div class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800">
-                          <div class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">Step 3</div>
-                          <div class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300">ワンクリック登録</div>
+                        <div
+                          class="rounded-xl border border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-800"
+                        >
+                          <div
+                            class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400"
+                          >
+                            Step 3
+                          </div>
+                          <div
+                            class="mt-0.5 text-[11px] text-slate-700 dark:text-slate-300"
+                          >
+                            ワンクリック登録
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2555,7 +3226,9 @@
                         <div
                           class="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200"
                         >
-                          <Network class="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <Network
+                            class="h-4 w-4 text-blue-600 dark:text-blue-400"
+                          />
                           <span>他サイトとの合流・連携 (Federation)</span>
                         </div>
                         <span
@@ -2567,7 +3240,8 @@
                       <p
                         class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
                       >
-                        災害時に他チームが立ち上げた tossa や互換サイトと相互にデータを合流・移行できます。
+                        災害時に他チームが立ち上げた tossa
+                        や互換サイトと相互にデータを合流・移行できます。
                       </p>
                     </div>
 
@@ -2607,11 +3281,16 @@
                     class="flex flex-col justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                   >
                     <div>
-                      <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <h4
+                        class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                      >
                         オフライン・手動データ移行
                       </h4>
-                      <p class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-                        通信障害時やローカル環境へのデータ退避として、GeoJSON-LD 形式のファイル出力・取り込みを行えます。
+                      <p
+                        class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
+                      >
+                        通信障害時やローカル環境へのデータ退避として、GeoJSON-LD
+                        形式のファイル出力・取り込みを行えます。
                       </p>
                     </div>
 
@@ -2677,11 +3356,16 @@
                     class="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                   >
                     <div>
-                      <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <h4
+                        class="text-xs font-bold text-slate-800 dark:text-slate-200"
+                      >
                         エージェント専用 API トークン発行
                       </h4>
-                      <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                        AIアシスタントに付与する識別名（例: Claude, Cursor）を入力して発行してください。
+                      <p
+                        class="mt-1 text-[11px] text-slate-500 dark:text-slate-400"
+                      >
+                        AIアシスタントに付与する識別名（例: Claude,
+                        Cursor）を入力して発行してください。
                       </p>
                     </div>
 
@@ -2764,7 +3448,9 @@
                           </button>
                         </div>
 
-                        <p class="text-[10px] text-slate-500 dark:text-slate-400">
+                        <p
+                          class="text-[10px] text-slate-500 dark:text-slate-400"
+                        >
                           ※
                           トークンは再表示されません。安全な場所に保存してエージェントの設定ファイルに設定してください。
                         </p>
@@ -2886,9 +3572,11 @@
                         >
                           手動即時バックアップ
                         </h4>
-                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                          メンテナンス前や災害対応の区切りに、現在の全データを R2
-                          に直ちに退避・スナップショット保存します。
+                        <p
+                          class="mt-1 text-[11px] text-slate-500 dark:text-slate-400"
+                        >
+                          メンテナンス前や災害対応の区切りに、現在の全データを
+                          R2 に直ちに退避・スナップショット保存します。
                         </p>
                       </div>
 
@@ -2914,8 +3602,8 @@
                           <div
                             class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
                           >
-                            直前のバックアップ結果（計 {lastBackupResult.metadata
-                              .totalRecords} 件）:
+                            直前のバックアップ結果（計 {lastBackupResult
+                              .metadata.totalRecords} 件）:
                           </div>
                           <div class="mt-1.5 flex flex-wrap gap-1.5">
                             {#each Object.entries(lastBackupResult.metadata.tableCounts) as [table, count] (table)}
@@ -3002,7 +3690,9 @@
                                   class="py-2.5 text-slate-500 dark:text-slate-400"
                                 >
                                   {b.uploaded
-                                    ? new Date(b.uploaded).toLocaleString('ja-JP')
+                                    ? new Date(b.uploaded).toLocaleString(
+                                        'ja-JP'
+                                      )
                                     : '-'}
                                 </td>
                                 <td

@@ -104,7 +104,10 @@
           const bounds = leaflet.latLngBounds(
             disasterAreas.map((a) => [a.lat, a.lng])
           );
-          map.fitBounds(bounds, { padding: [40, 40], maxZoom: hasPref ? 9 : 14 });
+          map.fitBounds(bounds, {
+            padding: [40, 40],
+            maxZoom: hasPref ? 9 : 14,
+          });
         }
       } else if (defaultArea) {
         try {
@@ -634,12 +637,14 @@
       title="国土地理院・自治体指定避難所レイヤーの表示/非表示"
     >
       <Landmark
-        class="h-3.5 w-3.5 {showOfficialShelters ? 'text-indigo-200' : 'text-indigo-600'}"
+        class="h-3.5 w-3.5 {showOfficialShelters
+          ? 'text-indigo-200'
+          : 'text-indigo-600'}"
       />
       <span>{m.map_official_layer_toggle()}</span>
       {#if officialShelters.length > 0}
         <span
-          class="rounded-full px-1.5 py-0.2 text-[10px] font-extrabold {showOfficialShelters
+          class="py-0.2 rounded-full px-1.5 text-[10px] font-extrabold {showOfficialShelters
             ? 'bg-white/25 text-white'
             : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200'}"
         >

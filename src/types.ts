@@ -121,6 +121,42 @@ export interface Post {
   author_cookie_id?: string | null; // Cookie-identified user (without Passkey)
   is_owner?: boolean; // Cookie-based ownership flag (attached on query)
   reporter_name: string | null;
+  disaster_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DisasterType =
+  | 'earthquake'
+  | 'flood'
+  | 'landslide'
+  | 'tsunami'
+  | 'storm'
+  | 'volcano'
+  | 'snow'
+  | 'other';
+
+export type DisasterStatus = 'active' | 'archived';
+
+export interface DisasterArea {
+  code: string;
+  name: string;
+  pref: string;
+  fullName: string;
+  lat: number;
+  lng: number;
+  isPrefecture?: boolean;
+}
+
+export interface DisasterEvent {
+  id: string;
+  name: string;
+  disaster_type: DisasterType;
+  status: DisasterStatus;
+  designated_at: string;
+  areas: DisasterArea[];
+  banner_message?: string | null;
+  note?: string | null;
   created_at: string;
   updated_at: string;
 }

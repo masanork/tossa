@@ -40,7 +40,8 @@ export const OFFICIAL_PRESETS: RegionPreset[] = [
     id: 'kumamoto_city',
     name: '熊本市（指定緊急避難場所・給水拠点）',
     prefecture: '熊本県',
-    description: '熊本市オープンデータ及び国土地理院指定緊急避難場所データ（中央区・東区・西区・南区・北区）',
+    description:
+      '熊本市オープンデータ及び国土地理院指定緊急避難場所データ（中央区・東区・西区・南区・北区）',
     source: '国土地理院・熊本市オープンデータカタログ',
     items: [
       {
@@ -145,7 +146,8 @@ export const OFFICIAL_PRESETS: RegionPreset[] = [
     id: 'tokyo_chiyoda',
     name: '東京都千代田区・中央区（帰宅困難者支援・指定避難所）',
     prefecture: '東京都',
-    description: '東京都オープンデータカタログ・国土地理院指定緊急避難場所データ',
+    description:
+      '東京都オープンデータカタログ・国土地理院指定緊急避難場所データ',
     source: '東京都防災マップオープンデータ・国土地理院',
     items: [
       {
@@ -386,8 +388,13 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
     for (const preset of OFFICIAL_PRESETS) {
       for (const item of preset.items) {
         const matches = isPref
-          ? (prefName && (item.area.includes(prefName) || preset.prefecture.includes(prefName)))
-          : (item.area.includes(areaName) || (prefName && item.area.includes(prefName) && item.area.includes(areaName)));
+          ? prefName &&
+            (item.area.includes(prefName) ||
+              preset.prefecture.includes(prefName))
+          : item.area.includes(areaName) ||
+            (prefName &&
+              item.area.includes(prefName) &&
+              item.area.includes(areaName));
 
         if (matches) {
           if (!visitedNames.has(item.name)) {
@@ -401,7 +408,9 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
     // 2. Determine target coordinates for GSI vector shelter tiles (skhb04: earthquake)
     const targetPoints: Array<{ lat: number; lng: number }> = [];
     if (isPref) {
-      const muniInPref = POPULAR_MUNICIPALITIES.filter((m) => m.pref === prefName);
+      const muniInPref = POPULAR_MUNICIPALITIES.filter(
+        (m) => m.pref === prefName
+      );
       if (muniInPref.length > 0) {
         for (const m of muniInPref.slice(0, 6)) {
           targetPoints.push({ lat: m.lat, lng: m.lng });
@@ -437,17 +446,30 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
 
                 // Match by address or proximity (< 15km)
                 const addressMatches = isPref
-                  ? (prefName && sAddress.includes(prefName))
-                  : (sAddress.includes(areaName) || (prefName && sAddress.includes(prefName)));
-                const distApprox = isPref ? 0 : Math.hypot(sLat - (area.lat || pt.lat), sLng - (area.lng || pt.lng));
+                  ? prefName && sAddress.includes(prefName)
+                  : sAddress.includes(areaName) ||
+                    (prefName && sAddress.includes(prefName));
+                const distApprox = isPref
+                  ? 0
+                  : Math.hypot(
+                      sLat - (area.lat || pt.lat),
+                      sLng - (area.lng || pt.lng)
+                    );
 
-                if ((addressMatches || distApprox < 0.25) && !visitedNames.has(sName)) {
+                if (
+                  (addressMatches || distApprox < 0.25) &&
+                  !visitedNames.has(sName)
+                ) {
                   visitedNames.add(sName);
 
                   let shelterArea = area.fullName || `${prefName}${areaName}`;
                   if (isPref && sAddress) {
-                    const muniMatch = sAddress.match(/^(?:東京都|北海道|(?:京都|大阪)府|.{2,3}県)([^市区町村]+(?:市|区|町|村))/);
-                    shelterArea = muniMatch ? muniMatch[0] : (area.fullName || prefName);
+                    const muniMatch = sAddress.match(
+                      /^(?:東京都|北海道|(?:京都|大阪)府|.{2,3}県)([^市区町村]+(?:市|区|町|村))/
+                    );
+                    shelterArea = muniMatch
+                      ? muniMatch[0]
+                      : area.fullName || prefName;
                   }
 
                   collectedShelters.push({
@@ -460,7 +482,8 @@ opendataRoute.post('/disaster-areas/fetch', async (c) => {
                     current_status: 'available',
                     status_label: '開設中',
                     note: `国土地理院指定緊急避難場所（${p.remarks || '地震・火災等'}）`,
-                    source_url: 'https://hinanmap.gsi.go.jp/hinanjocp/hinanbasho/',
+                    source_url:
+                      'https://hinanmap.gsi.go.jp/hinanjocp/hinanbasho/',
                   });
                 }
               }
@@ -486,7 +509,10 @@ opendataRoute.post('/fetch-url', async (c) => {
   const targetUrl = (body.url || '').trim();
 
   if (!targetUrl || !/^https?:\/\//i.test(targetUrl)) {
-    return c.json({ success: false, error: '有効なURLを指定してください' }, 400);
+    return c.json(
+      { success: false, error: '有効なURLを指定してください' },
+      400
+    );
   }
 
   try {
@@ -517,10 +543,11 @@ opendataRoute.post('/fetch-url', async (c) => {
     });
   } catch (err: any) {
     return c.json(
-      { success: false, error: err.message || 'データ取得中にエラーが発生しました' },
+      {
+        success: false,
+        error: err.message || 'データ取得中にエラーが発生しました',
+      },
       500
     );
   }
 });
-
-

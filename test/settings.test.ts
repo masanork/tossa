@@ -144,12 +144,14 @@ describe('Settings API', () => {
     expect(body.stats.updated).toBe(0);
 
     // Verify posts in DB
-    const posts = await db.prepare('SELECT * FROM posts ORDER BY title ASC').all<{
-      title: string;
-      area: string;
-      current_status: string;
-      is_verified: number;
-    }>();
+    const posts = await db
+      .prepare('SELECT * FROM posts ORDER BY title ASC')
+      .all<{
+        title: string;
+        area: string;
+        current_status: string;
+        is_verified: number;
+      }>();
 
     expect(posts.results.length).toBe(2);
     expect(posts.results[0].title).toBe('東部市民センター');
@@ -193,4 +195,3 @@ describe('Settings API', () => {
     expect(updatedSakura?.current_status).toBe('closed');
   });
 });
-

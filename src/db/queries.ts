@@ -11,6 +11,10 @@ import type {
   ThreadMember,
   EncryptedMessage,
   ThreadType,
+  DisasterEvent,
+  DisasterType,
+  DisasterStatus,
+  DisasterArea,
 } from '../types';
 
 export async function getSystemSettings(
@@ -1235,7 +1239,9 @@ export async function importCsvPosts(
 
   // Fetch existing categories to resolve categoryId
   const allCategories = await getCategories(db);
-  const catMapById = new Map<string, string>(allCategories.map((c) => [c.id, c.id]));
+  const catMapById = new Map<string, string>(
+    allCategories.map((c) => [c.id, c.id])
+  );
   const catMapByName = new Map<string, string>(
     allCategories.map((c) => [c.name.trim().toLowerCase(), c.id])
   );
@@ -1283,7 +1289,9 @@ export async function importCsvPosts(
 
       // Check if duplicate post exists with same (title, area)
       const existing = await db
-        .prepare('SELECT id, current_status, status_label FROM posts WHERE title = ? AND area = ?')
+        .prepare(
+          'SELECT id, current_status, status_label FROM posts WHERE title = ? AND area = ?'
+        )
         .bind(cleanTitle, cleanArea)
         .first<{ id: string; current_status: string; status_label: string }>();
 
@@ -1404,7 +1412,9 @@ export async function importCsvPosts(
       try {
         await db.batch(statements);
       } catch (err: any) {
-        errors.push(`バッチ書き込みエラー (${i + 1}〜${i + chunk.length}件目): ${err?.message}`);
+        errors.push(
+          `バッチ書き込みエラー (${i + 1}〜${i + chunk.length}件目): ${err?.message}`
+        );
       }
     }
   }
@@ -1412,3 +1422,195 @@ export async function importCsvPosts(
   return { added, updated, skipped, errors };
 }
 
+// ================= Disaster Event Queries =================
+
+function parseDisasterRow(row: any): DisasterEvent {
+  let areas: DisasterArea[] = [];
+  try {
+    areas =
+      typeof row.areas === 'string' ? JSON.parse(row.areas) : row.areas || [];
+  } catch {}
+
+  return {
+    id: row.id,
+    name: row.name,
+    disaster_type: row.disaster_type,
+    status: row.status,
+    designated_at: row.designated_at,
+    areas,
+    banner_message: row.banner_message || null,
+    note: row.note || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+export async function getDisasters(
+  db: D1Database,
+  status?: DisasterStatus
+): Promise<DisasterEvent[]> {
+  let query = 'SELECT * FROM disasters';
+  const params: any[] = [];
+  if (status) {
+    query += ' WHERE status = ?';
+    params.push(status);
+  }
+  query +=
+    " ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, designated_at DESC";
+
+  const res = await db
+    .prepare(query)
+    .bind(...params)
+    .all<any>();
+  return (res.results || []).map(parseDisasterRow);
+}
+
+export async function getActiveDisasters(
+  db: D1Database
+): Promise<DisasterEvent[]> {
+  return getDisasters(db, 'active');
+}
+
+export async function getDisasterById(
+  db: D1Database,
+  id: string
+): Promise<DisasterEvent | null> {
+  const row = await db
+    .prepare('SELECT * FROM disasters WHERE id = ?')
+    .bind(id)
+    .first<any>();
+  if (!row) return null;
+  return parseDisasterRow(row);
+}
+
+export async function createDisaster(
+  db: D1Database,
+  data: {
+    id?: string;
+    name: string;
+    disaster_type: DisasterType;
+    status?: DisasterStatus;
+    designated_at?: string;
+    areas: DisasterArea[];
+    banner_message?: string | null;
+    note?: string | null;
+  }
+): Promise<DisasterEvent> {
+  const id =
+    data.id ||
+    `disaster_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const status = data.status || 'active';
+  const designatedAt = data.designated_at || new Date().toISOString();
+  const areasJson = JSON.stringify(data.areas || []);
+  const bannerMessage = data.banner_message || null;
+  const note = data.note || null;
+  const now = new Date().toISOString();
+
+  await db
+    .prepare(
+      `INSERT INTO disasters (id, name, disaster_type, status, designated_at, areas, banner_message, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      id,
+      data.name,
+      data.disaster_type,
+      status,
+      designatedAt,
+      areasJson,
+      bannerMessage,
+      note,
+      now,
+      now
+    )
+    .run();
+
+  return {
+    id,
+    name: data.name,
+    disaster_type: data.disaster_type,
+    status,
+    designated_at: designatedAt,
+    areas: data.areas || [],
+    banner_message: bannerMessage,
+    note,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
+export async function updateDisaster(
+  db: D1Database,
+  id: string,
+  data: Partial<DisasterEvent>
+): Promise<DisasterEvent | null> {
+  const existing = await getDisasterById(db, id);
+  if (!existing) return null;
+
+  const name = data.name !== undefined ? data.name : existing.name;
+  const disasterType =
+    data.disaster_type !== undefined
+      ? data.disaster_type
+      : existing.disaster_type;
+  const status = data.status !== undefined ? data.status : existing.status;
+  const designatedAt =
+    data.designated_at !== undefined
+      ? data.designated_at
+      : existing.designated_at;
+  const areas = data.areas !== undefined ? data.areas : existing.areas;
+  const bannerMessage =
+    data.banner_message !== undefined
+      ? data.banner_message
+      : existing.banner_message;
+  const note = data.note !== undefined ? data.note : existing.note;
+  const now = new Date().toISOString();
+
+  await db
+    .prepare(
+      `UPDATE disasters SET 
+         name = ?, 
+         disaster_type = ?, 
+         status = ?, 
+         designated_at = ?, 
+         areas = ?, 
+         banner_message = ?, 
+         note = ?, 
+         updated_at = ?
+       WHERE id = ?`
+    )
+    .bind(
+      name,
+      disasterType,
+      status,
+      designatedAt,
+      JSON.stringify(areas),
+      bannerMessage,
+      note,
+      now,
+      id
+    )
+    .run();
+
+  return {
+    ...existing,
+    name,
+    disaster_type: disasterType,
+    status,
+    designated_at: designatedAt,
+    areas,
+    banner_message: bannerMessage,
+    note,
+    updated_at: now,
+  };
+}
+
+export async function deleteDisaster(
+  db: D1Database,
+  id: string
+): Promise<boolean> {
+  const res = await db
+    .prepare('DELETE FROM disasters WHERE id = ?')
+    .bind(id)
+    .run();
+  return res.success;
+}

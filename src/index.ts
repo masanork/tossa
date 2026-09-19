@@ -16,6 +16,7 @@ import { mcpRoute } from './routes/mcp';
 import { seoRoute } from './routes/seo';
 import { imagesRoute } from './routes/images';
 import { opendataRoute } from './routes/opendata';
+import { disastersRoute } from './routes/disasters';
 import { deviceCookieMiddleware } from './middleware/deviceCookie';
 import { rateLimiter } from './middleware/rateLimit';
 import { processPushQueueBatch } from './services/push';
@@ -142,6 +143,7 @@ app.use(
         (path === '/api/posts' && c.req.method === 'GET') ||
         (path === '/api/categories' && c.req.method === 'GET') ||
         (path === '/api/settings' && c.req.method === 'GET') ||
+        (path.startsWith('/api/disasters') && c.req.method === 'GET') ||
         path === '/api/health'
       ) {
         return origin || '*';
@@ -261,6 +263,7 @@ app.route('/api', federationRoute);
 app.route('/api/federation', federationRoute);
 app.route('/api/images', imagesRoute);
 app.route('/api/opendata', opendataRoute);
+app.route('/api/disasters', disastersRoute);
 
 // Direct OGP banner endpoint (/ogp/:id or /ogp/:id.svg)
 app.get('/ogp/:id', async (c) => {

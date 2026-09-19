@@ -92,7 +92,12 @@ authRoute.post('/register-options', async (c) => {
   const existingCreds = await getUserCredentials(c.env.DB, user.id);
   const options = await createRegOptions(c.env, user, existingCreds);
 
-  setCookie(c, 'tossa_reg_challenge', options.challenge, CHALLENGE_COOKIE_OPTIONS);
+  setCookie(
+    c,
+    'tossa_reg_challenge',
+    options.challenge,
+    CHALLENGE_COOKIE_OPTIONS
+  );
 
   return c.json({
     success: true,
@@ -190,7 +195,12 @@ authRoute.post('/login-options', async (c) => {
 
   const options = await createAuthOptions(c.env, user || undefined);
 
-  setCookie(c, 'tossa_auth_challenge', options.challenge, CHALLENGE_COOKIE_OPTIONS);
+  setCookie(
+    c,
+    'tossa_auth_challenge',
+    options.challenge,
+    CHALLENGE_COOKIE_OPTIONS
+  );
 
   return c.json({ success: true, options });
 });

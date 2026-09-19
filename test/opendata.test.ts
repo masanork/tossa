@@ -88,6 +88,8 @@ describe('Open Data API', () => {
     };
 
     expect(data.success).toBe(true);
-    expect(data.shelters.every((s) => s.preset_id === 'tokyo_evacuation')).toBe(true);
+    expect(data.shelters.every((s) => s.preset_id === 'tokyo_evacuation')).toBe(
+      true
+    );
   });
 });

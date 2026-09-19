@@ -37,6 +37,7 @@ export interface Post {
   is_owner?: boolean; // Ownership verified by server via cookie matching
   is_peer?: boolean; // Relayed via peer-to-peer QR code
   reporter_name: string | null;
+  disaster_id?: string | null;
 
   created_at: string;
   updated_at: string;
@@ -84,13 +85,39 @@ export interface DisasterArea {
   isPrefecture?: boolean;
 }
 
+export type DisasterType =
+  | 'earthquake'
+  | 'flood'
+  | 'landslide'
+  | 'tsunami'
+  | 'storm'
+  | 'volcano'
+  | 'snow'
+  | 'other';
+
+export type DisasterStatus = 'active' | 'archived';
+
+export interface DisasterEvent {
+  id: string;
+  name: string;
+  disaster_type: DisasterType;
+  status: DisasterStatus;
+  designated_at: string;
+  areas: DisasterArea[];
+  banner_message?: string | null;
+  note?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface SystemSettings {
   site_title?: string;
   emergency_banner?: string;
   default_area?: string;
   operation_mode?: 'normal' | 'disaster';
   disaster_areas?: string; // JSON array of DisasterArea
-  [key: string]: string | undefined;
+  active_disasters?: DisasterEvent[];
+  [key: string]: any;
 }
 
 export interface User {
@@ -194,4 +221,3 @@ export interface OpenDataShelter {
   source_url: string;
   preset_id?: string;
 }
-

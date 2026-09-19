@@ -82,7 +82,10 @@ describe('Municipalities & GSI Shelters', () => {
       const res = await request('/api/opendata/municipalities?q=石川');
       expect(res.status).toBe(200);
 
-      const body = (await res.json()) as { success: boolean; municipalities: any[] };
+      const body = (await res.json()) as {
+        success: boolean;
+        municipalities: any[];
+      };
       expect(body.success).toBe(true);
       expect(body.municipalities.length).toBeGreaterThan(0);
       expect(body.municipalities[0].name).toBe('石川県全域');
@@ -130,7 +133,9 @@ describe('Municipalities & GSI Shelters', () => {
       };
       expect(body.success).toBe(true);
       expect(body.count).toBeGreaterThan(0);
-      expect(body.shelters.some((s) => s.name.includes('桜山小学校'))).toBe(true);
+      expect(body.shelters.some((s) => s.name.includes('桜山小学校'))).toBe(
+        true
+      );
     });
   });
 });

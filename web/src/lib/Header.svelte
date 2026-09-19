@@ -83,21 +83,52 @@
   <!-- Emergency / Disaster Mode announcement banner -->
   {#if settings.emergency_banner || settings.operation_mode === 'disaster'}
     <div
-      class="flex items-center justify-between px-4 py-2 text-xs font-bold shadow-inner md:text-sm {settings.operation_mode ===
+      class="flex flex-col gap-1.5 px-4 py-2 text-xs font-bold shadow-inner md:text-sm {settings.operation_mode ===
       'disaster'
         ? 'bg-red-600 text-white'
         : 'bg-amber-500 text-slate-950'}"
     >
-      <div class="mx-auto flex w-full max-w-4xl items-center gap-2">
-        <AlertTriangle
-          class="h-4 w-4 shrink-0 {settings.operation_mode === 'disaster'
-            ? 'text-white'
-            : 'text-slate-900'}"
-        />
-        <span class="truncate">
-          {settings.emergency_banner || m.admin_mode_badge_disaster()}
-        </span>
+      <div
+        class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2"
+      >
+        <div class="flex items-center gap-2 truncate">
+          <AlertTriangle
+            class="h-4 w-4 shrink-0 {settings.operation_mode === 'disaster'
+              ? 'text-white'
+              : 'text-slate-900'}"
+          />
+          <span class="truncate">
+            {settings.emergency_banner || m.admin_mode_badge_disaster()}
+          </span>
+        </div>
+        {#if settings.active_disasters && settings.active_disasters.length > 0}
+          <div
+            class="hidden shrink-0 items-center gap-1 rounded bg-black/20 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-xs sm:inline-flex"
+          >
+            <span>{settings.active_disasters.length} 件の災害対応中</span>
+          </div>
+        {/if}
       </div>
+
+      <!-- Multiple active disasters chips -->
+      {#if settings.active_disasters && settings.active_disasters.length > 0}
+        <div
+          class="mx-auto flex w-full max-w-4xl flex-wrap items-center gap-1.5 text-[11px]"
+        >
+          {#each settings.active_disasters as disaster (disaster.id)}
+            <span
+              class="inline-flex items-center gap-1 rounded bg-black/25 px-2 py-0.5 font-bold text-white shadow-xs backdrop-blur-xs"
+            >
+              <span>🚨 {disaster.name}</span>
+              {#if disaster.areas && disaster.areas.length > 0}
+                <span class="font-normal opacity-85">
+                  ({disaster.areas.map((a) => a.name).join(', ')})
+                </span>
+              {/if}
+            </span>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 
@@ -124,7 +155,9 @@
               : 'text-blue-600 dark:text-blue-400'}"
           />
           <span class="truncate">
-            {settings.operation_mode === 'disaster' ? '🚨 ' : ''}{settings.default_area}
+            {settings.operation_mode === 'disaster'
+              ? '🚨 '
+              : ''}{settings.default_area}
           </span>
         </div>
       {/if}

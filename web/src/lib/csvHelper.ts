@@ -166,9 +166,7 @@ export function inferColumnMapping(headers: string[]): ColumnMapping {
   };
 
   const cleanHeaders = headers.map((h) =>
-    h
-      .toLowerCase()
-      .replace(/[\s_()（）[\]【】]/g, '')
+    h.toLowerCase().replace(/[\s_()（）[\]【】]/g, '')
   );
 
   const patterns: Record<ColumnField, RegExp[]> = {
@@ -188,14 +186,8 @@ export function inferColumnMapping(headers: string[]): ColumnMapping {
       /^(種別|区分|カテゴリ|施設種別|避難所種別|分類|category|type)$/i,
       /(種別|区分|カテゴリ)/i,
     ],
-    lat: [
-      /^(緯度|lat|latitude|y|緯度10進法)$/i,
-      /(緯度|latitude)/i,
-    ],
-    lng: [
-      /^(経度|lng|lon|longitude|x|経度10進法)$/i,
-      /(経度|longitude)/i,
-    ],
+    lat: [/^(緯度|lat|latitude|y|緯度10進法)$/i, /(緯度|latitude)/i],
+    lng: [/^(経度|lng|lon|longitude|x|経度10進法)$/i, /(経度|longitude)/i],
     currentStatus: [
       /^(開設状況|状況|ステータス|状態|開設|営業状況|受入状況|status|condition|state)$/i,
       /(開設状況|受入状況|ステータス)/i,
@@ -280,7 +272,10 @@ export function normalizeRows(
   rows: string[][],
   mapping: ColumnMapping,
   defaultArea = ''
-): { valid: NormalizedImportPost[]; errors: { row: number; reason: string }[] } {
+): {
+  valid: NormalizedImportPost[];
+  errors: { row: number; reason: string }[];
+} {
   const valid: NormalizedImportPost[] = [];
   const errors: { row: number; reason: string }[] = [];
 
@@ -473,4 +468,3 @@ export async function parseImportFile(
     };
   }
 }
-

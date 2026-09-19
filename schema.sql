@@ -11,6 +11,22 @@ CREATE TABLE IF NOT EXISTS categories (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 災害事象テーブル（複数災害の独立管理・発災自動判定）
+CREATE TABLE IF NOT EXISTS disasters (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,           -- 災害名 (例: 令和6年能登半島地震, 奥能登豪雨 等)
+    disaster_type TEXT NOT NULL,  -- earthquake, flood, landslide, tsunami, storm, volcano, snow, other
+    status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'archived')), -- active: 発災中, archived: 収束・記録
+    designated_at TEXT NOT NULL DEFAULT (datetime('now')), -- 発災・指定日時
+    areas TEXT NOT NULL DEFAULT '[]', -- JSON配列: 対象自治体・都道府県 (DisasterArea[])
+    banner_message TEXT,          -- 災害固有の緊急呼びかけメッセージ
+    note TEXT,                    -- 備考・詳細
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_disasters_status ON disasters(status, designated_at DESC);
+
 -- 投稿テーブル
 CREATE TABLE IF NOT EXISTS posts (
     id TEXT PRIMARY KEY,
@@ -35,6 +51,7 @@ CREATE TABLE IF NOT EXISTS posts (
     author_id TEXT REFERENCES users(id) ON DELETE SET NULL, -- 投稿者ユーザーID（Passkey登録ユーザー）
     author_cookie_id TEXT REFERENCES device_sessions(id), -- Cookie識別ユーザー（Passkey未登録）
     reporter_name TEXT,           -- 投稿者表示名（任意）
+    disaster_id TEXT REFERENCES disasters(id) ON DELETE SET NULL, -- 関連災害事象ID
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -43,6 +60,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category_id, updated_at D
 CREATE INDEX IF NOT EXISTS idx_posts_area ON posts(area);
 CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id);
 CREATE INDEX IF NOT EXISTS idx_posts_author_cookie ON posts(author_cookie_id);
+CREATE INDEX IF NOT EXISTS idx_posts_disaster ON posts(disaster_id);
 CREATE INDEX IF NOT EXISTS idx_posts_updated ON posts(updated_at DESC);
 
 -- ステータス更新履歴（マイクロアップデート追跡・通報対応）

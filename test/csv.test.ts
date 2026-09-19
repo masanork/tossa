@@ -9,7 +9,8 @@ import {
 
 describe('CSV/TSV Parser (RFC 4180)', () => {
   it('parses standard comma-separated values', () => {
-    const csv = 'title,area,lat,lng\n避難所A,中央区,32.8,130.7\n給水所B,東区,32.7,130.6';
+    const csv =
+      'title,area,lat,lng\n避難所A,中央区,32.8,130.7\n給水所B,東区,32.7,130.6';
     const result = parseCsv(csv);
 
     expect(result.delimiter).toBe(',');
@@ -30,7 +31,8 @@ describe('CSV/TSV Parser (RFC 4180)', () => {
   });
 
   it('handles quotes, commas within cells, and escaped quotes ("")', () => {
-    const csv = 'title,note\n"中央コミュニティセンター, 第1会場","""非常用""発電機あり, 備蓄水500本"';
+    const csv =
+      'title,note\n"中央コミュニティセンター, 第1会場","""非常用""発電機あり, 備蓄水500本"';
     const result = parseCsv(csv);
 
     expect(result.rows.length).toBe(1);
@@ -39,7 +41,8 @@ describe('CSV/TSV Parser (RFC 4180)', () => {
   });
 
   it('handles multiline cells enclosed in quotes', () => {
-    const csv = 'title,note\n"市民病院","1F: 受付\n2F: 救護所\n3F: 待機室"\n"文化会館","駐車場あり"';
+    const csv =
+      'title,note\n"市民病院","1F: 受付\n2F: 救護所\n3F: 待機室"\n"文化会館","駐車場あり"';
     const result = parseCsv(csv);
 
     expect(result.rows.length).toBe(2);
@@ -92,7 +95,14 @@ describe('Heuristic Column Mapping', () => {
   });
 
   it('infers English headers correctly', () => {
-    const headers = ['FacilityName', 'City', 'Address', 'Latitude', 'Longitude', 'State'];
+    const headers = [
+      'FacilityName',
+      'City',
+      'Address',
+      'Latitude',
+      'Longitude',
+      'State',
+    ];
     const mapping = inferColumnMapping(headers);
 
     expect(mapping.title).toBe(0);
