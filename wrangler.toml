@@ -17,11 +17,16 @@ binding = "DB"
 database_name = "tossa-db"
 database_id = "5c2c9eea-b0f2-428c-843f-fbd5e2ecf0d0"
 
+# Custom Domain (Cloudflare Registrar)
+[[routes]]
+pattern = "tossa.app"
+custom_domain = true
+
 # Environment Variables
 [vars]
 RP_NAME = "tossa"
-RP_ID = "tossa.sorane.dev"
-EXPECTED_ORIGIN = "https://tossa.sorane.dev"
+RP_ID = "tossa.app"
+EXPECTED_ORIGIN = "https://tossa.app"
 
 # Cloudflare R2 Storage (High-Traffic Media & Image Storage)
 [[r2_buckets]]

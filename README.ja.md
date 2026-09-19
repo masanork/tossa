@@ -98,7 +98,7 @@ tossa は **Model Context Protocol (MCP)** のリモートサーバーを標準�
 {
   "mcpServers": {
     "tossa": {
-      "url": "https://tossa.sorane.dev/mcp"
+      "url": "https://tossa.app/mcp"
     }
   }
 }
@@ -110,7 +110,7 @@ tossa は **Model Context Protocol (MCP)** のリモートサーバーを標準�
 {
   "mcpServers": {
     "tossa": {
-      "url": "https://tossa.sorane.dev/mcp",
+      "url": "https://tossa.app/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_TOKEN"
       }
@@ -197,7 +197,19 @@ npm run format:check
 npm run format
 ```
 
-プルリクエストおよび `main` ブランチへのプッシュ時には、GitHub Actions CI (`.github/workflows/ci.yml`) によりこれらすべての検査が自動実行されます。
+プルリクエストおよび `main` ブランチへのプッシュ時には、GitHub Actions CI (`.github/workflows/ci.yml`) によりこれらすべての検査が自動実行されます。  
+`main` へのプッシュで CI が通ると、続けて Cloudflare Workers（`https://tossa.app`）へ自動デプロイされます。
+
+### GitHub Actions のデプロイ用シークレット
+
+リポジトリの Settings → Secrets and variables → Actions に次を登録します。
+
+| Secret | 値 |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | [Create Token](https://dash.cloudflare.com/?to=/:account/api-tokens) で発行した Account API トークン。テンプレート **Edit Cloudflare Workers** を使い、`tossa.app` ゾーンの Zone → Workers Routes → Edit を含める。 |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare ダッシュボードの Workers 概要に表示される Account ID。 |
+
+CI から `db:seed:remote` は実行しません。シードの `INSERT OR REPLACE` が本番の `system_settings` を上書きするためです。スキーマとシードは初回（または手動）の作業のままです。
 
 ---
 

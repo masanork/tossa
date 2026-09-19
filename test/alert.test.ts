@@ -14,8 +14,8 @@ describe('Real-time Error Alerting Service (sendErrorAlert)', () => {
 
     const dummyEnv = {
       RP_NAME: 'tossa',
-      RP_ID: 'tossa.sorane.dev',
-      EXPECTED_ORIGIN: 'https://tossa.sorane.dev',
+      RP_ID: 'tossa.app',
+      EXPECTED_ORIGIN: 'https://tossa.app',
     } as unknown as Bindings;
     const result = await sendErrorAlert(dummyEnv, new Error('Test error'));
 
@@ -38,8 +38,8 @@ describe('Real-time Error Alerting Service (sendErrorAlert)', () => {
     const dummyEnv = {
       ALERT_WEBHOOK_URL: 'https://hooks.slack.com/services/T00/B00/X00',
       RP_NAME: 'tossa',
-      RP_ID: 'tossa.sorane.dev',
-      EXPECTED_ORIGIN: 'https://tossa.sorane.dev',
+      RP_ID: 'tossa.app',
+      EXPECTED_ORIGIN: 'https://tossa.app',
     } as unknown as Bindings;
 
     const error = new Error(
@@ -48,7 +48,7 @@ describe('Real-time Error Alerting Service (sendErrorAlert)', () => {
     const result = await sendErrorAlert(dummyEnv, error, {
       source: 'http',
       method: 'POST',
-      url: 'https://tossa.sorane.dev/api/posts?secret=supersecret',
+      url: 'https://tossa.app/api/posts?secret=supersecret',
       ip: '192.0.2.1',
     });
 
@@ -78,8 +78,8 @@ describe('Real-time Error Alerting Service (sendErrorAlert)', () => {
     const dummyEnv = {
       ALERT_WEBHOOK_URL: 'https://discord.com/api/webhooks/123/abc',
       RP_NAME: 'tossa',
-      RP_ID: 'tossa.sorane.dev',
-      EXPECTED_ORIGIN: 'https://tossa.sorane.dev',
+      RP_ID: 'tossa.app',
+      EXPECTED_ORIGIN: 'https://tossa.app',
     } as unknown as Bindings;
 
     const error = new TypeError('Cannot read properties of undefined');
@@ -105,8 +105,8 @@ describe('Real-time Error Alerting Service (sendErrorAlert)', () => {
     const dummyEnv = {
       ALERT_WEBHOOK_URL: 'https://hooks.slack.com/services/fail',
       RP_NAME: 'tossa',
-      RP_ID: 'tossa.sorane.dev',
-      EXPECTED_ORIGIN: 'https://tossa.sorane.dev',
+      RP_ID: 'tossa.app',
+      EXPECTED_ORIGIN: 'https://tossa.app',
     } as unknown as Bindings;
 
     const result = await sendErrorAlert(dummyEnv, new Error('Fatal'));
@@ -133,8 +133,8 @@ describe('Global Error Handler Integration (handleGlobalError)', () => {
       },
       {
         RP_NAME: 'tossa',
-        RP_ID: 'tossa.sorane.dev',
-        EXPECTED_ORIGIN: 'https://tossa.sorane.dev',
+        RP_ID: 'tossa.app',
+        EXPECTED_ORIGIN: 'https://tossa.app',
       }
     );
 
@@ -169,11 +169,11 @@ describe('Global Error Handler Integration (handleGlobalError)', () => {
     };
 
     const res = await testApp.fetch(
-      new Request('https://tossa.sorane.dev/api/test-error-with-alert'),
+      new Request('https://tossa.app/api/test-error-with-alert'),
       {
         RP_NAME: 'tossa',
-        RP_ID: 'tossa.sorane.dev',
-        EXPECTED_ORIGIN: 'https://tossa.sorane.dev',
+        RP_ID: 'tossa.app',
+        EXPECTED_ORIGIN: 'https://tossa.app',
         ALERT_WEBHOOK_URL: 'https://discord.com/api/webhooks/test/123',
       } as unknown as Bindings,
       mockCtx as any

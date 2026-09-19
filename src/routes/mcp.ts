@@ -18,6 +18,12 @@ import { getClientIp } from '../middleware/deviceCookie';
 
 export const mcpRoute = new Hono<{ Bindings: Bindings }>();
 
+function publicOrigin(env: Bindings): string {
+  const fromEnv = env.EXPECTED_ORIGIN?.replace(/\/+$/, '');
+  if (fromEnv) return fromEnv;
+  return `https://${env.RP_ID || 'tossa.app'}`;
+}
+
 // ---------------- MCP Metadata Definitions ----------------
 
 const MCP_TOOLS = [
@@ -340,7 +346,7 @@ async function executeTool(
           is_verified: p.is_verified === 1,
           verification_count: p.verification_count,
           updated_at: p.updated_at,
-          url: `https://${env.RP_ID || 'tossa.sorane.dev'}/#post-${p.id}`,
+          url: `${publicOrigin(env)}/#post-${p.id}`,
         }));
 
         return {
@@ -372,7 +378,7 @@ async function executeTool(
               post: {
                 ...post,
                 is_verified: post.is_verified === 1,
-                url: `https://${env.RP_ID || 'tossa.sorane.dev'}/#post-${post.id}`,
+                url: `${publicOrigin(env)}/#post-${post.id}`,
               },
               status_history: updates,
             },
@@ -515,7 +521,7 @@ async function executeTool(
           broadcastPushNotification(env, {
             title: `【${args.status_label}】${args.title}`,
             body: `${args.area}: ${args.note || '情報が更新されました'}`,
-            url: `https://${env.RP_ID || 'tossa.sorane.dev'}/#post-${id}`,
+            url: `${publicOrigin(env)}/#post-${id}`,
             alertType:
               args.category_id === 'shelter' || args.category_id === 'water'
                 ? 'evacuation'
@@ -532,7 +538,7 @@ async function executeTool(
               post_id: id,
               is_verified: isAdmin,
               author: reporterName,
-              url: `https://${env.RP_ID || 'tossa.sorane.dev'}/#post-${id}`,
+              url: `${publicOrigin(env)}/#post-${id}`,
             },
             null,
             2

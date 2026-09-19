@@ -15,7 +15,7 @@ export const federationRoute = new Hono<{ Bindings: Bindings }>();
 const GEOJSON_LD_CONTEXT = [
   'https://geojson.org/geojson-ld/geojson-context.jsonld',
   {
-    tossa: 'https://tossa.dev/schema#',
+    tossa: 'https://tossa.app/schema#',
     currentStatus: 'tossa:currentStatus',
     statusLabel: 'tossa:statusLabel',
     sourceUrl: 'tossa:sourceUrl',

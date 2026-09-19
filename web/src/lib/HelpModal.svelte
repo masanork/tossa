@@ -42,7 +42,7 @@
           url:
             typeof window !== 'undefined'
               ? `${window.location.origin}/mcp`
-              : 'https://tossa.sorane.dev/mcp',
+              : 'https://tossa.app/mcp',
         },
       },
     },

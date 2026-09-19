@@ -1,5 +1,17 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+
+async function openHeaderMenu(page: Page) {
+  await page.locator('header [data-header-menu]').click();
+  await expect(page.locator('[data-header-menu-panel]')).toBeVisible();
+}
+
+async function switchLanguage(page: Page, label: string) {
+  await openHeaderMenu(page);
+  await page
+    .locator(`[data-header-menu-panel] button:has-text("${label}")`)
+    .click();
+}
 
 test.describe('tossa Disaster & Community Platform E2E Tests', () => {
   test('1. Page load and i18n language switching', async ({ page }) => {
@@ -7,30 +19,24 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
 
     // 1. Initial page load
     await expect(page.locator('header')).toBeVisible();
-    const langBtn = page.locator(
-      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
-    );
-    await expect(langBtn).toBeVisible();
+    await expect(page.locator('header [data-header-menu]')).toBeVisible();
 
     // 2. Switch to English
-    await langBtn.click();
-    await page.locator('button:has-text("English")').click();
+    await switchLanguage(page, 'English');
 
     // Verify English translations
     await expect(page.locator('header')).toContainText('Post Info');
     await expect(page.locator('header')).toContainText('Messages');
 
     // 3. Switch to Easy Japanese (やさしい にほんご)
-    await langBtn.click();
-    await page.locator('button:has-text("やさしい にほんご")').click();
+    await switchLanguage(page, 'やさしい にほんご');
 
     // Verify Easy Japanese translations
     await expect(page.locator('header')).toContainText('じょうほうを かく');
     await expect(page.locator('header')).toContainText('あんぜんな メッセージ');
 
     // 4. Switch back to Standard Japanese (日本語)
-    await langBtn.click();
-    await page.locator('button:has-text("日本語 (標準)")').click();
+    await switchLanguage(page, '日本語 (標準)');
     await expect(page.locator('header')).toContainText('情報を投稿');
     await expect(page.locator('header')).toContainText('連絡');
   });
@@ -194,14 +200,12 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
   }) => {
     await page.goto('/');
 
-    const themeBtn = page.locator(
-      'header button[aria-label="テーマ切替"], header button[title*="テーマ切替"]'
-    );
-    await expect(themeBtn).toBeVisible();
+    await openHeaderMenu(page);
 
     // 1. Switch to Dark mode
-    await themeBtn.click();
-    const darkOption = page.locator('button:has-text("ダーク")');
+    const darkOption = page.locator(
+      '[data-header-menu-panel] button:has-text("ダーク")'
+    );
     await expect(darkOption).toBeVisible();
     await darkOption.click();
 
@@ -211,8 +215,10 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(metaThemeColor).toHaveAttribute('content', '#090d16');
 
     // 2. Switch to High-Contrast mode
-    await themeBtn.click();
-    const contrastOption = page.locator('button:has-text("ハイコントラスト")');
+    await openHeaderMenu(page);
+    const contrastOption = page.locator(
+      '[data-header-menu-panel] button:has-text("ハイコントラスト")'
+    );
     await expect(contrastOption).toBeVisible();
     await contrastOption.click();
 
@@ -222,8 +228,10 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(metaThemeColor).toHaveAttribute('content', '#000000');
 
     // 3. Switch back to Light mode
-    await themeBtn.click();
-    const lightOption = page.locator('button:has-text("ライト")');
+    await openHeaderMenu(page);
+    const lightOption = page.locator(
+      '[data-header-menu-panel] button:has-text("ライト")'
+    );
     await expect(lightOption).toBeVisible();
     await lightOption.click();
 
@@ -247,13 +255,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await page.goto('/');
 
     // Ensure Japanese locale
-    const langBtn = page.locator(
-      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
-    );
-    if (await langBtn.isVisible()) {
-      await langBtn.click();
-      await page.locator('button:has-text("日本語 (標準)")').click();
-    }
+    await switchLanguage(page, '日本語 (標準)');
 
     // 2. Toggle distance sorting to activate geolocationManager
     const sortBtn = page.locator(
@@ -318,13 +320,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await page.goto('/');
 
     // Ensure Japanese locale
-    const langBtn = page.locator(
-      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
-    );
-    if (await langBtn.isVisible()) {
-      await langBtn.click();
-      await page.locator('button:has-text("日本語 (標準)")').click();
-    }
+    await switchLanguage(page, '日本語 (標準)');
 
     // 1. Find a post with navigation guide button
     const navBtn = page
@@ -393,9 +389,10 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await closeBtn.click();
     await expect(qrModal).not.toBeVisible();
 
-    // 2. Open QR Scanner modal from Header
+    // 2. Open QR Scanner modal from Header menu
+    await openHeaderMenu(page);
     const scanHeaderBtn = page.locator(
-      'header button[title*="Offline Import"], header button[title*="QRコード読取"], header button[title*="QRコードを よみとる"]'
+      '[data-header-menu-panel] button[title*="Offline Import"], [data-header-menu-panel] button[title*="QRコード読取"], [data-header-menu-panel] button[title*="QRコードを よみとる"]'
     );
     await expect(scanHeaderBtn).toBeVisible();
     await scanHeaderBtn.click();
@@ -451,9 +448,12 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
   }) => {
     await page.goto('/');
 
-    // 1. Open Help Modal via header button
+    // 1. Open Help Modal via header menu
+    await openHeaderMenu(page);
     const helpBtn = page
-      .locator('header button[title*="ヘルプ"], header button[title*="Help"]')
+      .locator(
+        '[data-header-menu-panel] button[title*="ヘルプ"], [data-header-menu-panel] button:has-text("Help")'
+      )
       .first();
     await expect(helpBtn).toBeVisible();
     await helpBtn.click();
@@ -512,9 +512,10 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     // Verify star is filled (amber color)
     await expect(postCard.locator('svg.fill-amber-400')).toBeVisible();
 
-    // 3. Open MyPage Modal from Header
+    // 3. Open MyPage Modal from Header menu
+    await openHeaderMenu(page);
     const myPageBtn = page.locator(
-      'header button:has-text("マイページ"), header button:has-text("My Page")'
+      '[data-header-menu-panel] button:has-text("マイページ"), [data-header-menu-panel] button:has-text("My Page")'
     );
     await expect(myPageBtn).toBeVisible();
     await myPageBtn.click();
@@ -606,20 +607,13 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     const initialLang = await html.getAttribute('lang');
     expect(['ja', 'en']).toContain(initialLang);
 
-    const langBtn = page.locator(
-      'header button[title*="言語切替"], header button[title*="Language"], header button[title*="ことば"]'
-    );
-    await langBtn.click();
-    await page.locator('button:has-text("English")').click();
+    await switchLanguage(page, 'English');
     await expect(html).toHaveAttribute('lang', 'en');
 
-    await langBtn.click();
-    await page.locator('button:has-text("やさしい にほんご")').click();
+    await switchLanguage(page, 'やさしい にほんご');
     await expect(html).toHaveAttribute('lang', 'ja');
 
-    // Switch back to standard Japanese
-    await langBtn.click();
-    await page.locator('button:has-text("日本語 (標準)")').click();
+    await switchLanguage(page, '日本語 (標準)');
     await expect(html).toHaveAttribute('lang', 'ja');
 
     // 3. Modal Accessibility: role="dialog", aria-modal="true", and Escape key dismiss
@@ -637,8 +631,11 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(createDialog).not.toBeVisible();
 
     // 4. Help Modal: Accessibility Statement tab (JIS X 8341-3 Level AA)
+    await openHeaderMenu(page);
     const helpBtn = page
-      .locator('header button[title*="ヘルプ"], header button[title*="Help"]')
+      .locator(
+        '[data-header-menu-panel] button[title*="ヘルプ"], [data-header-menu-panel] button:has-text("Help")'
+      )
       .first();
     await helpBtn.click();
 
@@ -665,24 +662,14 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
     await expect(helpDialog).not.toBeVisible();
 
     // 5. Font Scaling: Standard -> Large -> X-Large
-    const fontScaleBtn = page
-      .locator(
-        'header button[title*="文字サイズ"], header button[title*="Font Size"], header button[title*="もじの おおきさ"]'
-      )
-      .first();
-    if (await fontScaleBtn.isVisible()) {
-      // Click once: normal -> large
-      await fontScaleBtn.click();
-      await expect(page.locator('html')).toHaveClass(/text-scale-large/);
-
-      // Click again: large -> xlarge
-      await fontScaleBtn.click();
-      await expect(page.locator('html')).toHaveClass(/text-scale-xlarge/);
-
-      // Click again: xlarge -> normal
-      await fontScaleBtn.click();
-      await expect(page.locator('html')).toHaveClass(/text-scale-normal/);
-    }
+    await openHeaderMenu(page);
+    const fontPanel = page.locator('[data-header-menu-panel]');
+    await fontPanel.getByRole('button', { name: '大', exact: true }).click();
+    await expect(page.locator('html')).toHaveClass(/text-scale-large/);
+    await fontPanel.getByRole('button', { name: '特大', exact: true }).click();
+    await expect(page.locator('html')).toHaveClass(/text-scale-xlarge/);
+    await fontPanel.getByRole('button', { name: '標準', exact: true }).click();
+    await expect(page.locator('html')).toHaveClass(/text-scale-normal/);
   });
 
   test('14. Automated accessibility audit with axe-core (WCAG 2.1 Level AA)', async ({

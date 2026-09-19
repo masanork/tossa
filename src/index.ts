@@ -117,6 +117,8 @@ function isAllowedOrigin(origin: string, expectedOrigin?: string): boolean {
     const url = new URL(origin);
     if (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
       return true;
+    if (url.hostname === 'tossa.app' || url.hostname.endsWith('.tossa.app'))
+      return true;
     if (url.hostname.endsWith('.sorane.dev')) return true;
     if (url.hostname.endsWith('.workers.dev')) return true;
   } catch {
