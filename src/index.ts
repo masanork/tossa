@@ -338,11 +338,17 @@ const worker = Object.assign(app, {
     env: Bindings,
     ctx: ExecutionContext
   ): Promise<void> {
+    // 10 minutes interval capacity maintenance
+    if (event.cron === '*/10 * * * *') {
+      ctx.waitUntil(
+        runCapacityMaintenance(env).catch((err) => {
+          console.error('[cron] capacity maintenance failed:', err);
+        })
+      );
+    }
+
     ctx.waitUntil(
       (async () => {
-        await runCapacityMaintenance(env).catch((err) => {
-          console.error('[Worker Scheduled maintenance Error]', err);
-        });
         await refreshPublicFeedSnapshot(env, { force: true }).catch((err) => {
           console.error('[Worker Scheduled snapshot Error]', err);
         });
