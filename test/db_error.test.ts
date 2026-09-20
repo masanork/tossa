@@ -10,9 +10,9 @@ describe('DB queries error handling', () => {
         bind: () => ({
           all: async () => {
             throw new Error('Simulated D1 error: getPosts error');
-          }
-        })
-      })
+          },
+        }),
+      }),
     } as unknown as D1Database;
 
     const result = await getVocabularyTags(mockDbThrowing, 10);
