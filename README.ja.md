@@ -213,10 +213,10 @@ npm run format
 
 リポジトリの Settings → Secrets and variables → Actions に次を登録します。
 
-| Secret | 値 |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | [Create Token](https://dash.cloudflare.com/?to=/:account/api-tokens) で発行した Account API トークン。テンプレート **Edit Cloudflare Workers** を使い、`tossa.app` ゾーンの Zone → Workers Routes → Edit を含める。 |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare ダッシュボードの Workers 概要に表示される Account ID。 |
+| Secret                  | 値                                                                                                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | [Create Token](https://dash.cloudflare.com/?to=/:account/api-tokens) で発行した Account API トークン。テンプレート **Edit Cloudflare Workers** を使い、`tossa.app` ゾーンの Zone → Workers Routes → Edit を含める。 |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare ダッシュボードの Workers 概要に表示される Account ID。                                                                                                                                                   |
 
 CI から `db:seed:remote` は実行しません。シードの `INSERT OR REPLACE` が本番の `system_settings` を上書きするためです。スキーマとシードは初回（または手動）の作業のままです。
 
