@@ -111,8 +111,14 @@ export async function requestEmailVerification(
 
   const code = randomDigits();
   const token = randomToken();
-  const secret =
-    env.JWT_SECRET || 'tossa-development-fallback-secret-change-in-production';
+  if (!env.JWT_SECRET) {
+    return {
+      ok: false,
+      error: 'システムエラー: JWT_SECRETが設定されていません',
+      status: 500,
+    };
+  }
+  const secret = env.JWT_SECRET;
   const codeHash = await hashPayload(secret, user.id, email, code);
   const tokenHash = await hashPayload(secret, user.id, email, token);
   const now = new Date();
@@ -215,8 +221,14 @@ async function finishConfirm(
     };
   }
 
-  const secret =
-    env.JWT_SECRET || 'tossa-development-fallback-secret-change-in-production';
+  if (!env.JWT_SECRET) {
+    return {
+      ok: false,
+      error: 'システムエラー: JWT_SECRETが設定されていません',
+      status: 500,
+    };
+  }
+  const secret = env.JWT_SECRET;
   const expected =
     kind === 'code'
       ? user.email_verify_code_hash
