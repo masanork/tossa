@@ -43,6 +43,25 @@ export async function updateSystemSetting(
     .run();
 }
 
+export async function updateSystemSettingsBatch(
+  db: D1Database,
+  settings: Record<string, string>
+): Promise<void> {
+  const statements: D1PreparedStatement[] = [];
+  for (const [key, value] of Object.entries(settings)) {
+    statements.push(
+      db
+        .prepare(
+          "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))"
+        )
+        .bind(key, value)
+    );
+  }
+  if (statements.length > 0) {
+    await db.batch(statements);
+  }
+}
+
 export async function getCategories(db: D1Database): Promise<Category[]> {
   const query = 'SELECT * FROM categories ORDER BY sort_order ASC, name ASC';
   const result = await db.prepare(query).all<Category>();
