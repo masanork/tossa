@@ -9,6 +9,16 @@
   import { geolocationManager } from './geolocation.svelte';
   import { formatDistance, getCardinalDirection } from './geoDistance';
 
+  function escapeHTML(str: string | null | undefined): string {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   interface Props {
     posts: Post[];
     defaultArea?: string;
@@ -424,7 +434,7 @@
               box-shadow: 0 3px 8px rgba(0,0,0,0.45);
               border: 2.5px solid white;
               line-height: 1;
-            " role="img" aria-label="${post.status_label || ''}">
+            " role="img" aria-label="${escapeHTML(post.status_label || '')}">
               ${pinSymbol}
             </div>
           `,
@@ -453,19 +463,19 @@
         popupContent.className = 'p-1';
         popupContent.innerHTML = `
           <div style="font-weight: 800; font-size: 13px; margin-bottom: 4px; color: #0f172a;">
-            ${post.title}
+            ${escapeHTML(post.title)}
           </div>
           <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
             <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
-              ${post.area}
+              ${escapeHTML(post.area)}
             </span>
             <span style="background: ${pinColor}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.2);">
-              ${statusTextPrefix} ${post.status_label || ''}
+              ${escapeHTML(statusTextPrefix)} ${escapeHTML(post.status_label || '')}
             </span>
           </div>
           ${distBadgeHtml}
-          ${post.address ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">${post.address}</div>` : ''}
-          ${post.note ? `<div style="font-size: 11px; color: #334155; margin-bottom: 8px;">${post.note}</div>` : ''}
+          ${post.address ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 6px;">${escapeHTML(post.address)}</div>` : ''}
+          ${post.note ? `<div style="font-size: 11px; color: #334155; margin-bottom: 8px;">${escapeHTML(post.note)}</div>` : ''}
           <button id="btn-update-${post.id}" style="
             width: 100%;
             background: #2563eb;
@@ -535,7 +545,7 @@
             border: 2px solid white;
             line-height: 1;
             opacity: ${existingPost ? '0.75' : '0.95'};
-          " role="img" aria-label="${shelter.name}">
+          " role="img" aria-label="${escapeHTML(shelter.name)}">
             🏛️
           </div>
         `,
@@ -551,22 +561,22 @@
           ${m.map_official_badge()}
         </div>
         <div style="font-weight: 800; font-size: 13px; margin-bottom: 4px; color: #0f172a;">
-          ${shelter.name}
+          ${escapeHTML(shelter.name)}
         </div>
         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
           <span style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">
-            ${shelter.area}
+            ${escapeHTML(shelter.area)}
           </span>
           <span style="background: #f1f5f9; color: #334155; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #cbd5e1;">
-            ${shelter.category}
+            ${escapeHTML(shelter.category)}
           </span>
         </div>
-        ${shelter.address ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${shelter.address}</div>` : ''}
-        ${shelter.note ? `<div style="font-size: 11px; color: #334155; margin-bottom: 6px; line-height: 1.4;">${shelter.note}</div>` : ''}
+        ${shelter.address ? `<div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">${escapeHTML(shelter.address)}</div>` : ''}
+        ${shelter.note ? `<div style="font-size: 11px; color: #334155; margin-bottom: 6px; line-height: 1.4;">${escapeHTML(shelter.note)}</div>` : ''}
         ${
           existingPost
             ? `<div style="font-size: 11px; color: #059669; font-weight: 700; margin-bottom: 6px; background: #ecfdf5; padding: 3px 6px; border-radius: 4px; border: 1px solid #a7f3d0;">
-                 ✓ 現在の状況報告あり（${existingPost.status_label || existingPost.current_status}）
+                 ✓ 現在の状況報告あり（${escapeHTML(existingPost.status_label || existingPost.current_status)}）
                </div>`
             : `<div style="font-size: 10.5px; color: #64748b; margin-bottom: 8px; background: #f8fafc; padding: 3px 6px; border-radius: 4px; border: 1px dashed #cbd5e1;">
                  ${m.map_official_unreported()}
