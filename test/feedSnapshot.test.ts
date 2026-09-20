@@ -63,7 +63,11 @@ describe('feedSnapshot service', () => {
 
     it('returns parsed snapshot if valid JSON', async () => {
       const kv = createMockKV();
-      const mockSnapshot = { generatedAt: '2023-01-01T00:00:00.000Z', total: 1, posts: [] };
+      const mockSnapshot = {
+        generatedAt: '2023-01-01T00:00:00.000Z',
+        total: 1,
+        posts: [],
+      };
       kv.__store.set(FEED_SNAPSHOT_KEY, JSON.stringify(mockSnapshot));
       const env = { FEED_KV: kv } as Bindings;
 
@@ -81,7 +85,11 @@ describe('feedSnapshot service', () => {
 
     it('returns existing snapshot if it is fresh and force is false', async () => {
       const kv = createMockKV();
-      const mockSnapshot = { generatedAt: new Date().toISOString(), total: 1, posts: [] };
+      const mockSnapshot = {
+        generatedAt: new Date().toISOString(),
+        total: 1,
+        posts: [],
+      };
       kv.__store.set(FEED_SNAPSHOT_KEY, JSON.stringify(mockSnapshot));
       const env = { FEED_KV: kv } as Bindings;
 
@@ -94,7 +102,11 @@ describe('feedSnapshot service', () => {
 
     it('refreshes snapshot if it is fresh but force is true', async () => {
       const kv = createMockKV();
-      const mockSnapshot = { generatedAt: new Date().toISOString(), total: 1, posts: [] };
+      const mockSnapshot = {
+        generatedAt: new Date().toISOString(),
+        total: 1,
+        posts: [],
+      };
       kv.__store.set(FEED_SNAPSHOT_KEY, JSON.stringify(mockSnapshot));
       const env = { FEED_KV: kv } as Bindings;
 
@@ -127,13 +139,18 @@ describe('feedSnapshot service', () => {
       kv.put = vi.fn().mockRejectedValue(new Error('KV put failed'));
       const env = { FEED_KV: kv } as Bindings;
 
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const result = await refreshPublicFeedSnapshot(env);
       expect(result).not.toBeNull();
       expect(result?.posts.length).toBe(1);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[feedSnapshot] KV put failed:', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[feedSnapshot] KV put failed:',
+        expect.any(Error)
+      );
       consoleErrorSpy.mockRestore();
     });
   });
@@ -149,7 +166,9 @@ describe('feedSnapshot service', () => {
     it('returns undefined if accessing executionCtx throws', () => {
       const c = {};
       Object.defineProperty(c, 'executionCtx', {
-        get: () => { throw new Error('Cannot access'); }
+        get: () => {
+          throw new Error('Cannot access');
+        },
       });
       const result = executionCtxOf(c as any);
       expect(result).toBeUndefined();
@@ -183,14 +202,19 @@ describe('feedSnapshot service', () => {
       const queries = await import('../src/db/queries');
       (queries.getPosts as any).mockRejectedValueOnce(new Error('DB failure'));
 
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       scheduleFeedRefresh(env, c);
 
       // Allow fallback promise to resolve/reject
       await new Promise(process.nextTick);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[feedSnapshot] scheduled refresh failed:', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[feedSnapshot] scheduled refresh failed:',
+        expect.any(Error)
+      );
       consoleErrorSpy.mockRestore();
     });
   });
