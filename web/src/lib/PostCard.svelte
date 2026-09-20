@@ -395,7 +395,7 @@
         {post.area}
       </span>
 
-      {#if (post.author_id && currentUser?.id === post.author_id) || post.is_owner}
+      {#if (post.author_id && currentUser?.id === post.author_id) || post.is_owner || isMyPost(post.id)}
         <span
           class="inline-flex items-center gap-0.5 rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
         >
