@@ -1,3 +1,5 @@
+
+/* eslint-disable no-useless-assignment */
 // src/ogp.ts: Dynamic SVG OGP Image Generator for SNS & messaging previews
 import QRCode from 'qrcode';
 

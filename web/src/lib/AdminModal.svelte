@@ -1,5 +1,9 @@
 <!-- web/src/lib/AdminModal.svelte -->
 <script lang="ts">
+
+
+  /* eslint-disable svelte/require-each-key */
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   import { onMount } from 'svelte';
   import { swipeDown } from './swipeToDismiss';
   import { focusTrap } from './focusTrap';
