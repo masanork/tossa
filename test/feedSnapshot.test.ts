@@ -3,7 +3,7 @@ import { executionCtxOf } from '../src/services/feedSnapshot';
 
 describe('executionCtxOf', () => {
   it('returns executionCtx if it exists and is accessible', () => {
-    const mockWaitUntil = (p: Promise<unknown>) => {};
+    const mockWaitUntil = (_p: Promise<unknown>) => {};
     const mockCtx = {
       executionCtx: {
         waitUntil: mockWaitUntil,
