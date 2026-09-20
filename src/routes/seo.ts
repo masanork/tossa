@@ -474,7 +474,7 @@ export async function renderHtmlWithSeo(
     '地域の施設・給水所・避難所・店舗の最新状況をリアルタイムに共有・確認できる超軽量情報プラットフォームです。';
   let pageUrl = `${origin}/`;
   let imageUrl = `${origin}/favicon.svg`;
-  let post: Post | null = null;
+  let post: Post | null;
   let jsonLd: Record<string, unknown>;
   let noscriptContent: string;
 
@@ -491,6 +491,7 @@ export async function renderHtmlWithSeo(
         `状況: ${statusText}`,
         post.note,
       ].filter(Boolean);
+      description = descParts.join(' | ');
       if (post.image_url) {
         imageUrl = post.image_url.startsWith('http')
           ? post.image_url
