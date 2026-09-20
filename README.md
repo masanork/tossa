@@ -221,10 +221,10 @@ Pushes to `main` that pass CI are then deployed to Cloudflare Workers (`https://
 
 Add these repository secrets (Settings → Secrets and variables → Actions):
 
-| Secret | Value |
-| --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Account API token from [Create Token](https://dash.cloudflare.com/?to=/:account/api-tokens). Start from **Edit Cloudflare Workers**, and include Zone → Workers Routes → Edit for `tossa.app`. |
-| `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard Workers overview. |
+| Secret                  | Value                                                                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Account API token from [Create Token](https://dash.cloudflare.com/?to=/:account/api-tokens). Start from **Edit Cloudflare Workers**, and include Zone → Workers Routes → Edit for `tossa.app`. |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID from the Cloudflare dashboard Workers overview.                                                                                                                                     |
 
 Do not run `db:seed:remote` from CI. Seed `INSERT OR REPLACE` would overwrite live `system_settings`. Schema and seeds remain a one-time (or manual) operation.
 
