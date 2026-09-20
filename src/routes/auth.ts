@@ -572,8 +572,8 @@ authRoute.post('/api-tokens', async (c) => {
       displayName: user.display_name,
       role: user.role,
     },
-    tokenName,
     c.env.JWT_SECRET,
+    tokenName,
     days * 24 * 60 * 60
   );
 
