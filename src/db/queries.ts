@@ -794,6 +794,37 @@ export async function importFederatedPosts(
   let updated = 0;
   let skipped = 0;
 
+  // Pre-fetch all existing history records for the incoming posts to avoid N+1 queries
+  const validPostIds = features
+    .filter((f) => f.id && f.properties?.title && f.properties?.area)
+    .map((f) => f.id);
+
+  const existingHistorySet = new Set<string>();
+
+  if (validPostIds.length > 0) {
+    // Process in chunks of 100 to avoid SQLite limits
+    const chunkSize = 100;
+    for (let i = 0; i < validPostIds.length; i += chunkSize) {
+      const chunk = validPostIds.slice(i, i + chunkSize);
+      const placeholders = chunk.map(() => '?').join(',');
+      const res = await db
+        .prepare(
+          `SELECT post_id, created_at FROM status_updates WHERE post_id IN (${placeholders})`
+        )
+        .bind(...chunk)
+        .all<{ post_id: string; created_at: string }>();
+
+      if (res.results) {
+        for (const row of res.results) {
+          existingHistorySet.add(`${row.post_id}|${row.created_at}`);
+        }
+      }
+    }
+  }
+
+  // To batch all status update inserts instead of executing them individually
+  const pendingHistoryInserts = [];
+
   for (const feature of features) {
     if (
       !feature.id ||
@@ -911,30 +942,34 @@ export async function importFederatedPosts(
     if (props.statusHistory && props.statusHistory.length > 0) {
       for (const h of props.statusHistory) {
         // Append if not already present with same post_id and timestamp
-        const histExists = await db
-          .prepare(
-            'SELECT id FROM status_updates WHERE post_id = ? AND created_at = ?'
-          )
-          .bind(feature.id, h.createdAt)
-          .first();
-
-        if (!histExists) {
-          await db
-            .prepare(
-              `INSERT INTO status_updates (id, post_id, status, status_label, note, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)`
-            )
-            .bind(
-              `update_${crypto.randomUUID()}`,
-              feature.id,
-              h.status,
-              h.statusLabel,
-              h.note || null,
-              h.createdAt
-            )
-            .run();
+        if (!existingHistorySet.has(`${feature.id}|${h.createdAt}`)) {
+          pendingHistoryInserts.push(
+            db
+              .prepare(
+                `INSERT INTO status_updates (id, post_id, status, status_label, note, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`
+              )
+              .bind(
+                `update_${crypto.randomUUID()}`,
+                feature.id,
+                h.status,
+                h.statusLabel,
+                h.note || null,
+                h.createdAt
+              )
+          );
+          // Add to set to prevent duplicate inserts within the same import payload
+          existingHistorySet.add(`${feature.id}|${h.createdAt}`);
         }
       }
+    }
+  }
+
+  // Execute history inserts in batches
+  if (pendingHistoryInserts.length > 0) {
+    const batchChunkSize = 100;
+    for (let i = 0; i < pendingHistoryInserts.length; i += batchChunkSize) {
+      await db.batch(pendingHistoryInserts.slice(i, i + batchChunkSize));
     }
   }
 
