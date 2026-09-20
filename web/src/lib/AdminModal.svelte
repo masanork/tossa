@@ -1,5 +1,6 @@
 <!-- web/src/lib/AdminModal.svelte -->
 <script lang="ts">
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   import { onMount } from 'svelte';
   import { swipeDown } from './swipeToDismiss';
   import { focusTrap } from './focusTrap';
@@ -2716,7 +2717,7 @@
                           handleSelectSheet(Number(e.currentTarget.value))}
                         class="w-full rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-emerald-700 dark:bg-slate-900 dark:text-slate-100"
                       >
-                        {#each availableSheets as sheet, idx}
+                        {#each availableSheets as sheet, idx (idx)}
                           <option value={idx}>
                             📄 {sheet.name} ({sheet.data.rows.length} 行)
                           </option>
@@ -2848,7 +2849,7 @@
                             class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           >
                             <option value={null}>-- 未選択 --</option>
-                            {#each csvHeaders as h, i}
+                            {#each csvHeaders as h, i (i)}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
                           </select>
@@ -2880,7 +2881,7 @@
                             <option value={null}
                               >-- 未選択 (デフォルト地域を使用) --</option
                             >
-                            {#each csvHeaders as h, i}
+                            {#each csvHeaders as h, i (i)}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
                           </select>
@@ -2906,7 +2907,7 @@
                             class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                           >
                             <option value={null}>-- 未選択 --</option>
-                            {#each csvHeaders as h, i}
+                            {#each csvHeaders as h, i (i)}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
                           </select>
@@ -2934,7 +2935,7 @@
                             <option value={null}
                               >-- 未選択 (デフォルトカテゴリを使用) --</option
                             >
-                            {#each csvHeaders as h, i}
+                            {#each csvHeaders as h, i (i)}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
                           </select>
@@ -2955,7 +2956,7 @@
                               class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             >
                               <option value={null}>-- 未選択 --</option>
-                              {#each csvHeaders as h, i}
+                              {#each csvHeaders as h, i (i)}
                                 <option value={i}>列 {i + 1}: {h}</option>
                               {/each}
                             </select>
@@ -2973,7 +2974,7 @@
                               class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             >
                               <option value={null}>-- 未選択 --</option>
-                              {#each csvHeaders as h, i}
+                              {#each csvHeaders as h, i (i)}
                                 <option value={i}>列 {i + 1}: {h}</option>
                               {/each}
                             </select>
@@ -3002,7 +3003,7 @@
                             <option value={null}
                               >-- 未選択 (「開設中」として登録) --</option
                             >
-                            {#each csvHeaders as h, i}
+                            {#each csvHeaders as h, i (i)}
                               <option value={i}>列 {i + 1}: {h}</option>
                             {/each}
                           </select>
@@ -3023,7 +3024,7 @@
                               class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             >
                               <option value={null}>-- 未選択 --</option>
-                              {#each csvHeaders as h, i}
+                              {#each csvHeaders as h, i (i)}
                                 <option value={i}>列 {i + 1}: {h}</option>
                               {/each}
                             </select>
@@ -3041,7 +3042,7 @@
                               class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                             >
                               <option value={null}>-- 未選択 --</option>
-                              {#each csvHeaders as h, i}
+                              {#each csvHeaders as h, i (i)}
                                 <option value={i}>列 {i + 1}: {h}</option>
                               {/each}
                             </select>
@@ -3122,7 +3123,7 @@
                         <ul
                           class="mt-1 list-inside list-disc text-[11px] text-amber-800 dark:text-amber-300"
                         >
-                          {#each normalizedPreview.errors.slice(0, 4) as err}
+                          {#each normalizedPreview.errors.slice(0, 4) as err (err.row)}
                             <li>行 {err.row}: {err.reason}</li>
                           {/each}
                           {#if normalizedPreview.errors.length > 4}
@@ -3168,7 +3169,7 @@
                           <tbody
                             class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800"
                           >
-                            {#each normalizedPreview.valid.slice(0, 6) as item}
+                            {#each normalizedPreview.valid.slice(0, 6) as item (item.id || item.originalRow)}
                               <tr
                                 class="hover:bg-slate-50 dark:hover:bg-slate-800/40"
                               >

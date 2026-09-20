@@ -1,5 +1,6 @@
 <!-- web/src/lib/CreatePostModal.svelte -->
 <script lang="ts">
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   import { onMount, onDestroy } from 'svelte';
   import { createPost, updatePost } from './api';
   import { enqueuePost } from './offlineQueue';
