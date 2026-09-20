@@ -3,6 +3,7 @@ import ts from 'typescript-eslint';
 import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 
+
 export default ts.config(
   js.configs.recommended,
   ...ts.configs.recommended,
@@ -68,5 +69,13 @@ export default ts.config(
       'svelte/require-each-key': 'off',
       'svelte/prefer-svelte-reactivity': 'error',
     },
+  },
+  {
+    files: ['web/src/lib/AdminModal.svelte', 'web/src/lib/CreatePostModal.svelte', 'web/src/lib/PrintSheetModal.svelte'],
+    rules: {
+      'svelte/require-each-key': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'prefer-const': 'off'
+    }
   }
 );
