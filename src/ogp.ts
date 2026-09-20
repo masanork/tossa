@@ -41,7 +41,7 @@ export async function renderOgpSvg(
   const postUrl = `${origin}/posts/${post.id}`;
 
   // Generate QR code SVG (without outer XML declaration)
-  let qrSvgContent: string;
+  let qrSvgContent = '';
   try {
     const rawQr = await QRCode.toString(postUrl, {
       type: 'svg',
@@ -60,9 +60,9 @@ export async function renderOgpSvg(
   }
 
   // Format status badge color and text
-  let statusBg: string;
-  let statusText: string;
-  let statusIcon: string;
+  let statusBg = '#059669'; // emerald-600
+  let statusText = post.status_label || '受付中 / 利用可能';
+  let statusIcon = '●';
 
   switch (post.current_status) {
     case 'available':

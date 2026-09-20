@@ -4,7 +4,7 @@
   import type { Post } from './types';
   import { Printer, X } from '@lucide/svelte';
   import QRCode from 'qrcode';
-  import { m } from './i18n.svelte';
+  import { m, i18n } from './i18n.svelte';
   import { focusTrap } from './focusTrap';
 
   interface Props {
