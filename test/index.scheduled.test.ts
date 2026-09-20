@@ -52,7 +52,11 @@ describe('Worker Scheduled Handler', () => {
     vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({ success: true });
 
-    await worker.scheduled!({ cron: '*/10 * * * *', type: 'cron', scheduledTime: Date.now() }, env, ctx);
+    await worker.scheduled!(
+      { cron: '*/10 * * * *', type: 'cron', scheduledTime: Date.now() },
+      env,
+      ctx
+    );
 
     // Wait for waitUntil promises to finish
     await Promise.all(waitUntilPromises);
@@ -67,13 +71,20 @@ describe('Worker Scheduled Handler', () => {
     vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({ success: true });
 
-    await worker.scheduled!({ cron: '*/10 * * * *', type: 'cron', scheduledTime: Date.now() }, env, ctx);
+    await worker.scheduled!(
+      { cron: '*/10 * * * *', type: 'cron', scheduledTime: Date.now() },
+      env,
+      ctx
+    );
 
     // Wait for waitUntil promises to finish
     await Promise.all(waitUntilPromises);
 
     expect(runCapacityMaintenance).toHaveBeenCalledWith(env);
-    expect(consoleErrorSpy).toHaveBeenCalledWith('[cron] capacity maintenance failed:', error);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[cron] capacity maintenance failed:',
+      error
+    );
   });
 
   it('handles and alerts on snapshot failure', async () => {
@@ -82,27 +93,47 @@ describe('Worker Scheduled Handler', () => {
     vi.mocked(refreshPublicFeedSnapshot).mockRejectedValue(error);
     vi.mocked(performDatabaseBackup).mockResolvedValue({ success: true });
 
-    await worker.scheduled!({ cron: '0 0 * * *', type: 'cron', scheduledTime: Date.now() }, env, ctx);
+    await worker.scheduled!(
+      { cron: '0 0 * * *', type: 'cron', scheduledTime: Date.now() },
+      env,
+      ctx
+    );
 
     // Wait for the IIFE to finish
     await Promise.all(waitUntilPromises);
 
-    expect(refreshPublicFeedSnapshot).toHaveBeenCalledWith(env, { force: true });
-    expect(consoleErrorSpy).toHaveBeenCalledWith('[Worker Scheduled snapshot Error]', error);
+    expect(refreshPublicFeedSnapshot).toHaveBeenCalledWith(env, {
+      force: true,
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[Worker Scheduled snapshot Error]',
+      error
+    );
   });
 
   it('handles and alerts on database backup failure (success = false)', async () => {
     vi.mocked(runCapacityMaintenance).mockResolvedValue();
     vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
-    vi.mocked(performDatabaseBackup).mockResolvedValue({ success: false, error: 'Backup failed' });
+    vi.mocked(performDatabaseBackup).mockResolvedValue({
+      success: false,
+      error: 'Backup failed',
+    });
 
-    await worker.scheduled!({ cron: '0 0 * * *', type: 'cron', scheduledTime: Date.now() }, env, ctx);
+    await worker.scheduled!(
+      { cron: '0 0 * * *', type: 'cron', scheduledTime: Date.now() },
+      env,
+      ctx
+    );
 
     // Wait for the IIFE to finish
     await Promise.all(waitUntilPromises);
 
     expect(performDatabaseBackup).toHaveBeenCalledWith(env);
-    expect(sendErrorAlert).toHaveBeenCalledWith(env, new Error('Backup failed'), { source: 'scheduled_backup' });
+    expect(sendErrorAlert).toHaveBeenCalledWith(
+      env,
+      new Error('Backup failed'),
+      { source: 'scheduled_backup' }
+    );
   });
 
   it('handles and alerts on global scheduled block error', async () => {
@@ -111,13 +142,22 @@ describe('Worker Scheduled Handler', () => {
     vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockRejectedValue(error);
 
-    await worker.scheduled!({ cron: '0 0 * * *', type: 'cron', scheduledTime: Date.now() }, env, ctx);
+    await worker.scheduled!(
+      { cron: '0 0 * * *', type: 'cron', scheduledTime: Date.now() },
+      env,
+      ctx
+    );
 
     // Wait for the IIFE to finish
     await Promise.all(waitUntilPromises);
 
     expect(performDatabaseBackup).toHaveBeenCalledWith(env);
-    expect(consoleErrorSpy).toHaveBeenCalledWith('[Worker Scheduled Backup Error]', error);
-    expect(sendErrorAlert).toHaveBeenCalledWith(env, error, { source: 'scheduled_backup' });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[Worker Scheduled Backup Error]',
+      error
+    );
+    expect(sendErrorAlert).toHaveBeenCalledWith(env, error, {
+      source: 'scheduled_backup',
+    });
   });
 });
