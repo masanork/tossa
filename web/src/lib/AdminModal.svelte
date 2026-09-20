@@ -1662,7 +1662,7 @@
                 }`}
               >
                 <Network class="h-3.5 w-3.5" />
-                <span>データ合流</span>
+                <span>サイト連携</span>
               </button>
 
               <button
@@ -3334,7 +3334,7 @@
                           <Network
                             class="h-4 w-4 text-blue-600 dark:text-blue-400"
                           />
-                          <span>他サイトとの合流・連携 (Federation)</span>
+                          <span>他サイトとの連携 (Federation)</span>
                         </div>
                         <span
                           class="font-mono text-[10px] text-slate-500 dark:text-slate-400"
@@ -3346,7 +3346,7 @@
                         class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400"
                       >
                         災害時に他チームが立ち上げた tossa
-                        や互換サイトと相互にデータを合流・移行できます。
+                        や互換サイトと相互にデータを連携・移行できます。
                       </p>
                     </div>
 
@@ -3356,7 +3356,7 @@
                         for="admin-sync-url"
                         class="text-[11px] font-bold text-slate-700 dark:text-slate-300"
                       >
-                        相手の tossa URL を入力して合流:
+                        相手の tossa URL を入力して連携:
                       </label>
                       <div class="flex items-center gap-1.5">
                         <input
@@ -3375,7 +3375,7 @@
                           <RefreshCw
                             class={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`}
                           />
-                          <span>{isSyncing ? '同期中...' : '合流・同期'}</span>
+                          <span>{isSyncing ? '同期中...' : '連携・同期'}</span>
                         </button>
                       </div>
                     </div>
