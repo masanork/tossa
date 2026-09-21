@@ -136,7 +136,7 @@
   >('settings');
 
   // CSV / Excel Import state
-  let __csvRawText = $state('');
+  let _csvRawText = $state('');
   let csvFileName = $state('');
   let csvHeaders = $state<string[]>([]);
   let csvRows = $state<string[][]>([]);
@@ -154,7 +154,7 @@
   let updateDuplicates = $state(true);
   let defaultCategoryId = $state('shelter');
   let isImportingCsv = $state(false);
-  let __csvImportResult = $state<
+  let _csvImportResult = $state<
     import('./api').ImportCsvResponse['stats'] | null
   >(null);
   let csvStatusMessage = $state<{
@@ -167,7 +167,7 @@
   // Excel (.xlsx) sheet selection state
   let availableSheets = $state<ExcelSheetInfo[]>([]);
   let selectedSheetIndex = $state<number>(0);
-  let __isExcelMode = $state<boolean>(false);
+  let _isExcelMode = $state<boolean>(false);
 
   const normalizedPreview = $derived.by(() => {
     if (csvRows.length === 0 || csvHeaders.length === 0) {
