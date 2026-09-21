@@ -71,13 +71,15 @@ export function executionCtxOf(c: {
 
 export function scheduleFeedRefresh(
   env: Bindings,
-  ctx: { waitUntil: (p: Promise<unknown>) => void } | undefined
-): void {
-  if (!env.FEED_KV) return;
-  const task = refreshPublicFeedSnapshot(env).catch((err) => {
-    console.error('[feedSnapshot] refresh failed:', err);
-  });
-  if (ctx?.waitUntil) {
-    ctx.waitUntil(task);
+  c: { executionCtx: { waitUntil: (p: Promise<unknown>) => void } }
+) {
+  const ctx = executionCtxOf(c);
+  if (ctx) {
+    ctx.waitUntil(refreshPublicFeedSnapshot(env));
+  } else {
+    // Fallback if executionCtx is somehow unavailable
+    refreshPublicFeedSnapshot(env).catch((err) =>
+      console.error('[feedSnapshot] scheduled refresh failed:', err)
+    );
   }
 }

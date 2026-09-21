@@ -165,7 +165,7 @@ postsRoute.get('/', async (c) => {
       }
       const age = Date.now() - Date.parse(snapshot.generatedAt);
       if (Number.isNaN(age) || age > 60_000) {
-        scheduleFeedRefresh(c.env, executionCtxOf(c));
+        scheduleFeedRefresh(c.env, c as any);
       }
       return response;
     }
@@ -187,7 +187,7 @@ postsRoute.get('/', async (c) => {
   // Public lists omit is_owner so Cookie headers do not fragment the edge cache.
   // The client already treats localStorage ownership (isMyPost) as equivalent.
   if (unfilteredPublic) {
-    scheduleFeedRefresh(c.env, executionCtxOf(c));
+    scheduleFeedRefresh(c.env, c as any);
   }
 
   const posts = isPrivateList
@@ -391,7 +391,7 @@ postsRoute.post('/', async (c) => {
     }
   }
 
-  scheduleFeedRefresh(c.env, executionCtxOf(c));
+  scheduleFeedRefresh(c.env, c as any);
 
   return c.json(
     {
@@ -493,7 +493,7 @@ postsRoute.put('/:id', async (c) => {
     { postId }
   );
 
-  scheduleFeedRefresh(c.env, executionCtxOf(c));
+  scheduleFeedRefresh(c.env, c as any);
 
   return c.json({
     success: true,
@@ -545,7 +545,7 @@ postsRoute.delete('/:id', async (c) => {
     { postId }
   );
 
-  scheduleFeedRefresh(c.env, executionCtxOf(c));
+  scheduleFeedRefresh(c.env, c as any);
 
   return c.json({
     success: true,
@@ -617,7 +617,7 @@ postsRoute.post('/:id/status', async (c) => {
     }
   }
 
-  scheduleFeedRefresh(c.env, executionCtxOf(c));
+  scheduleFeedRefresh(c.env, c as any);
 
   return c.json({
     success: true,

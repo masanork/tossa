@@ -97,9 +97,6 @@
   let imageMeta = $state<ImageMeta | null>(null);
   let isProcessingImage = $state(false);
   let c2paVerified = $state(false);
-  let c2paInfo = $state<{ generator?: string; isSigned?: boolean } | null>(
-    null
-  );
   let photoTakenTime = $state<string | null>(null);
 
   // Coordinates & map picker state
@@ -229,13 +226,8 @@
       // C2PA authenticity information
       if (result.c2paDetected) {
         c2paVerified = true;
-        c2paInfo = {
-          generator: result.c2paDetails?.generator,
-          isSigned: result.c2paDetails?.isSigned,
-        };
       } else {
         c2paVerified = false;
-        c2paInfo = null;
       }
 
       // Automatically set pin if EXIF GPS coordinates are present
@@ -262,7 +254,6 @@
     imagePreviewUrl = null;
     imageMeta = null;
     c2paVerified = false;
-    c2paInfo = null;
     photoTakenTime = null;
     if (fileInput) fileInput.value = '';
   }

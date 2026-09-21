@@ -210,6 +210,42 @@ export const TAG_DICTIONARY: TagDefinition[] = [
   },
 ];
 
+const EXACT_MATCH_MAP = new Map<string, TagDefinition>();
+const REGEX_FALLBACKS: Array<{ pattern: RegExp; def: TagDefinition }> = [];
+
+for (const def of TAG_DICTIONARY) {
+  const source = def.patterns.source;
+  const match = source.match(/^\^\((.*)\)\$$/);
+
+  // If the regex has no special characters other than the grouping/OR structure,
+  // we can map it to an exact string match. (e.g. ^(word1|word2)$)
+  // We check for any regex metacharacters including nested parens or anchors.
+  if (match && match[1] && !/[\\.*+?[\]{}()^$]/.test(match[1])) {
+    const words = match[1].split('|');
+    for (const word of words) {
+      // Because we still need to preserve order evaluation if two definitions overlap,
+      // map lookups might bypass an earlier fallback regex. However, given our dictionary,
+      // there are no overlaps. But to be perfectly safe against overlapping exact/regex maps,
+      // the map lookup is fine as long as exact matches take precedence logically.
+      // In this specific static array, all items are disjoint.
+      EXACT_MATCH_MAP.set(word.toLowerCase(), def);
+    }
+  } else {
+    REGEX_FALLBACKS.push({ pattern: def.patterns, def });
+  }
+}
+
+/**
+ * Find definition optimized
+ */
+function findDefinition(normalized: string): TagDefinition | undefined {
+  const lower = normalized.toLowerCase();
+  const exact = EXACT_MATCH_MAP.get(lower);
+  if (exact) return exact;
+
+  return REGEX_FALLBACKS.find((fb) => fb.pattern.test(normalized))?.def;
+}
+
 /**
  * Returns localized presentation information for a tag name based on the current locale.
  * Always preserves raw tag for query filtering.
@@ -225,8 +261,8 @@ export function getTagDisplay(rawTag: string, lang: string): TagDisplayInfo {
     };
   }
 
-  // Find matching dictionary entry
-  const found = TAG_DICTIONARY.find((def) => def.patterns.test(normalized));
+  // Find matching dictionary entry using O(1) map or fallback
+  const found = findDefinition(normalized);
 
   if (!found) {
     // Folksonomy tag without custom mapping -> display raw

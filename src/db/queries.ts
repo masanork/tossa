@@ -43,6 +43,25 @@ export async function updateSystemSetting(
     .run();
 }
 
+export async function updateSystemSettingsBatch(
+  db: D1Database,
+  settings: Record<string, string>
+): Promise<void> {
+  const statements: D1PreparedStatement[] = [];
+  for (const [key, value] of Object.entries(settings)) {
+    statements.push(
+      db
+        .prepare(
+          "INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))"
+        )
+        .bind(key, value)
+    );
+  }
+  if (statements.length > 0) {
+    await db.batch(statements);
+  }
+}
+
 export async function getCategories(db: D1Database): Promise<Category[]> {
   const query = 'SELECT * FROM categories ORDER BY sort_order ASC, name ASC';
   const result = await db.prepare(query).all<Category>();
@@ -794,6 +813,37 @@ export async function importFederatedPosts(
   let updated = 0;
   let skipped = 0;
 
+  // Pre-fetch all existing history records for the incoming posts to avoid N+1 queries
+  const validPostIds = features
+    .filter((f) => f.id && f.properties?.title && f.properties?.area)
+    .map((f) => f.id);
+
+  const existingHistorySet = new Set<string>();
+
+  if (validPostIds.length > 0) {
+    // Process in chunks of 100 to avoid SQLite limits
+    const chunkSize = 100;
+    for (let i = 0; i < validPostIds.length; i += chunkSize) {
+      const chunk = validPostIds.slice(i, i + chunkSize);
+      const placeholders = chunk.map(() => '?').join(',');
+      const res = await db
+        .prepare(
+          `SELECT post_id, created_at FROM status_updates WHERE post_id IN (${placeholders})`
+        )
+        .bind(...chunk)
+        .all<{ post_id: string; created_at: string }>();
+
+      if (res.results) {
+        for (const row of res.results) {
+          existingHistorySet.add(`${row.post_id}|${row.created_at}`);
+        }
+      }
+    }
+  }
+
+  // To batch all status update inserts instead of executing them individually
+  const pendingHistoryInserts = [];
+
   for (const feature of features) {
     if (
       !feature.id ||
@@ -911,30 +961,34 @@ export async function importFederatedPosts(
     if (props.statusHistory && props.statusHistory.length > 0) {
       for (const h of props.statusHistory) {
         // Append if not already present with same post_id and timestamp
-        const histExists = await db
-          .prepare(
-            'SELECT id FROM status_updates WHERE post_id = ? AND created_at = ?'
-          )
-          .bind(feature.id, h.createdAt)
-          .first();
-
-        if (!histExists) {
-          await db
-            .prepare(
-              `INSERT INTO status_updates (id, post_id, status, status_label, note, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)`
-            )
-            .bind(
-              `update_${crypto.randomUUID()}`,
-              feature.id,
-              h.status,
-              h.statusLabel,
-              h.note || null,
-              h.createdAt
-            )
-            .run();
+        if (!existingHistorySet.has(`${feature.id}|${h.createdAt}`)) {
+          pendingHistoryInserts.push(
+            db
+              .prepare(
+                `INSERT INTO status_updates (id, post_id, status, status_label, note, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?)`
+              )
+              .bind(
+                `update_${crypto.randomUUID()}`,
+                feature.id,
+                h.status,
+                h.statusLabel,
+                h.note || null,
+                h.createdAt
+              )
+          );
+          // Add to set to prevent duplicate inserts within the same import payload
+          existingHistorySet.add(`${feature.id}|${h.createdAt}`);
         }
       }
+    }
+  }
+
+  // Execute history inserts in batches
+  if (pendingHistoryInserts.length > 0) {
+    const batchChunkSize = 100;
+    for (let i = 0; i < pendingHistoryInserts.length; i += batchChunkSize) {
+      await db.batch(pendingHistoryInserts.slice(i, i + batchChunkSize));
     }
   }
 
@@ -1363,11 +1417,54 @@ export async function importCsvPosts(
     allCategories[0]?.id ||
     'general';
 
+  // Cache and prepare entries for partial matching
+  const partialMatchCache = new Map<string, string | null>();
+  const catMapByNameEntries = Array.from(catMapByName.entries());
+
   // Process posts in chunks to avoid D1 batch statement limits
   const CHUNK_SIZE = 40;
   for (let i = 0; i < posts.length; i += CHUNK_SIZE) {
     const chunk = posts.slice(i, i + CHUNK_SIZE);
     const statements: D1PreparedStatement[] = [];
+
+    // Pre-fetch duplicates for the entire chunk
+    const chunkValidPosts = chunk
+      .filter((post) => post.title && post.title.trim())
+      .map((post) => ({
+        cleanTitle: post.title.trim(),
+        cleanArea: (post.area && post.area.trim()) || '地域未設定',
+      }));
+
+    const existingPostsMap = new Map<
+      string,
+      { id: string; current_status: string; status_label: string }
+    >();
+
+    if (chunkValidPosts.length > 0) {
+      const orConditions = chunkValidPosts
+        .map(() => '(title = ? AND area = ?)')
+        .join(' OR ');
+      const bindParams = chunkValidPosts.flatMap((p) => [
+        p.cleanTitle,
+        p.cleanArea,
+      ]);
+
+      const duplicatesQuery = `SELECT id, title, area, current_status, status_label FROM posts WHERE ${orConditions}`;
+      const duplicatesResult = await db
+        .prepare(duplicatesQuery)
+        .bind(...bindParams)
+        .all<{
+          id: string;
+          title: string;
+          area: string;
+          current_status: string;
+          status_label: string;
+        }>();
+
+      for (const row of duplicatesResult.results || []) {
+        existingPostsMap.set(`${row.title}::${row.area}`, row);
+      }
+    }
 
     for (const post of chunk) {
       if (!post.title || !post.title.trim()) {
@@ -1386,24 +1483,33 @@ export async function importCsvPosts(
         const normName = post.categoryName.trim().toLowerCase();
         if (catMapByName.has(normName)) {
           targetCategoryId = catMapByName.get(normName)!;
+        } else if (partialMatchCache.has(normName)) {
+          const cachedId = partialMatchCache.get(normName);
+          if (cachedId) {
+            targetCategoryId = cachedId;
+          }
         } else {
           // Partial matching
-          for (const [name, id] of catMapByName.entries()) {
+          let foundMatch = false;
+          for (let j = 0; j < catMapByNameEntries.length; j++) {
+            const entry = catMapByNameEntries[j];
+            if (!entry) continue;
+            const [name, id] = entry;
             if (normName.includes(name) || name.includes(normName)) {
               targetCategoryId = id;
+              partialMatchCache.set(normName, id);
+              foundMatch = true;
               break;
             }
+          }
+          if (!foundMatch) {
+            partialMatchCache.set(normName, null);
           }
         }
       }
 
-      // Check if duplicate post exists with same (title, area)
-      const existing = await db
-        .prepare(
-          'SELECT id, current_status, status_label FROM posts WHERE title = ? AND area = ?'
-        )
-        .bind(cleanTitle, cleanArea)
-        .first<{ id: string; current_status: string; status_label: string }>();
+      // Check if duplicate post exists with same (title, area) using in-memory map
+      const existing = existingPostsMap.get(`${cleanTitle}::${cleanArea}`);
 
       const now = new Date().toISOString();
 
