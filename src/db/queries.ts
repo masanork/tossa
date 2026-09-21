@@ -1022,24 +1022,22 @@ export async function createThread(
     .run();
 
   // 2. Register initial members and encrypted key envelopes
-  if (initialMembers.length > 0) {
-    const statements = initialMembers.map((m) =>
-      db
-        .prepare(
-          `INSERT INTO thread_members (id, thread_id, user_id, encrypted_thread_key, ephemeral_public_key, key_sender_id, role, joined_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-        )
-        .bind(
-          `member_${crypto.randomUUID()}`,
-          thread.id,
-          m.userId,
-          m.encryptedThreadKey,
-          m.ephemeralPublicKey,
-          thread.createdBy,
-          m.role || (m.userId === thread.createdBy ? 'owner' : 'member')
-        )
-    );
-    await db.batch(statements);
+  for (const m of initialMembers) {
+    await db
+      .prepare(
+        `INSERT INTO thread_members (id, thread_id, user_id, encrypted_thread_key, ephemeral_public_key, key_sender_id, role, joined_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      )
+      .bind(
+        `member_${crypto.randomUUID()}`,
+        thread.id,
+        m.userId,
+        m.encryptedThreadKey,
+        m.ephemeralPublicKey,
+        thread.createdBy,
+        m.role || (m.userId === thread.createdBy ? 'owner' : 'member')
+      )
+      .run();
   }
 }
 

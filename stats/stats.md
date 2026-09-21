@@ -2,14 +2,14 @@
 
 Commit `c159ee3` · 2026-09-19
 
-| Area           | Files |      Lines |   Tests |
-| -------------- | ----: | ---------: | ------: |
-| Worker `src/`  |    26 |     11,373 |       0 |
-| UI `web/src/`  |    42 |     21,184 |       0 |
-| Unit `test/`   |    36 |      6,110 |     215 |
-| E2E `e2e/`     |     1 |        708 |      14 |
-| **Impl total** |    68 | **32,557** |         |
-| **Test total** |    37 |  **6,818** | **229** |
+| Area | Files | Lines | Tests |
+| --- | ---: | ---: | ---: |
+| Worker `src/` | 26 | 11,373 | 0 |
+| UI `web/src/` | 42 | 21,184 | 0 |
+| Unit `test/` | 36 | 6,110 | 215 |
+| E2E `e2e/` | 1 | 708 | 14 |
+| **Impl total** | 68 | **32,557** | |
+| **Test total** | 37 | **6,818** | **229** |
 
 - Test / (impl + test) line ratio: **17%**
 - npm packages (lockfile): **453**

@@ -78,7 +78,8 @@ export class PushNotificationManager {
 
   async subscribe(token?: string | null): Promise<boolean> {
     if (!this.supported) {
-      this.errorMessage = 'Notifications are not supported in this browser.';
+      this.errorMessage =
+        'Notifications are not supported in this browser.';
       return false;
     }
 
