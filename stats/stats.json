@@ -1,45 +1,45 @@
 {
-  "generatedAt": "2026-09-19T14:11:29.600Z",
+  "generatedAt": "2026-09-21T09:13:52.324Z",
   "git": {
-    "commit": "c159ee3"
+    "commit": "915a8c8"
   },
   "src": {
     "name": "src (Worker)",
     "path": "src",
-    "files": 26,
-    "lines": 11373,
+    "files": 29,
+    "lines": 12352,
     "testFns": 0
   },
   "web": {
     "name": "web/src (UI)",
     "path": "web/src",
-    "files": 42,
-    "lines": 21184,
+    "files": 49,
+    "lines": 24074,
     "testFns": 0
   },
   "tests": {
     "name": "test (unit)",
     "path": "test",
-    "files": 36,
-    "lines": 6110,
-    "testFns": 215
+    "files": 50,
+    "lines": 7402,
+    "testFns": 271
   },
   "e2e": {
     "name": "e2e",
     "path": "e2e",
     "files": 1,
-    "lines": 708,
+    "lines": 709,
     "testFns": 14
   },
   "health": {
-    "implLines": 32557,
-    "testLines": 6818,
-    "testRatio": 0.17315555555555556,
-    "depCount": 453,
+    "implLines": 36426,
+    "testLines": 8111,
+    "testRatio": 0.18211823876776612,
+    "depCount": 417,
     "largeFiles": [
       {
         "path": "web/src/lib/AdminModal.svelte",
-        "lines": 3718
+        "lines": 4005
       },
       {
         "path": "src/municipalities.ts",
@@ -51,27 +51,31 @@
       },
       {
         "path": "src/db/queries.ts",
-        "lines": 1617
+        "lines": 1833
       },
       {
         "path": "web/src/lib/CreatePostModal.svelte",
-        "lines": 1526
+        "lines": 1664
       },
       {
         "path": "web/src/App.svelte",
-        "lines": 1417
+        "lines": 1444
+      },
+      {
+        "path": "web/src/lib/c2paVerifier.ts",
+        "lines": 1276
+      },
+      {
+        "path": "web/src/lib/api.ts",
+        "lines": 1171
+      },
+      {
+        "path": "web/src/lib/PostCard.svelte",
+        "lines": 1140
       },
       {
         "path": "src/routes/mcp.ts",
         "lines": 1106
-      },
-      {
-        "path": "web/src/lib/PostCard.svelte",
-        "lines": 1066
-      },
-      {
-        "path": "web/src/lib/api.ts",
-        "lines": 1062
       },
       {
         "path": "web/src/lib/MessagesModal.svelte",
@@ -87,19 +91,23 @@
       },
       {
         "path": "web/src/lib/MapView.svelte",
-        "lines": 704
+        "lines": 705
+      },
+      {
+        "path": "src/routes/posts.ts",
+        "lines": 661
+      },
+      {
+        "path": "web/src/lib/QrScannerModal.svelte",
+        "lines": 654
       },
       {
         "path": "web/src/lib/MyPageModal.svelte",
         "lines": 645
       },
       {
-        "path": "web/src/lib/QrScannerModal.svelte",
+        "path": "src/routes/auth.ts",
         "lines": 593
-      },
-      {
-        "path": "src/routes/posts.ts",
-        "lines": 556
       },
       {
         "path": "src/routes/opendata.ts",
@@ -108,19 +116,15 @@
       {
         "path": "src/services/push.ts",
         "lines": 543
-      },
-      {
-        "path": "src/routes/auth.ts",
-        "lines": 526
       }
     ]
   },
   "coverage": {
     "available": true,
-    "linePct": 72,
-    "branchPct": 60,
-    "funcPct": 74,
-    "lines": 2163,
-    "coveredLines": 1557
+    "linePct": 75,
+    "branchPct": 62,
+    "funcPct": 78,
+    "lines": 2495,
+    "coveredLines": 1862
   }
 }
