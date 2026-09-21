@@ -403,7 +403,7 @@
           {m.my_post_badge()}
         </span>
       {:else if post.reporter_name}
-        <span class="text-[10px] text-slate-400 dark:text-slate-500">
+        <span class="text-[10px] text-slate-500 dark:text-slate-400">
           by {post.reporter_name}
         </span>
       {/if}
@@ -763,7 +763,7 @@
       </button>
 
       {#if lastVerifiedAt}
-        <span class="text-[10px] text-slate-400">
+        <span class="text-[10px] text-slate-500 dark:text-slate-400">
           {m.verified_time({ time: formatRelativeTime(lastVerifiedAt) })}
         </span>
       {/if}
@@ -1087,12 +1087,12 @@
             {/if}
           </div>
           {#if c2pa.issuer}
-            <div class="text-[10px] text-slate-400">
+            <div class="text-[10px] text-slate-500 dark:text-slate-400">
               {m.c2pa_issuer({ issuer: c2pa.issuer })}
             </div>
           {/if}
           {#if c2pa.time}
-            <div class="text-[10px] text-slate-400">
+            <div class="text-[10px] text-slate-500 dark:text-slate-400">
               {m.c2pa_claim_time({
                 time: new Date(c2pa.time).toLocaleString(
                   i18n.current === 'en' ? 'en-US' : 'ja-JP'
