@@ -684,9 +684,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
       .exclude('.leaflet-container')
       .analyze();
 
-    expect(
-      mainScanResults.violations.filter((v) => v.id !== 'color-contrast')
-    ).toEqual([]);
+    expect(mainScanResults.violations).toEqual([]);
 
     // 3. Open Create Post modal and audit dialog accessibility
     const createBtn = page.locator('header button:has-text("＋")');
@@ -701,9 +699,7 @@ test.describe('tossa Disaster & Community Platform E2E Tests', () => {
       .exclude('.leaflet-container')
       .analyze();
 
-    expect(
-      modalScanResults.violations.filter((v) => v.id !== 'color-contrast')
-    ).toEqual([]);
+    expect(modalScanResults.violations).toEqual([]);
 
     // Close modal
     await page.keyboard.press('Escape');
