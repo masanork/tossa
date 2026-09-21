@@ -37,6 +37,7 @@
   import { m } from './i18n.svelte';
   import { mergeVocabularyWithSeeds } from './seedTags';
   import { geolocationManager } from './geolocation.svelte';
+  import { searchMunicipalities, type Municipality } from './municipalityCodes';
 
   interface Props {
     vocabularyTags: TagCount[];
@@ -77,6 +78,9 @@
 
   let title = $state('');
   let area = $state('');
+  let municipalityResults = $state<Municipality[]>([]);
+  let isSearchingMunicipalities = $state(false);
+  let municipalitySearchTimer: ReturnType<typeof setTimeout> | null = null;
   let address = $state('');
   let currentStatus = $state('available');
   let statusLabel = $state('お知らせ');
@@ -173,6 +177,33 @@
       type: 'success',
       text: '住所・エリア欄に反映しました',
     };
+  }
+
+  function handleMunicipalityInput(e: Event) {
+    const query = (e.target as HTMLInputElement).value;
+    area = query;
+    if (municipalitySearchTimer) clearTimeout(municipalitySearchTimer);
+
+    if (!query.trim()) {
+      municipalityResults = [];
+      isSearchingMunicipalities = false;
+      return;
+    }
+
+    isSearchingMunicipalities = true;
+    municipalitySearchTimer = setTimeout(async () => {
+      const results = await searchMunicipalities(query);
+      // Do not replace suggestions for newer text with a stale search result.
+      if (area === query) municipalityResults = results;
+      if (area === query) isSearchingMunicipalities = false;
+    }, 180);
+  }
+
+  function selectMunicipality(municipality: Municipality) {
+    // Keep the prefecture so identically named municipalities remain unambiguous.
+    area = municipality.fullName;
+    municipalityResults = [];
+    isSearchingMunicipalities = false;
   }
 
   // Voluntary vocabulary (tags)
@@ -502,6 +533,7 @@
   });
 
   onDestroy(() => {
+    if (municipalitySearchTimer) clearTimeout(municipalitySearchTimer);
     if (pickerMap) {
       pickerMap.remove();
       pickerMap = null;
@@ -1373,21 +1405,59 @@
           class="flex flex-col gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-800 dark:bg-slate-800/50"
         >
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div>
+            <div class="relative">
               <label
                 for="post-area"
                 class="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300"
-                >地区</label
+                >市区町村</label
               >
               <input
                 id="post-area"
                 type="text"
-                bind:value={area}
+                value={area}
+                oninput={handleMunicipalityInput}
                 placeholder={defaultArea
                   ? `例: ${defaultArea}`
-                  : '例: 中央区、本町'}
+                  : '例: 石川県輪島市'}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="post-municipality-results"
+                aria-expanded={municipalityResults.length > 0}
                 class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
+              {#if isSearchingMunicipalities}
+                <Search
+                  class="pointer-events-none absolute top-7 right-2.5 h-3.5 w-3.5 animate-pulse text-slate-400"
+                />
+              {/if}
+              {#if municipalityResults.length > 0}
+                <div
+                  id="post-municipality-results"
+                  role="listbox"
+                  class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800"
+                >
+                  {#each municipalityResults as municipality (municipality.code + municipality.fullName)}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      onclick={() => selectMunicipality(municipality)}
+                      class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                    >
+                      <span class="font-bold text-slate-800 dark:text-slate-100"
+                        >{municipality.fullName}</span
+                      >
+                      <span
+                        class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500 dark:bg-slate-700 dark:text-slate-400"
+                        >{municipality.code}</span
+                      >
+                    </button>
+                  {/each}
+                </div>
+              {/if}
+              <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                候補から選ぶか、地域名をそのまま入力できます
+              </p>
               {#if availableAreas.length > 0}
                 <div class="mt-1.5 flex flex-wrap gap-1">
                   {#each availableAreas.slice(0, 5) as a (a)}
@@ -1395,6 +1465,7 @@
                       type="button"
                       onclick={() => {
                         area = a;
+                        municipalityResults = [];
                       }}
                       class="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
