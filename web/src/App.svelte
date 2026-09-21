@@ -1081,7 +1081,7 @@
   >
     {#if isLoading}
       <div
-        class="flex flex-col items-center gap-2 py-16 text-center text-xs text-slate-400"
+        class="flex flex-col items-center gap-2 py-16 text-center text-xs text-slate-600 dark:text-slate-400"
       >
         <div
           class="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent"
