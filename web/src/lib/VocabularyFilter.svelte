@@ -60,7 +60,7 @@
             class={`text-[10px] font-normal ${
               selectedTag === t.name
                 ? 'text-blue-200'
-                : 'text-slate-400 dark:text-slate-500'
+                : 'text-slate-600 dark:text-slate-400'
             }`}
           >
             ({tagInfo.badgeSub})
