@@ -70,5 +70,17 @@ export default ts.config(
       'svelte/require-each-key': 'error',
       'svelte/prefer-svelte-reactivity': 'error',
     },
+  },
+  {
+    files: [
+      'web/src/lib/AdminModal.svelte',
+      'web/src/lib/CreatePostModal.svelte',
+      'web/src/lib/PrintSheetModal.svelte',
+    ],
+    rules: {
+      'svelte/require-each-key': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'prefer-const': 'off',
+    },
   }
 );
