@@ -18,8 +18,6 @@ export const BACKUP_TABLES = [
   'push_subscriptions',
 ] as const;
 
-export type BackupTable = (typeof BACKUP_TABLES)[number];
-
 export interface BackupMetadata {
   version: number;
   timestamp: string;

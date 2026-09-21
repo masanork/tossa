@@ -35,13 +35,6 @@ export function stringToBytes(str: string): Uint8Array {
 }
 
 /**
- * Convert a Uint8Array to a UTF-8 string.
- */
-export function bytesToString(bytes: Uint8Array): string {
-  return new TextDecoder().decode(bytes);
-}
-
-/**
  * Concatenate multiple Uint8Arrays into one.
  */
 export function concatBytes(arrays: Uint8Array[]): Uint8Array {

@@ -11,20 +11,10 @@ import {
   stringToBytes,
 } from './cryptoHelpers';
 import * as m from '../paraglide/messages.js';
-import type { Post } from './types';
 import type { QrPostPayload } from './qrCodec';
 
 const QR_SIGN_STORAGE_KEY = 'tossa_qr_sign_key_v1';
 const QR_SIGN_PUB_KEY = 'tossa_qr_sign_pub_v1';
-
-export interface QrSignatureBundle {
-  /** Base64-encoded ECDSA P-256 signature. */
-  sig: string;
-  /** Public key JWK thumbprint / key id. */
-  kid: string;
-  /** ISO 8601 timestamp when the signature was created. */
-  iat: string;
-}
 
 export interface QrVerificationResult {
   /** The signature was structurally present. */
@@ -221,18 +211,7 @@ export async function verifyQrPayload(
     return {
       hasSignature: true,
       valid: false,
-      warning: '署名の検証中にエラーが発生しました',
+      warning: m.qr_signature_invalid(),
     };
   }
-}
-
-/**
- * Re-sign an existing Post into a signed QR payload in one step.
- */
-export async function signPostForQr(
-  serialize: (post: Post) => QrPostPayload,
-  post: Post
-): Promise<QrPostPayload> {
-  const payload = serialize(post);
-  return await signQrPayload(payload);
 }

@@ -1,5 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
       "entry": [
@@ -7,10 +8,13 @@
         "src/types.ts",
         "src/routes/seo.ts",
         "e2e/**/*.spec.ts",
+        "test/**/*.test.ts",
       ],
     },
     "web": {
       "entry": [
+        "src/App.svelte",
+        "src/lib/**/*.svelte",
         "src/lib/api.ts",
         "src/lib/e2ee.ts",
         "src/lib/modalManager.svelte.ts",

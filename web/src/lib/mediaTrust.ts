@@ -48,7 +48,7 @@ const STORE_NAME = 'image_records';
  * Compute a 64-bit average perceptual hash (aHash) for an image.
  * Returns a hex string. Works on any ImageBitmap/Image element via canvas.
  */
-export async function computeAverageHash(dataUrl: string): Promise<string> {
+async function computeAverageHash(dataUrl: string): Promise<string> {
   if (typeof document === 'undefined') {
     return '';
   }
@@ -112,7 +112,7 @@ export function hammingDistance(a: string, b: string): number {
  * Lightweight Error Level Analysis: re-compress the image and compare pixel differences.
  * Returns a normalised score (0-100) where higher means more likely edited.
  */
-export async function analyzeEditLevel(dataUrl: string): Promise<number> {
+async function analyzeEditLevel(dataUrl: string): Promise<number> {
   if (typeof document === 'undefined') return 0;
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -208,7 +208,7 @@ function openMediaTrustDb(): Promise<IDBDatabase> {
 /**
  * Persist an image record for duplicate/contradiction detection.
  */
-export async function recordImageForTrust(record: ImageRecord): Promise<void> {
+async function recordImageForTrust(record: ImageRecord): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   try {
     const db = await openMediaTrustDb();
@@ -223,7 +223,7 @@ export async function recordImageForTrust(record: ImageRecord): Promise<void> {
 /**
  * Find similar images already recorded (perceptual hash within threshold).
  */
-export async function findSimilarImages(
+async function findSimilarImages(
   pHash: string,
   threshold = 8
 ): Promise<ImageRecord[]> {

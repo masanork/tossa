@@ -12,7 +12,7 @@ import {
 } from './cryptoHelpers';
 import { decompressP256PublicKey } from './p256';
 
-export interface C2paBox {
+interface C2paBox {
   type: string;
   start: number;
   length: number;
@@ -22,13 +22,7 @@ export interface C2paBox {
   raw?: Uint8Array;
 }
 
-export interface C2paAssertion {
-  label: string;
-  url?: string;
-  data?: Uint8Array;
-}
-
-export interface C2paClaim {
+interface C2paClaim {
   raw?: Uint8Array;
   claimVersion?: string;
   claimGenerator?: string;
