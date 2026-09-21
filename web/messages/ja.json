@@ -311,5 +311,9 @@
   "media_trust_warning_duplicate": "過去に類似した画像が登録されています",
   "media_trust_warning_contradiction_time": "類似画像が別の撮影日時（{time}）で登録されています",
   "media_trust_warning_contradiction_location": "類似画像が別の位置（{lat}, {lng}）で登録されています",
-  "media_trust_detail_c2pa_verified": "C2PA 真正性署名を検証済み"
+  "media_trust_detail_c2pa_verified": "C2PA 真正性署名を検証済み",
+  "disaster_dark_prompt_title": "発災モード：画面を暗くして電池を長持ちさせますか？",
+  "disaster_dark_prompt_desc": "有機EL／AMOLED端末では暗い画面で省電力になります。",
+  "disaster_dark_prompt_switch": "ダークモードに切り替え",
+  "disaster_dark_prompt_keep": "現在のまま"
 }

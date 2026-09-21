@@ -19,6 +19,7 @@
     deletePost,
   } from './lib/api';
   import Header from './lib/Header.svelte';
+  import DisasterDarkModePrompt from './lib/DisasterDarkModePrompt.svelte';
   import VocabularyFilter from './lib/VocabularyFilter.svelte';
   import PostCard from './lib/PostCard.svelte';
   import WaypointNavHUD from './lib/WaypointNavHUD.svelte';
@@ -678,6 +679,9 @@
     onOpenHelp={() => modalManager.open('help')}
     onOpenMyPage={() => modalManager.open('mypage')}
   />
+
+  <!-- One-time disaster-mode dark-mode prompt -->
+  <DisasterDarkModePrompt isDisaster={settings.operation_mode === 'disaster'} />
 
   <!-- PWA Install Banner -->
   {#if showInstallBanner}
