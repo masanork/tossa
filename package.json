@@ -22,7 +22,7 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "knip": "true",
+    "knip": "knip",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "tail": "wrangler tail tossa"
@@ -30,7 +30,6 @@
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",
     "@simplewebauthn/server": "^13.1.1",
-    "@tsconfig/svelte": "^5.0.8",
     "hono": "^4.7.2",
     "qrcode": "^1.5.4"
   },

@@ -80,8 +80,8 @@ function buildAdvice(r: CapacityReport): CapacityAdvice[] {
   if (r.posts < 5000) {
     advice.push({
       level: 'ok',
-      title: `投稿 ${r.posts.toLocaleString()} 件 — 局所的な災害の生活情報板として余裕`,
-      body: '数千件規模までは現行の D1 1本で足ります。',
+      title: `投稿 ${r.posts.toLocaleString()} 件 — 1自治体の生活情報板として余裕`,
+      body: 'イマココナビ規模（約4,000件）までは現行の D1 1本で足ります。',
     });
   } else if (r.posts < 10000) {
     advice.push({
