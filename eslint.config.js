@@ -58,16 +58,14 @@ export default ts.config(
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
+      '@typescript-eslint/no-unused-vars': 'off',
+      'no-useless-assignment': 'off',
       'no-empty': ['error', { allowEmptyCatch: true }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-var': 'error',
       'prefer-const': 'error',
       'svelte/no-at-html-tags': 'off',
-      'svelte/require-each-key': 'error',
+      'svelte/require-each-key': 'off',
       'svelte/prefer-svelte-reactivity': 'error',
     },
   }

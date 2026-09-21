@@ -70,7 +70,7 @@
 
   let posts = $state<Post[]>([]);
   let vocabularyTags = $state<TagCount[]>([]);
-  let filterTags = $derived(
+  const filterTags = $derived(
     mergeVocabularyWithSeeds(
       vocabularyTags,
       settings.operation_mode === 'disaster' ? 'disaster' : 'normal'
