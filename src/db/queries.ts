@@ -1369,6 +1369,45 @@ export async function importCsvPosts(
     const chunk = posts.slice(i, i + CHUNK_SIZE);
     const statements: D1PreparedStatement[] = [];
 
+    // Pre-fetch duplicates for the entire chunk
+    const chunkValidPosts = chunk
+      .filter((post) => post.title && post.title.trim())
+      .map((post) => ({
+        cleanTitle: post.title.trim(),
+        cleanArea: (post.area && post.area.trim()) || '地域未設定',
+      }));
+
+    const existingPostsMap = new Map<
+      string,
+      { id: string; current_status: string; status_label: string }
+    >();
+
+    if (chunkValidPosts.length > 0) {
+      const orConditions = chunkValidPosts
+        .map(() => '(title = ? AND area = ?)')
+        .join(' OR ');
+      const bindParams = chunkValidPosts.flatMap((p) => [
+        p.cleanTitle,
+        p.cleanArea,
+      ]);
+
+      const duplicatesQuery = `SELECT id, title, area, current_status, status_label FROM posts WHERE ${orConditions}`;
+      const duplicatesResult = await db
+        .prepare(duplicatesQuery)
+        .bind(...bindParams)
+        .all<{
+          id: string;
+          title: string;
+          area: string;
+          current_status: string;
+          status_label: string;
+        }>();
+
+      for (const row of duplicatesResult.results || []) {
+        existingPostsMap.set(`${row.title}::${row.area}`, row);
+      }
+    }
+
     for (const post of chunk) {
       if (!post.title || !post.title.trim()) {
         skipped++;
@@ -1397,13 +1436,8 @@ export async function importCsvPosts(
         }
       }
 
-      // Check if duplicate post exists with same (title, area)
-      const existing = await db
-        .prepare(
-          'SELECT id, current_status, status_label FROM posts WHERE title = ? AND area = ?'
-        )
-        .bind(cleanTitle, cleanArea)
-        .first<{ id: string; current_status: string; status_label: string }>();
+      // Check if duplicate post exists with same (title, area) using in-memory map
+      const existing = existingPostsMap.get(`${cleanTitle}::${cleanArea}`);
 
       const now = new Date().toISOString();
 
