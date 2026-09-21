@@ -311,5 +311,9 @@
   "media_trust_warning_duplicate": "まえに にた しゃしん が あります",
   "media_trust_warning_contradiction_time": "にた しゃしん が べつの とき（{time}） で とうろく されています",
   "media_trust_warning_contradiction_location": "にた しゃしん が べつの ところ（{lat}, {lng}） で とうろく されています",
-  "media_trust_detail_c2pa_verified": "C2PA 署名 を かくにん しました"
+  "media_trust_detail_c2pa_verified": "C2PA 署名 を かくにん しました",
+  "disaster_dark_prompt_title": "さいがいモード：がめんを くらくして でんちを もたせますか？",
+  "disaster_dark_prompt_desc": "ゆうきEL／AMOLEDの スマホでは くらい がめんは でんちを つかいにくくなります。",
+  "disaster_dark_prompt_switch": "ダークモードに かえる",
+  "disaster_dark_prompt_keep": "いまのまま"
 }
