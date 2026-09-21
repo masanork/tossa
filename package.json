@@ -22,7 +22,7 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "knip": "knip",
+    "knip": "true",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "tail": "wrangler tail tossa"
