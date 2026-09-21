@@ -10,8 +10,6 @@ export interface SessionPayload {
   tokenName?: string;
 }
 
-const DEFAULT_SECRET = 'tossa-development-fallback-secret-change-in-production';
-
 async function getHmacKey(secret: string): Promise<CryptoKey> {
   const enc = new TextEncoder();
   return crypto.subtle.importKey(
@@ -49,9 +47,13 @@ function base64UrlDecode(str: string): Uint8Array {
 
 export async function createSessionToken(
   payload: Omit<SessionPayload, 'exp'>,
-  secret: string = DEFAULT_SECRET,
+  secret: string,
   expiresInSeconds: number = 7 * 24 * 60 * 60 // 7 days
 ): Promise<string> {
+  if (!secret) {
+    throw new Error('JWT_SECRET is required but was not provided.');
+  }
+
   const fullPayload: SessionPayload = {
     ...payload,
     exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
@@ -74,8 +76,12 @@ export async function createSessionToken(
 
 export async function verifySessionToken(
   token: string,
-  secret: string = DEFAULT_SECRET
+  secret: string
 ): Promise<SessionPayload | null> {
+  if (!secret) {
+    throw new Error('JWT_SECRET is required but was not provided.');
+  }
+
   const cleanToken = token.startsWith('tossa_pat_')
     ? token.slice('tossa_pat_'.length)
     : token;
@@ -119,10 +125,14 @@ export async function createApiToken(
     displayName?: string;
     role: 'admin' | 'moderator' | 'user';
   },
+  secret: string,
   name: string = 'MCP Agent',
-  secret: string = DEFAULT_SECRET,
   expiresInSeconds: number = 365 * 24 * 60 * 60
 ): Promise<{ token: string; expiresAt: string; tokenName: string }> {
+  if (!secret) {
+    throw new Error('JWT_SECRET is required but was not provided.');
+  }
+
   const rawToken = await createSessionToken(
     {
       userId: user.id,
