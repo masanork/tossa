@@ -1382,6 +1382,10 @@ export async function importCsvPosts(
     allCategories[0]?.id ||
     'general';
 
+  // Cache and prepare entries for partial matching
+  const partialMatchCache = new Map<string, string | null>();
+  const catMapByNameEntries = Array.from(catMapByName.entries());
+
   // Process posts in chunks to avoid D1 batch statement limits
   const CHUNK_SIZE = 40;
   for (let i = 0; i < posts.length; i += CHUNK_SIZE) {
@@ -1444,13 +1448,27 @@ export async function importCsvPosts(
         const normName = post.categoryName.trim().toLowerCase();
         if (catMapByName.has(normName)) {
           targetCategoryId = catMapByName.get(normName)!;
+        } else if (partialMatchCache.has(normName)) {
+          const cachedId = partialMatchCache.get(normName);
+          if (cachedId) {
+            targetCategoryId = cachedId;
+          }
         } else {
           // Partial matching
-          for (const [name, id] of catMapByName.entries()) {
+          let foundMatch = false;
+          for (let j = 0; j < catMapByNameEntries.length; j++) {
+            const entry = catMapByNameEntries[j];
+            if (!entry) continue;
+            const [name, id] = entry;
             if (normName.includes(name) || name.includes(normName)) {
               targetCategoryId = id;
+              partialMatchCache.set(normName, id);
+              foundMatch = true;
               break;
             }
+          }
+          if (!foundMatch) {
+            partialMatchCache.set(normName, null);
           }
         }
       }
