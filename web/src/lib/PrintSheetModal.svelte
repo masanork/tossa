@@ -1,6 +1,5 @@
 <!-- web/src/lib/PrintSheetModal.svelte: A4 printable notice sheet for posting on walls -->
 <script lang="ts">
-
   /* eslint-disable @typescript-eslint/no-unused-vars */
   import { onMount } from 'svelte';
   import type { Post } from './types';
