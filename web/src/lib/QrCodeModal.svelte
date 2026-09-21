@@ -8,7 +8,9 @@
     encodePostToQrUrl,
     generateQrSvg,
     generateQrDataUrl,
+    serializePostToPayload,
   } from './qrCodec';
+  import { signQrPayload } from './qrSignature';
   import * as m from '../paraglide/messages.js';
   import {
     QrCode as QrCodeIcon,
@@ -40,7 +42,9 @@
   onMount(async () => {
     canShare = typeof navigator !== 'undefined' && 'share' in navigator;
     try {
-      shareUrl = encodePostToQrUrl(post);
+      // Sign the QR payload with the device key so recipients can verify offline.
+      const signedPayload = await signQrPayload(serializePostToPayload(post));
+      shareUrl = encodePostToQrUrl(post, undefined, signedPayload);
       const [svg, dataUrl] = await Promise.all([
         generateQrSvg(shareUrl, { width: 260, margin: 2 }),
         generateQrDataUrl(shareUrl, { width: 400, margin: 2 }),

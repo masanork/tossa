@@ -9,6 +9,7 @@
     CheckCircle,
     RefreshCw,
     ShieldCheck,
+    ShieldAlert,
     ThumbsUp,
     Check,
     Edit3,
@@ -472,12 +473,22 @@
           {/if}
 
           {#if parsedImageMeta?.c2pa?.hasC2pa}
-            <span
-              class="inline-flex items-center gap-1 rounded border border-blue-400/30 bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-300"
-            >
-              <ShieldCheck class="h-3 w-3 text-blue-400" />
-              <span>{m.post_c2pa_verified()}</span>
-            </span>
+            {#if parsedImageMeta.c2pa.verified}
+              <span
+                class="inline-flex items-center gap-1 rounded border border-emerald-400/30 bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300"
+              >
+                <ShieldCheck class="h-3 w-3 text-emerald-400" />
+                <span>{m.post_c2pa_verified()}</span>
+              </span>
+            {:else}
+              <span
+                class="inline-flex items-center gap-1 rounded border border-amber-400/30 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300"
+                title={m.media_trust_warning_c2pa_unverified()}
+              >
+                <ShieldAlert class="h-3 w-3 text-amber-400" />
+                <span>{m.c2pa_badge_detected()}</span>
+              </span>
+            {/if}
           {/if}
         </div>
 
@@ -1050,14 +1061,77 @@
         />
       </div>
       {#if parsedImageMeta?.c2pa?.hasC2pa}
+        {@const c2pa = parsedImageMeta.c2pa}
         <div
-          class="flex items-center gap-1.5 border-t border-slate-700 bg-slate-800 p-3 text-xs font-bold text-emerald-400"
+          class="flex flex-col gap-1.5 border-t border-slate-700 bg-slate-800 p-3 text-xs"
         >
-          <ShieldCheck class="h-4 w-4 text-emerald-400" />
-          <span
-            >C2PA コンテンツ来歴・真正性認証済み ({parsedImageMeta.c2pa
-              .claimGenerator || '真正カメラ署名'})</span
+          <div
+            class="flex items-center gap-1.5 font-bold {c2pa.verified
+              ? 'text-emerald-400'
+              : 'text-amber-400'}"
           >
+            {#if c2pa.verified}
+              <ShieldCheck class="h-4 w-4 text-emerald-400" />
+              <span
+                >{m.c2pa_modal_verified({
+                  generator: c2pa.claimGenerator || m.c2pa_generator_fallback(),
+                })}</span
+              >
+            {:else}
+              <ShieldAlert class="h-4 w-4 text-amber-400" />
+              <span
+                >{m.c2pa_modal_unverified({
+                  generator: c2pa.claimGenerator || m.c2pa_generator_fallback(),
+                })}</span
+              >
+            {/if}
+          </div>
+          {#if c2pa.issuer}
+            <div class="text-[10px] text-slate-400">
+              {m.c2pa_issuer({ issuer: c2pa.issuer })}
+            </div>
+          {/if}
+          {#if c2pa.time}
+            <div class="text-[10px] text-slate-400">
+              {m.c2pa_claim_time({
+                time: new Date(c2pa.time).toLocaleString(
+                  i18n.current === 'en' ? 'en-US' : 'ja-JP'
+                ),
+              })}
+            </div>
+          {/if}
+          {#if c2pa.signatureValid != null}
+            <div
+              class="text-[10px] {c2pa.signatureValid
+                ? 'text-emerald-400'
+                : 'text-rose-400'}"
+            >
+              {c2pa.signatureValid
+                ? m.c2pa_signature_valid()
+                : m.c2pa_signature_invalid()}
+            </div>
+          {/if}
+          {#if c2pa.claimBindingValid != null}
+            <div
+              class="text-[10px] {c2pa.claimBindingValid
+                ? 'text-emerald-400'
+                : 'text-rose-400'}"
+            >
+              {c2pa.claimBindingValid
+                ? m.c2pa_binding_match()
+                : m.c2pa_binding_mismatch()}
+            </div>
+          {/if}
+          {#if c2pa.certificateExpired}
+            <div class="text-[10px] text-rose-400">
+              {m.c2pa_certificate_expired()}
+            </div>
+          {/if}
+          {#if c2pa.certificateTrusted}
+            <div class="text-[10px] text-emerald-400">
+              {m.c2pa_certificate_trusted()}
+            </div>
+          {/if}
         </div>
       {/if}
     </div>

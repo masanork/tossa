@@ -1,5 +1,6 @@
 // web/src/lib/media-processor.ts: EXIF extraction, C2PA verification & image optimization
 import type { ImageMeta } from './types';
+import { verifyC2PA, detectC2PA } from './c2paVerifier';
 
 async function getExifr() {
   const mod = await import('exifr');
@@ -16,6 +17,14 @@ export interface ProcessedMedia {
     generator?: string;
     isSigned?: boolean;
     format?: string;
+    verified?: boolean;
+    signatureValid?: boolean;
+    claimBindingValid?: boolean;
+    certificateValid?: boolean;
+    certificateExpired?: boolean;
+    certificateTrusted?: boolean;
+    issuer?: string;
+    warnings?: string[];
   };
 }
 
@@ -65,8 +74,27 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
     console.warn('Failed to parse EXIF metadata:', err);
   }
 
-  // 2. C2PA (Content Authenticity) verification
-  const c2paResult = detectC2PA(new Uint8Array(arrayBuffer));
+  // 2. C2PA (Content Authenticity) deep verification
+  let c2paResult;
+  let c2paVerifiedResult;
+  try {
+    c2paResult = detectC2PA(new Uint8Array(arrayBuffer));
+    c2paVerifiedResult = await verifyC2PA(new Uint8Array(arrayBuffer));
+  } catch (err) {
+    console.warn('C2PA verification failed:', err);
+    c2paResult = { hasC2pa: false, isSigned: false };
+    c2paVerifiedResult = {
+      hasC2pa: false,
+      hasManifestStore: false,
+      hasSignature: false,
+      signatureValid: false,
+      claimBindingValid: false,
+      certificateValid: false,
+      warnings: [
+        `Verification error: ${err instanceof Error ? err.message : String(err)}`,
+      ],
+    };
+  }
 
   // 3. Client-side image optimization (max 1200px / WebP compression)
   const dataUrl = await resizeAndCompressImage(file, 1200, 0.82);
@@ -82,9 +110,20 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
     c2pa: {
       hasC2pa: c2paResult.hasC2pa,
       isSigned: c2paResult.isSigned,
-      claimGenerator: c2paResult.generator,
+      claimGenerator: c2paVerifiedResult.claimGenerator || c2paResult.generator,
       format: c2paResult.format,
-      time: dateTime ? dateTime.toISOString() : undefined,
+      issuer: c2paVerifiedResult.issuer,
+      verified:
+        c2paVerifiedResult.signatureValid &&
+        c2paVerifiedResult.claimBindingValid,
+      signatureValid: c2paVerifiedResult.signatureValid,
+      claimBindingValid: c2paVerifiedResult.claimBindingValid,
+      certificateValid: c2paVerifiedResult.certificateValid,
+      certificateExpired: c2paVerifiedResult.certificateExpired,
+      certificateTrusted: c2paVerifiedResult.certificateTrusted,
+      time:
+        c2paVerifiedResult.claimTime ||
+        (dateTime ? dateTime.toISOString() : undefined),
     },
   };
 
@@ -96,82 +135,21 @@ export async function processImageFile(file: File): Promise<ProcessedMedia> {
     c2paDetected: c2paResult.hasC2pa,
     c2paDetails: c2paResult.hasC2pa
       ? {
-          generator: c2paResult.generator,
+          generator: c2paVerifiedResult.claimGenerator || c2paResult.generator,
           isSigned: c2paResult.isSigned,
           format: c2paResult.format,
+          verified:
+            c2paVerifiedResult.signatureValid &&
+            c2paVerifiedResult.claimBindingValid,
+          signatureValid: c2paVerifiedResult.signatureValid,
+          claimBindingValid: c2paVerifiedResult.claimBindingValid,
+          certificateValid: c2paVerifiedResult.certificateValid,
+          certificateExpired: c2paVerifiedResult.certificateExpired,
+          certificateTrusted: c2paVerifiedResult.certificateTrusted,
+          issuer: c2paVerifiedResult.issuer,
+          warnings: c2paVerifiedResult.warnings,
         }
       : undefined,
-  };
-}
-
-/**
- * Scan binary for C2PA / JUMBF manifest boxes to verify authenticity
- */
-function detectC2PA(bytes: Uint8Array): {
-  hasC2pa: boolean;
-  isSigned: boolean;
-  generator?: string;
-  format?: string;
-} {
-  // C2PA / JUMBF signature patterns
-  // 'jumd', 'c2pa', 'c2cl' (claim), 'c2ma' (manifest), 'c2as' (assertions)
-  const len = bytes.length;
-  let hasC2pa = false;
-  let isSigned = false;
-  let generator: string | undefined;
-  const format = 'JUMBF/C2PA';
-
-  // Fast scan of initial 1MB and trailing 512KB
-  const searchRanges: [number, number][] = [
-    [0, Math.min(len, 1024 * 1024)],
-    [Math.max(0, len - 512 * 1024), len],
-  ];
-
-  for (const [start, end] of searchRanges) {
-    for (let i = start; i < end - 8; i++) {
-      // 'c2pa' (0x63, 0x32, 0x70, 0x61)
-      if (
-        bytes[i] === 0x63 &&
-        bytes[i + 1] === 0x32 &&
-        bytes[i + 2] === 0x70 &&
-        bytes[i + 3] === 0x61
-      ) {
-        hasC2pa = true;
-        isSigned = true; // C2PA manifests must be cryptographically signed
-
-        // Inspect nearby text for Claim Generator
-        const snippetStart = Math.max(0, i - 128);
-        const snippetEnd = Math.min(len, i + 512);
-        const snippet = new TextDecoder('utf-8', { fatal: false }).decode(
-          bytes.subarray(snippetStart, snippetEnd)
-        );
-
-        if (snippet.includes('Leica')) generator = 'Leica Camera C2PA';
-        else if (snippet.includes('Nikon'))
-          generator = 'Nikon Authentic Provenance';
-        else if (snippet.includes('Sony'))
-          generator = 'Sony In-Camera Signature';
-        else if (snippet.includes('Canon')) generator = 'Canon Authenticity';
-        else if (snippet.includes('Pixel') || snippet.includes('Google'))
-          generator = 'Google Pixel Camera';
-        else if (snippet.includes('Apple') || snippet.includes('iPhone'))
-          generator = 'Apple C2PA / CAI';
-        else if (snippet.includes('Truepic')) generator = 'Truepic Verified';
-        else if (snippet.includes('Adobe'))
-          generator = 'Adobe Content Authenticity';
-        else generator = 'C2PA Compliant Device / Application';
-
-        break;
-      }
-    }
-    if (hasC2pa) break;
-  }
-
-  return {
-    hasC2pa,
-    isSigned,
-    generator,
-    format,
   };
 }
 
