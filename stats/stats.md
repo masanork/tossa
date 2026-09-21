@@ -1,15 +1,15 @@
 # tossa codebase snapshot
 
-Commit `915a8c8` · 2026-09-21
+Commit `f6e14f6` · 2026-09-21
 
-| Area           | Files |      Lines |   Tests |
-| -------------- | ----: | ---------: | ------: |
-| Worker `src/`  |    29 |     12,352 |       0 |
-| UI `web/src/`  |    49 |     24,074 |       0 |
-| Unit `test/`   |    50 |      7,402 |     271 |
-| E2E `e2e/`     |     1 |        709 |      14 |
-| **Impl total** |    78 | **36,426** |         |
-| **Test total** |    51 |  **8,111** | **285** |
+| Area | Files | Lines | Tests |
+| --- | ---: | ---: | ---: |
+| Worker `src/` | 29 | 12,352 | 0 |
+| UI `web/src/` | 49 | 24,145 | 0 |
+| Unit `test/` | 50 | 7,402 | 271 |
+| E2E `e2e/` | 1 | 709 | 14 |
+| **Impl total** | 78 | **36,497** | |
+| **Test total** | 51 | **8,111** | **285** |
 
 - Test / (impl + test) line ratio: **18%**
 - npm packages (lockfile): **417**
@@ -21,7 +21,7 @@ Commit `915a8c8` · 2026-09-21
 - `src/municipalities.ts` — 2,206 lines
 - `web/src/lib/municipalityCodes.ts` — 2,185 lines
 - `src/db/queries.ts` — 1,833 lines
-- `web/src/lib/CreatePostModal.svelte` — 1,664 lines
+- `web/src/lib/CreatePostModal.svelte` — 1,735 lines
 - `web/src/App.svelte` — 1,444 lines
 - `web/src/lib/c2paVerifier.ts` — 1,276 lines
 - `web/src/lib/api.ts` — 1,171 lines

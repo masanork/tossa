@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-21T09:13:52.324Z",
+  "generatedAt": "2026-09-21T13:17:42.285Z",
   "git": {
-    "commit": "915a8c8"
+    "commit": "f6e14f6"
   },
   "src": {
     "name": "src (Worker)",
@@ -14,7 +14,7 @@
     "name": "web/src (UI)",
     "path": "web/src",
     "files": 49,
-    "lines": 24074,
+    "lines": 24145,
     "testFns": 0
   },
   "tests": {
@@ -32,9 +32,9 @@
     "testFns": 14
   },
   "health": {
-    "implLines": 36426,
+    "implLines": 36497,
     "testLines": 8111,
-    "testRatio": 0.18211823876776612,
+    "testRatio": 0.18182837159253945,
     "depCount": 417,
     "largeFiles": [
       {
@@ -55,7 +55,7 @@
       },
       {
         "path": "web/src/lib/CreatePostModal.svelte",
-        "lines": 1664
+        "lines": 1735
       },
       {
         "path": "web/src/App.svelte",
