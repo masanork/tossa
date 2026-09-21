@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import type { Bindings, DisasterEvent, DisasterArea } from '../types';
 import {
   getSystemSettings,
-  updateSystemSetting,
+  updateSystemSettingsBatch,
   getActiveDisasters,
 } from '../db/queries';
 import { verifySessionToken } from '../auth/session';
@@ -83,11 +83,13 @@ settingsRoute.post('/', async (c) => {
 
   const body = await c.req.json<Record<string, string>>();
 
+  const validSettings: Record<string, string> = {};
   for (const [key, value] of Object.entries(body)) {
     if (typeof value === 'string') {
-      await updateSystemSetting(c.env.DB, key, value);
+      validSettings[key] = value;
     }
   }
+  await updateSystemSettingsBatch(c.env.DB, validSettings);
 
   // Trigger emergency push broadcast if emergency banner was updated with content
   if (body.emergency_banner && body.emergency_banner.trim().length > 0) {
