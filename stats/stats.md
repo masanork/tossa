@@ -2,14 +2,14 @@
 
 Commit `f4214ef` · 2026-09-21
 
-| Area | Files | Lines | Tests |
-| --- | ---: | ---: | ---: |
-| Worker `src/` | 29 | 12,216 | 0 |
-| UI `web/src/` | 43 | 21,727 | 0 |
-| Unit `test/` | 38 | 6,423 | 224 |
-| E2E `e2e/` | 1 | 713 | 14 |
-| **Impl total** | 72 | **33,943** | |
-| **Test total** | 39 | **7,136** | **238** |
+| Area           | Files |      Lines |   Tests |
+| -------------- | ----: | ---------: | ------: |
+| Worker `src/`  |    29 |     12,216 |       0 |
+| UI `web/src/`  |    43 |     21,727 |       0 |
+| Unit `test/`   |    38 |      6,423 |     224 |
+| E2E `e2e/`     |     1 |        713 |      14 |
+| **Impl total** |    72 | **33,943** |         |
+| **Test total** |    39 |  **7,136** | **238** |
 
 - Test / (impl + test) line ratio: **17%**
 - npm packages (lockfile): **418**
