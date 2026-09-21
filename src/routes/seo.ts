@@ -1,4 +1,3 @@
-/* eslint-disable no-useless-assignment, @typescript-eslint/no-unused-vars */
 // src/routes/seo.ts: SEO, AI Findability, Discovery Endpoints & SSR Dynamic Metadata
 import { Hono } from 'hono';
 import type { Context } from 'hono';

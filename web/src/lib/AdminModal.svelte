@@ -1,7 +1,5 @@
 <!-- web/src/lib/AdminModal.svelte -->
 <script lang="ts">
-  /* eslint-disable svelte/require-each-key */
-  /* eslint-disable @typescript-eslint/no-unused-vars */
   import { onMount } from 'svelte';
   import { swipeDown } from './swipeToDismiss';
   import { focusTrap } from './focusTrap';
@@ -3154,7 +3152,7 @@
                           <tbody
                             class="divide-y divide-slate-100 font-mono text-[11px] dark:divide-slate-800"
                           >
-                            {#each normalizedPreview.valid.slice(0, 6) as item (item.id || item.originalRow)}
+                            {#each normalizedPreview.valid.slice(0, 6) as item, itemIdx (itemIdx)}
                               <tr
                                 class="hover:bg-slate-50 dark:hover:bg-slate-800/40"
                               >

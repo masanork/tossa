@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { test } from 'vitest';
 import { createMockD1, loadSchemaSql } from './helpers/mockD1';
 import { importCsvPosts } from '../src/db/queries';
 import { CsvImportPostInput } from '../src/types';
