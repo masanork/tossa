@@ -63,7 +63,7 @@ export default ts.config(
       'no-empty': ['error', { allowEmptyCatch: true }],
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-var': 'error',
-      'prefer-const': 'error',
+      'prefer-const': 'off',
       'svelte/no-at-html-tags': 'off',
       'svelte/require-each-key': 'off',
       'svelte/prefer-svelte-reactivity': 'error',
