@@ -42,7 +42,7 @@ export async function renderOgpSvg(
   const postUrl = `${origin}/posts/${post.id}`;
 
   // Generate QR code SVG (without outer XML declaration)
-  let qrSvgContent;
+  let qrSvgContent: string;
   try {
     const rawQr = await QRCode.toString(postUrl, {
       type: 'svg',
@@ -61,9 +61,9 @@ export async function renderOgpSvg(
   }
 
   // Format status badge color and text
-  let statusBg;
-  let statusText;
-  let statusIcon;
+  let statusBg: string;
+  let statusText: string;
+  let statusIcon: string;
 
   switch (post.current_status) {
     case 'available':

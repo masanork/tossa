@@ -2,7 +2,7 @@
 // src/routes/seo.ts: SEO, AI Findability, Discovery Endpoints & SSR Dynamic Metadata
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import type { Bindings, Post } from '../types';
+import type { Bindings } from '../types';
 import {
   getSystemSettings,
   getPosts,
@@ -475,17 +475,23 @@ export async function renderHtmlWithSeo(
     '地域の施設・給水所・避難所・店舗の最新状況をリアルタイムに共有・確認できる超軽量情報プラットフォームです。';
   let pageUrl = `${origin}/`;
   let imageUrl = `${origin}/favicon.svg`;
-  let post: Post | null;
   let jsonLd: Record<string, unknown>;
   let noscriptContent: string;
 
   if (targetPostId) {
-    post = await getPostById(c.env.DB, targetPostId);
+    const post = await getPostById(c.env.DB, targetPostId);
     pageUrl = `${origin}/posts/${targetPostId}`;
 
     if (post) {
       const statusText = post.status_label || post.current_status;
       title = `【${statusText}】${post.title} | ${siteTitle}`;
+      const descParts = [
+        post.area,
+        post.address,
+        `状況: ${statusText}`,
+        post.note,
+      ].filter(Boolean);
+      description = descParts.join(' / ');
       if (post.image_url) {
         imageUrl = post.image_url.startsWith('http')
           ? post.image_url

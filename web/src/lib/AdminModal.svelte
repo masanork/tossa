@@ -35,14 +35,12 @@
   } from './api';
   import type { BackupRecord, BackupResult } from './types';
   import {
-    readFileAsText,
     parseCsv,
     inferColumnMapping,
     normalizeRows,
     generateSampleCsv,
     parseImportFile,
     type ColumnMapping,
-    type ColumnField,
     type ExcelSheetInfo,
     type CsvParsedData,
   } from './csvHelper';
@@ -140,7 +138,6 @@
   >('settings');
 
   // CSV / Excel Import state
-  let csvRawText = $state('');
   let csvFileName = $state('');
   let csvHeaders = $state<string[]>([]);
   let csvRows = $state<string[][]>([]);
@@ -158,9 +155,6 @@
   let updateDuplicates = $state(true);
   let defaultCategoryId = $state('shelter');
   let isImportingCsv = $state(false);
-  let csvImportResult = $state<
-    import('./api').ImportCsvResponse['stats'] | null
-  >(null);
   let csvStatusMessage = $state<{
     type: 'success' | 'error';
     text: string;
@@ -171,7 +165,6 @@
   // Excel (.xlsx) sheet selection state
   let availableSheets = $state<ExcelSheetInfo[]>([]);
   let selectedSheetIndex = $state<number>(0);
-  let isExcelMode = $state<boolean>(false);
 
   const normalizedPreview = $derived.by(() => {
     if (csvRows.length === 0 || csvHeaders.length === 0) {
@@ -201,12 +194,10 @@
   async function handleImportSpreadsheetFile(file: File) {
     try {
       csvStatusMessage = null;
-      csvImportResult = null;
       csvFileName = file.name;
 
       const result = await parseImportFile(file);
       availableSheets = result.sheets;
-      isExcelMode = result.isExcel;
       selectedSheetIndex = 0;
 
       if (result.sheets.length > 0 && result.sheets[0]) {
@@ -222,15 +213,12 @@
 
   function handleLoadSampleCsv() {
     const sample = generateSampleCsv();
-    csvRawText = sample;
     csvFileName = 'tossa_shelter_sample.csv';
     const parsed = parseCsv(sample);
     availableSheets = [{ name: 'tossa_shelter_sample.csv', data: parsed }];
-    isExcelMode = false;
     selectedSheetIndex = 0;
     applySheetData(parsed);
     csvStatusMessage = null;
-    csvImportResult = null;
   }
 
   function handleDownloadSampleCsv() {
@@ -269,7 +257,6 @@
       );
 
       if (res.success && res.stats) {
-        csvImportResult = res.stats;
         csvStatusMessage = {
           type: 'success',
           text:
@@ -882,16 +869,13 @@
         r.map((v) => `"${(v || '').replace(/"/g, '""')}"`).join(',')
       ),
     ].join('\n');
-    csvRawText = csvLines;
     csvFileName = 'disaster-shelters-opendata.csv';
     const parsed = parseCsv(csvLines);
     availableSheets = [
       { name: '国土地理院避難所オープンデータ', data: parsed },
     ];
-    isExcelMode = false;
     selectedSheetIndex = 0;
     applySheetData(parsed);
-    csvImportResult = null;
     activeTab = 'import';
     disasterShelterMessage = {
       type: 'success',

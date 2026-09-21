@@ -425,7 +425,7 @@
               box-shadow: 0 3px 8px rgba(0,0,0,0.45);
               border: 2.5px solid white;
               line-height: 1;
-            " role="img" aria-label="${post.status_label || ''}">
+            " role="img" aria-label="${escapeHtml(post.status_label || '')}">
               ${pinSymbol}
             </div>
           `,
@@ -536,7 +536,7 @@
             border: 2px solid white;
             line-height: 1;
             opacity: ${existingPost ? '0.75' : '0.95'};
-          " role="img" aria-label="${shelter.name}">
+          " role="img" aria-label="${escapeHtml(shelter.name)}">
             🏛️
           </div>
         `,
