@@ -31,6 +31,14 @@ export interface QrPostPayload {
   catColor?: string;
   createdAt: string;
   updatedAt: string;
+  /** ECDSA signature (Base64) for offline tamper verification. */
+  sig?: string;
+  /** Public key JWK (JSON string) used to verify sig. */
+  pub?: string;
+  /** Key id / thumbprint of the signing public key. */
+  kid?: string;
+  /** ISO 8601 timestamp when the signature was created. */
+  iat?: string;
 }
 
 /**
@@ -132,9 +140,14 @@ export function parsePostFromPayload(payload: any): Post | null {
 
 /**
  * Encodes a post into a shareable offline URL containing the payload in the hash fragment.
+ * If a pre-built payload (e.g. signed) is provided, it is used directly.
  */
-export function encodePostToQrUrl(post: Post, origin?: string): string {
-  const payload = serializePostToPayload(post);
+export function encodePostToQrUrl(
+  post: Post,
+  origin?: string,
+  prebuiltPayload?: QrPostPayload
+): string {
+  const payload = prebuiltPayload ?? serializePostToPayload(post);
   const json = JSON.stringify(payload);
   const base =
     origin ||
@@ -145,10 +158,12 @@ export function encodePostToQrUrl(post: Post, origin?: string): string {
 }
 
 /**
- * Decodes a Post from a QR code string.
+ * Decodes the raw QrPostPayload from a QR code string without converting to Post.
  * Supports URL hashes (#post-data=...), query strings (?post-data=...), and raw JSON payloads.
  */
-export function decodePostFromQrString(qrString: string): Post | null {
+export function decodeQrPayloadFromString(
+  qrString: string
+): QrPostPayload | null {
   if (!qrString || typeof qrString !== 'string') {
     return null;
   }
@@ -160,8 +175,7 @@ export function decodePostFromQrString(qrString: string): Post | null {
   if (match && match[1]) {
     try {
       const decodedJson = decodeURIComponent(match[1]);
-      const obj = JSON.parse(decodedJson);
-      return parsePostFromPayload(obj);
+      return JSON.parse(decodedJson);
     } catch {
       // Continue to next attempts
     }
@@ -170,14 +184,23 @@ export function decodePostFromQrString(qrString: string): Post | null {
   // 2. Try parsing raw JSON
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
-      const obj = JSON.parse(trimmed);
-      return parsePostFromPayload(obj);
+      return JSON.parse(trimmed);
     } catch {
       return null;
     }
   }
 
   return null;
+}
+
+/**
+ * Decodes a Post from a QR code string.
+ * Supports URL hashes (#post-data=...), query strings (?post-data=...), and raw JSON payloads.
+ */
+export function decodePostFromQrString(qrString: string): Post | null {
+  const payload = decodeQrPayloadFromString(qrString);
+  if (!payload) return null;
+  return parsePostFromPayload(payload);
 }
 
 /**

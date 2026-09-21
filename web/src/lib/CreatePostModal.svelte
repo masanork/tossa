@@ -8,6 +8,7 @@
   import { focusTrap } from './focusTrap';
   import type { Post, TagCount, ImageMeta } from './types';
   import { processImageFile } from './media-processor';
+  import { analyseMediaTrust, type MediaTrustAnalysis } from './mediaTrust';
   import type * as L from 'leaflet';
   import {
     X,
@@ -21,6 +22,7 @@
     RotateCcw,
     Camera,
     ShieldCheck,
+    ShieldAlert,
     Link,
     Clock,
     Trash2,
@@ -98,6 +100,8 @@
   let isProcessingImage = $state(false);
   let c2paVerified = $state(false);
   let photoTakenTime = $state<string | null>(null);
+  let mediaTrust = $state<MediaTrustAnalysis | null>(null);
+  let isAnalysingTrust = $state(false);
 
   // Coordinates & map picker state
   let lat = $state<number | null>(null);
@@ -230,6 +234,26 @@
         c2paVerified = false;
       }
 
+      // Media trust analysis (AI detection, duplicates, contradictions)
+      isAnalysingTrust = true;
+      try {
+        mediaTrust = await analyseMediaTrust({
+          dataUrl: result.dataUrl,
+          hasC2pa: result.c2paDetected,
+          c2paVerified: result.c2paDetails?.verified ?? false,
+          hasExif:
+            !!result.meta.exif?.dateTimeOriginal || !!result.meta.exif?.make,
+          exifDateTime: result.meta.exif?.dateTimeOriginal,
+          latitude: result.meta.exif?.latitude ?? null,
+          longitude: result.meta.exif?.longitude ?? null,
+          postId: editingPost?.id || `draft_${Date.now()}`,
+        });
+      } catch (err) {
+        console.warn('Media trust analysis failed:', err);
+      } finally {
+        isAnalysingTrust = false;
+      }
+
       // Automatically set pin if EXIF GPS coordinates are present
       if (result.gpsCoordinates) {
         showLocation = true;
@@ -255,6 +279,7 @@
     imageMeta = null;
     c2paVerified = false;
     photoTakenTime = null;
+    mediaTrust = null;
     if (fileInput) fileInput.value = '';
   }
 
@@ -1186,13 +1211,13 @@
                     <ShieldCheck
                       class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
                     />
-                    <span>撮影元を確認済み</span>
+                    <span>{m.post_c2pa_verified()}</span>
                   </span>
                 {:else}
                   <span
                     class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
                   >
-                    <span>写真</span>
+                    <span>{m.photo_badge()}</span>
                   </span>
                 {/if}
 
@@ -1201,7 +1226,7 @@
                     class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300"
                   >
                     <Clock class="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                    <span>撮影: {photoTakenTime}</span>
+                    <span>{m.post_photo_taken({ time: photoTakenTime })}</span>
                   </span>
                 {/if}
               </div>
@@ -1210,10 +1235,82 @@
                 <span
                   class="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400"
                 >
-                  ✓ 位置つき
+                  ✓ {m.post_gps_attached()}
                 </span>
               {/if}
             </div>
+
+            <!-- Media trust analysis (AI / duplicate / contradiction detection) -->
+            {#if isAnalysingTrust}
+              <div
+                class="flex items-center gap-2 border-t border-slate-200 bg-slate-50 p-2.5 text-[11px] text-slate-500 dark:border-slate-700 dark:bg-slate-900/50"
+              >
+                <div
+                  class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500"
+                ></div>
+                <span>{m.media_trust_checking()}</span>
+              </div>
+            {:else if mediaTrust}
+              <div
+                class="border-t border-slate-200 bg-white p-2.5 dark:border-slate-700 dark:bg-slate-900"
+              >
+                <div class="mb-1.5 flex items-center justify-between">
+                  <span
+                    class="text-[11px] font-bold text-slate-700 dark:text-slate-200"
+                  >
+                    {m.media_trust_score({ score: mediaTrust.trustScore })}
+                  </span>
+                  {#if mediaTrust.trustScore >= 80}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                    >
+                      <ShieldCheck class="h-3 w-3" />
+                      {m.media_trust_reliable()}
+                    </span>
+                  {:else if mediaTrust.trustScore >= 50}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+                    >
+                      <AlertCircle class="h-3 w-3" />
+                      {m.media_trust_review()}
+                    </span>
+                  {:else}
+                    <span
+                      class="inline-flex items-center gap-1 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+                    >
+                      <ShieldAlert class="h-3 w-3" />
+                      {m.media_trust_suspicious()}
+                    </span>
+                  {/if}
+                </div>
+
+                {#if mediaTrust.warnings.length > 0}
+                  <ul class="space-y-1">
+                    {#each mediaTrust.warnings as warning}
+                      <li
+                        class="flex items-start gap-1 text-[10px] leading-relaxed text-rose-700 dark:text-rose-300"
+                      >
+                        <AlertTriangle class="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{warning}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+
+                {#if mediaTrust.details.length > 0 && mediaTrust.warnings.length === 0}
+                  <ul class="space-y-1">
+                    {#each mediaTrust.details as detail}
+                      <li
+                        class="flex items-start gap-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400"
+                      >
+                        <Check class="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{detail}</span>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            {/if}
           </div>
         {:else}
           <!-- Upload dropzone area -->

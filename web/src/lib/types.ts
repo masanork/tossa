@@ -58,6 +58,13 @@ export interface ImageMeta {
     format?: string;
     issuer?: string;
     time?: string;
+    /** True when both the COSE signature and the content binding hash were verified. */
+    verified?: boolean;
+    signatureValid?: boolean;
+    claimBindingValid?: boolean;
+    certificateValid?: boolean;
+    certificateExpired?: boolean;
+    certificateTrusted?: boolean;
   };
 }
 

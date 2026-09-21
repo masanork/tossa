@@ -9,27 +9,10 @@ export const PRF_SALT = new TextEncoder().encode(
   'tossa:e2ee:identity:salt:v1:2026'
 );
 
-// Base64 / ArrayBuffer conversion helpers
-export function bufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
-  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    const byte = bytes[i];
-    if (byte !== undefined) {
-      binary += String.fromCharCode(byte);
-    }
-  }
-  return btoa(binary);
-}
+import { bufferToBase64, base64ToBuffer } from './cryptoHelpers';
 
-export function base64ToBuffer(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
+// Re-export shared crypto helpers for backward compatibility
+export { bufferToBase64, base64ToBuffer } from './cryptoHelpers';
 
 // User E2EE Identity keypair
 export interface UserIdentityKey {

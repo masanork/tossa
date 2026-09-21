@@ -6,10 +6,12 @@
   import type { Post } from './types';
   import {
     decodePostFromQrString,
+    decodeQrPayloadFromString,
     decodeQrFromImageData,
     playScanSuccessBeep,
     vibrateSuccess,
   } from './qrCodec';
+  import { verifyQrPayload, type QrVerificationResult } from './qrSignature';
   import { savePeerPost, isPeerPostId } from './peerPosts';
   import { geolocationManager } from './geolocation.svelte';
   import {
@@ -30,6 +32,8 @@
     Navigation,
     CheckCircle2,
     AlertCircle,
+    Shield,
+    ShieldAlert,
   } from '@lucide/svelte';
 
   interface Props {
@@ -56,6 +60,7 @@
   let torchActive = $state(false);
 
   let scannedPost = $state<Post | null>(null);
+  let signatureResult = $state<QrVerificationResult | null>(null);
   let isAlreadySaved = $state(false);
 
   // Compute distance and bearing from user's current GPS if post has coordinates
@@ -214,15 +219,31 @@
 
     const rawCode = await decodeQrFromImageData(imageData);
     if (rawCode) {
-      handleScannedData(rawCode);
+      void handleScannedData(rawCode);
     }
   }
 
-  function handleScannedData(rawCode: string) {
+  async function handleScannedData(rawCode: string) {
     const post = decodePostFromQrString(rawCode);
     if (!post) {
       errorMessage = m.qr_invalid_code();
       return;
+    }
+
+    const payload = decodeQrPayloadFromString(rawCode);
+
+    // Verify offline signature if present
+    if (payload) {
+      try {
+        signatureResult = await verifyQrPayload(payload);
+      } catch (err) {
+        console.warn('QR signature verification failed:', err);
+        signatureResult = {
+          hasSignature: false,
+          valid: false,
+          warning: '署名の検証中にエラーが発生しました',
+        };
+      }
     }
 
     // Success feedback
@@ -239,6 +260,7 @@
 
   function handleRescan() {
     scannedPost = null;
+    signatureResult = null;
     errorMessage = null;
     void startCamera();
   }
@@ -422,6 +444,34 @@
                   >現在地から直線 {distanceInfo.formattedDistance} ({distanceInfo.cardinal})</span
                 >
               </div>
+            {/if}
+
+            <!-- Offline signature verification status -->
+            {#if signatureResult}
+              {#if signatureResult.valid}
+                <div
+                  class="mt-2.5 inline-flex w-full items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                >
+                  <Shield class="h-3.5 w-3.5 shrink-0" />
+                  <span>{m.qr_signature_valid()}</span>
+                </div>
+              {:else if signatureResult.hasSignature}
+                <div
+                  class="mt-2.5 inline-flex w-full items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-700 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
+                >
+                  <ShieldAlert class="h-3.5 w-3.5 shrink-0" />
+                  <span
+                    >{signatureResult.warning || m.qr_signature_invalid()}</span
+                  >
+                </div>
+              {:else}
+                <div
+                  class="mt-2.5 inline-flex w-full items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-bold text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+                >
+                  <AlertCircle class="h-3.5 w-3.5 shrink-0" />
+                  <span>{m.qr_signature_missing()}</span>
+                </div>
+              {/if}
             {/if}
 
             {#if scannedPost.note}
