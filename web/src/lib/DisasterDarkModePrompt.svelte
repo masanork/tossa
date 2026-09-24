@@ -63,6 +63,7 @@
 
   function switchToDark() {
     themeManager.setTheme('dark');
+    markDismissed();
     visible = false;
   }
 
