@@ -138,3 +138,6 @@ jobs:
           packageManager: npm
           wranglerVersion: '4.135.0'
           command: deploy
+
+      - name: Smoke test production
+        run: node scripts/smoke-production.mjs
