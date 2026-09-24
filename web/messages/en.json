@@ -311,5 +311,9 @@
   "media_trust_warning_duplicate": "A similar image has been registered before",
   "media_trust_warning_contradiction_time": "Similar image registered with a different capture time ({time})",
   "media_trust_warning_contradiction_location": "Similar image registered at a different location ({lat}, {lng})",
-  "media_trust_detail_c2pa_verified": "C2PA authenticity signature verified"
+  "media_trust_detail_c2pa_verified": "C2PA authenticity signature verified",
+  "disaster_dark_prompt_title": "Disaster mode: switch to dark theme to save battery?",
+  "disaster_dark_prompt_desc": "On OLED/AMOLED screens, dark themes use less power.",
+  "disaster_dark_prompt_switch": "Switch to dark mode",
+  "disaster_dark_prompt_keep": "Keep current"
 }
