@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-21T13:17:42.285Z",
+  "generatedAt": "2026-09-24T04:26:15.079Z",
   "git": {
-    "commit": "f6e14f6"
+    "commit": "896c3d2"
   },
   "src": {
     "name": "src (Worker)",
@@ -13,8 +13,8 @@
   "web": {
     "name": "web/src (UI)",
     "path": "web/src",
-    "files": 49,
-    "lines": 24145,
+    "files": 50,
+    "lines": 24267,
     "testFns": 0
   },
   "tests": {
@@ -32,9 +32,9 @@
     "testFns": 14
   },
   "health": {
-    "implLines": 36497,
+    "implLines": 36619,
     "testLines": 8111,
-    "testRatio": 0.18182837159253945,
+    "testRatio": 0.18133243907891794,
     "depCount": 417,
     "largeFiles": [
       {
@@ -59,7 +59,7 @@
       },
       {
         "path": "web/src/App.svelte",
-        "lines": 1444
+        "lines": 1448
       },
       {
         "path": "web/src/lib/c2paVerifier.ts",
