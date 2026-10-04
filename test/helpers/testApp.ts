@@ -38,13 +38,14 @@ export function createTestContext() {
     EXPECTED_ORIGIN: 'http://localhost',
     EMAIL: {
       send: async (message) => {
+        if ('raw' in message) throw new Error('Expected a composed test email');
         const to =
           typeof message.to === 'string' ? message.to : String(message.to);
         sentEmails.push({
           to,
           subject: message.subject,
-          text: message.text,
-          html: message.html,
+          text: message.text ?? '',
+          html: message.html ?? '',
         });
         return { messageId: 'test-message' };
       },

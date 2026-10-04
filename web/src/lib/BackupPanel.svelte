@@ -24,6 +24,14 @@
   let lastBackupResult = $state<BackupResult | null>(null);
   let downloading = $state<string | null>(null);
   let checkedAt = $state<string | undefined>();
+  let notifications = $state<
+    | {
+        emailConfigured: boolean;
+        adminEmailRecipients: number;
+        webhookConfigured: boolean;
+      }
+    | undefined
+  >();
   let backupListError = $state<string | null>(null);
   let hasLoadedBackups = $state(false);
   const health = $derived(backupHealth(backups, checkedAt));
@@ -60,11 +68,20 @@
     isLoadingBackups = true;
     backupListError = null;
     hasLoadedBackups = false;
+    notifications = undefined;
     try {
       const res = await fetchBackupsApi(token);
       if (res.success && res.backups) {
         backups = res.backups;
         checkedAt = res.checkedAt;
+        notifications =
+          res.notifications &&
+          typeof res.notifications.emailConfigured === 'boolean' &&
+          Number.isInteger(res.notifications.adminEmailRecipients) &&
+          res.notifications.adminEmailRecipients >= 0 &&
+          typeof res.notifications.webhookConfigured === 'boolean'
+            ? res.notifications
+            : undefined;
         hasLoadedBackups = true;
       } else {
         backupListError = res.error || '一覧を取得できませんでした';
@@ -211,6 +228,23 @@
             <p class="text-[11px]">
               手動実行も含む保存実績です。自動実行や復元の成功を保証する表示ではありません。
             </p>
+            {#if notifications && !((notifications.emailConfigured && notifications.adminEmailRecipients > 0) || notifications.webhookConfigured)}
+              <p class="font-bold text-red-800 dark:text-red-300">
+                バックアップ失敗時の通知先が未設定です。管理者アカウントに確認済みメールアドレスを登録するか、Webhookを設定してください。
+              </p>
+            {:else if notifications}
+              <p>
+                エラー通知先は設定済みです（確認済み管理者メール {notifications.emailConfigured
+                  ? notifications.adminEmailRecipients
+                  : 0} 件{notifications.webhookConfigured
+                  ? '・Webhook有効'
+                  : ''}）。受信の確認は別途必要です。
+              </p>
+            {:else}
+              <p class="font-bold text-amber-800 dark:text-amber-300">
+                エラー通知先の状態を確認できません。時間をおいて再読み込みし、状態が続く場合は運用担当者に確認してください。
+              </p>
+            {/if}
           </div>
         {/if}
       </div>

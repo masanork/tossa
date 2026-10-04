@@ -4,6 +4,7 @@ import { createPost, updatePostStatus } from '../db/queries';
 import { logAccess } from '../middleware/deviceCookie';
 import { broadcastPushNotification } from './push';
 import { refreshPublicFeedSnapshot } from './feedSnapshot';
+import { sendErrorAlert } from './alert';
 
 /**
  * Attempts to enqueue a post creation task to Cloudflare Queues for smoothing high-traffic write spikes.
@@ -62,6 +63,7 @@ export async function processWriteQueueBatch(
   env: Bindings
 ): Promise<void> {
   let wrote = false;
+  let failedMessages = 0;
   for (const message of batch.messages) {
     try {
       const msg = message.body;
@@ -168,6 +170,7 @@ export async function processWriteQueueBatch(
         `[writeBuffer] Error processing write queue message (${message.id}):`,
         error
       );
+      failedMessages++;
       message.retry();
     }
   }
@@ -175,6 +178,16 @@ export async function processWriteQueueBatch(
   if (wrote) {
     await refreshPublicFeedSnapshot(env).catch((err) =>
       console.error('[writeBuffer] feed snapshot refresh failed:', err)
+    );
+  }
+  if (failedMessages > 0) {
+    await sendErrorAlert(
+      env,
+      new Error(`${failedMessages} queued write message(s) failed`),
+      {
+        source: 'write_queue',
+        additionalInfo: { failedMessages },
+      }
     );
   }
 }

@@ -10,6 +10,7 @@ import type {
   PushSubscriptionRecord,
   PushQueueMessage,
 } from '../types';
+import { sendErrorAlert } from './alert';
 
 /**
  * Converts a Base64URL string to a Uint8Array byte buffer.
@@ -419,6 +420,7 @@ export async function processPushQueueBatch(
 ): Promise<void> {
   const vapid = await getOrCreateVapidKeys(env);
   const expiredEndpoints: string[] = [];
+  let failedMessages = 0;
 
   await Promise.allSettled(
     batch.messages.map(async (msg) => {
@@ -431,11 +433,16 @@ export async function processPushQueueBatch(
         if (!res.success) {
           if (res.statusCode === 404 || res.statusCode === 410) {
             expiredEndpoints.push(msg.body.subscription.endpoint);
+          } else {
+            failedMessages++;
+            msg.retry();
+            return;
           }
         }
         msg.ack();
       } catch (err) {
         console.error('[queue] Failed to deliver push message:', err);
+        failedMessages++;
         msg.retry();
       }
     })
@@ -457,8 +464,19 @@ export async function processPushQueueBatch(
           '[queue] Failed to cleanup expired push subscriptions:',
           e
         );
+        failedMessages++;
       }
     }
+  }
+  if (failedMessages > 0) {
+    await sendErrorAlert(
+      env,
+      new Error(`${failedMessages} push queue operation(s) failed`),
+      {
+        source: 'push_queue',
+        additionalInfo: { failedMessages },
+      }
+    );
   }
 }
 

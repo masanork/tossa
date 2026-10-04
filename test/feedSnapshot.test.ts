@@ -153,6 +153,16 @@ describe('feedSnapshot service', () => {
       );
       consoleErrorSpy.mockRestore();
     });
+
+    it('rethrows KV put failures only when strict mode is requested', async () => {
+      const kv = createMockKV();
+      kv.put = vi.fn().mockRejectedValue(new Error('KV put failed'));
+      const env = { FEED_KV: kv } as Bindings;
+
+      await expect(
+        refreshPublicFeedSnapshot(env, { force: true, strict: true })
+      ).rejects.toThrow('Public feed snapshot could not be stored in KV');
+    });
   });
 
   describe('executionCtxOf', () => {

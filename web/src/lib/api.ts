@@ -1206,6 +1206,11 @@ export async function fetchBackupsApi(token: string): Promise<{
   success: boolean;
   backups?: BackupRecord[];
   checkedAt?: string;
+  notifications?: {
+    emailConfigured: boolean;
+    adminEmailRecipients: number;
+    webhookConfigured: boolean;
+  };
   error?: string;
 }> {
   try {

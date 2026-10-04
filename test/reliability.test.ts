@@ -538,8 +538,22 @@ describe('Backup recovery and observation freshness', () => {
     expect(complete.data.posts[0].note).toBe('日本語の末尾');
     // Node 22's SQLite text reader truncates at NUL. Inject the edge case
     // into the archive and verify stored bytes rather than its text reader.
-    const recoveryNote = '日本語\u0000末尾';
-    complete.data.posts[0].note = recoveryNote;
+    // Include large primary and ordinary text values. The multibyte sequence
+    // crosses a staging chunk boundary, and the NUL verifies byte-exact BLOB
+    // concatenation rather than SQLite text concatenation semantics.
+    const largePostId = `post-${'鍵'.repeat(30_000)}`;
+    const largeTitle = `title-${'x'.repeat(90_000)}`;
+    const mediumArea = 'a'.repeat(22_000);
+    const mediumAddress = 'b'.repeat(22_000);
+    const mediumUrl = 'c'.repeat(22_000);
+    const chunkBoundaryPrefix = 'a'.repeat(24 * 1024 - 1);
+    const largeNote = `${chunkBoundaryPrefix}🗾\u0000${'末'.repeat(30_000)}`;
+    complete.data.posts[0].id = largePostId;
+    complete.data.posts[0].title = largeTitle;
+    complete.data.posts[0].area = mediumArea;
+    complete.data.posts[0].address = mediumAddress;
+    complete.data.posts[0].url = mediumUrl;
+    complete.data.posts[0].note = largeNote;
     archive = JSON.stringify(complete);
     const dir = mkdtempSync(join(tmpdir(), 'tossa-recovery-'));
     const input = join(dir, 'backup.json'),
@@ -552,10 +566,36 @@ describe('Backup recovery and observation freshness', () => {
     ]);
     const recovered = new DatabaseSync(':memory:');
     recovered.exec('PRAGMA foreign_keys = ON');
-    recovered.exec(readFileSync(output, 'utf8'));
+    const recoverySql = readFileSync(output, 'utf8');
+    expect(
+      recoverySql
+        .split(';')
+        .every((statement) => Buffer.byteLength(statement, 'utf8') <= 64 * 1024)
+    ).toBe(true);
+    recovered.exec(recoverySql);
     expect(
       recovered.prepare('SELECT hex(note) AS note FROM posts').get()?.note
-    ).toBe(Buffer.from(recoveryNote).toString('hex').toUpperCase());
+    ).toBe(Buffer.from(largeNote).toString('hex').toUpperCase());
+    expect(recovered.prepare('SELECT hex(id) AS id FROM posts').get()?.id).toBe(
+      Buffer.from(largePostId).toString('hex').toUpperCase()
+    );
+    expect(
+      recovered.prepare('SELECT hex(title) AS title FROM posts').get()?.title
+    ).toBe(Buffer.from(largeTitle).toString('hex').toUpperCase());
+    expect(
+      recovered.prepare('SELECT area,address,url FROM posts').get()
+    ).toEqual({
+      area: mediumArea,
+      address: mediumAddress,
+      url: mediumUrl,
+    });
+    expect(
+      recovered
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE name = '__tossa_restore_text_stage'"
+        )
+        .get()
+    ).toBeUndefined();
     expect(
       recovered.prepare('SELECT COUNT(*) AS count FROM disasters').get()?.count
     ).toBe(1);

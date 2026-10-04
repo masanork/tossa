@@ -412,6 +412,100 @@ describe('D1 Database Automated Backup & R2 Archival', () => {
     expect(listBody.success).toBe(true);
     expect(listBody.backups.length).toBeGreaterThanOrEqual(1);
     expect(Number.isFinite(Date.parse(listBody.checkedAt))).toBe(true);
+    expect(listBody.notifications).toEqual({
+      emailConfigured: true,
+      adminEmailRecipients: 0,
+      webhookConfigured: false,
+    });
     expect(resList.headers.get('cache-control')).toBe('private, no-store');
+
+    await db
+      .prepare('UPDATE users SET email = ?, email_verified_at = ? WHERE id = ?')
+      .bind('admin-alert@example.test', new Date().toISOString(), 'admin_user')
+      .run();
+    const verifiedAdminList = await request('/api/settings/backups', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const verifiedAdminBody = await verifiedAdminList.json();
+    expect(verifiedAdminBody.notifications.adminEmailRecipients).toBe(1);
+    expect(JSON.stringify(verifiedAdminBody)).not.toContain(
+      'admin-alert@example.test'
+    );
+
+    env.ALERT_WEBHOOK_URL = '  https://alerts.example.invalid/private-hook  ';
+    const configuredList = await request('/api/settings/backups', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const configuredBody = await configuredList.json();
+    expect(configuredBody.notifications).toEqual({
+      emailConfigured: true,
+      adminEmailRecipients: 1,
+      webhookConfigured: true,
+    });
+    expect(JSON.stringify(configuredBody)).not.toContain('private-hook');
+    env.ALERT_WEBHOOK_URL = '   ';
+    const blankList = await request('/api/settings/backups', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect((await blankList.json()).notifications.webhookConfigured).toBe(
+      false
+    );
+  });
+
+  it('keeps the R2 backup listing available when the notification status query fails', async () => {
+    const { request, db, env } = createTestContext();
+    const r2 = createMockR2Bucket();
+    env.BACKUPS_BUCKET = r2;
+    r2._store.set('backups/tossa_backup_2026-10-05T03-00-00-000Z.json', {
+      body: '{"metadata":{"version":2}}',
+      uploaded: new Date('2026-10-05T03:01:00Z'),
+      customMetadata: { createdAt: '2026-10-05T03:00:00Z' },
+    });
+    await db
+      .prepare(
+        'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
+      )
+      .bind(
+        'notification_status_admin',
+        'status-admin',
+        'Status Admin',
+        'admin'
+      )
+      .run();
+    const adminToken = await createSessionToken(
+      {
+        userId: 'notification_status_admin',
+        username: 'status-admin',
+        role: 'admin',
+      },
+      env.JWT_SECRET
+    );
+
+    const prepare = env.DB.prepare.bind(env.DB);
+    vi.spyOn(env.DB, 'prepare').mockImplementation((query: string) => {
+      if (query.includes('SELECT DISTINCT lower(trim(email)) AS email')) {
+        throw new Error('private notification database failure');
+      }
+      return prepare(query);
+    });
+
+    const response = await request('/api/settings/backups', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.backups).toHaveLength(1);
+    expect(body.backups[0].key).toBe(
+      'backups/tossa_backup_2026-10-05T03-00-00-000Z.json'
+    );
+    expect(body.checkedAt).toBeTruthy();
+    expect(body.notifications).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain(
+      'private notification database failure'
+    );
   });
 });

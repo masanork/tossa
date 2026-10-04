@@ -62,6 +62,10 @@ jobs:
       - name: Run Unit & Integration Tests with Coverage (Vitest)
         run: npm run test:coverage
 
+      - name: Run Local Backup and Recovery Drill
+        timeout-minutes: 10
+        run: npm run backup:drill
+
       - name: Install Playwright Chromium, WebKit & System Dependencies
         run: npx playwright install --with-deps chromium webkit
 

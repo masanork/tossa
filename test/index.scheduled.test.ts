@@ -62,6 +62,10 @@ describe('Worker Scheduled Handler', () => {
     await Promise.all(waitUntilPromises);
 
     expect(runCapacityMaintenance).toHaveBeenCalledWith(env);
+    expect(refreshPublicFeedSnapshot).toHaveBeenCalledWith(env, {
+      force: true,
+      strict: true,
+    });
     expect(performDatabaseBackup).not.toHaveBeenCalled();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
@@ -105,6 +109,7 @@ describe('Worker Scheduled Handler', () => {
 
     expect(refreshPublicFeedSnapshot).toHaveBeenCalledWith(env, {
       force: true,
+      strict: true,
     });
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       '[Worker Scheduled snapshot Error]',
@@ -130,6 +135,30 @@ describe('Worker Scheduled Handler', () => {
     await Promise.all(waitUntilPromises);
 
     expect(performDatabaseBackup).toHaveBeenCalledWith(env);
+    expect(sendErrorAlert).toHaveBeenCalledWith(
+      env,
+      new Error('Backup failed'),
+      { source: 'scheduled_backup' }
+    );
+  });
+
+  it('alerts on a scheduled backup failure when only the EMAIL binding is configured', async () => {
+    env = {
+      EMAIL: { send: vi.fn() },
+    } as unknown as Bindings;
+    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(performDatabaseBackup).mockResolvedValue({
+      success: false,
+      error: 'Backup failed',
+    });
+
+    await worker.scheduled!(
+      { cron: '0 3 * * *', type: 'cron', scheduledTime: Date.now() },
+      env,
+      ctx
+    );
+    await Promise.all(waitUntilPromises);
+
     expect(sendErrorAlert).toHaveBeenCalledWith(
       env,
       new Error('Backup failed'),

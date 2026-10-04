@@ -7,8 +7,10 @@
         "src/db/queries.ts",
         "src/types.ts",
         "src/routes/seo.ts",
+        "scripts/backup-drill-worker.ts",
         "e2e/**/*.spec.ts",
         "test/**/*.test.ts",
+        "test/fixtures/smoke-admin-fetch.mjs",
       ],
     },
     "web": {

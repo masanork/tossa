@@ -26,7 +26,7 @@ export async function readPublicFeedSnapshot(
 
 export async function refreshPublicFeedSnapshot(
   env: Bindings,
-  options: { force?: boolean } = {}
+  options: { force?: boolean; strict?: boolean } = {}
 ): Promise<PublicFeedSnapshot | null> {
   if (!env.FEED_KV) return null;
 
@@ -53,6 +53,10 @@ export async function refreshPublicFeedSnapshot(
     });
   } catch (err) {
     console.error('[feedSnapshot] KV put failed:', err);
+    if (options.strict)
+      throw new Error('Public feed snapshot could not be stored in KV', {
+        cause: err,
+      });
     return snapshot;
   }
 

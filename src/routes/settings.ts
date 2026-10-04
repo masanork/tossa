@@ -14,6 +14,7 @@ import {
   runCapacityMaintenance,
 } from '../services/capacity';
 import { refreshPublicFeedSnapshot } from '../services/feedSnapshot';
+import { getErrorAlertStatus } from '../services/alert';
 
 export const settingsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -202,10 +203,18 @@ settingsRoute.get('/backups', async (c) => {
       503
     );
   const backups = await listStoredBackups(c.env);
+  let notifications:
+    Awaited<ReturnType<typeof getErrorAlertStatus>> | undefined;
+  try {
+    notifications = await getErrorAlertStatus(c.env);
+  } catch {
+    // Backup metadata remains useful when the independent notification query fails.
+  }
   return c.json({
     success: true,
     backups,
     checkedAt: new Date().toISOString(),
+    notifications,
   });
 });
 

@@ -115,6 +115,11 @@ test('backup monitoring distinguishes a delayed archive, failed reload and empty
   let response: object = {
     success: true,
     checkedAt: '2026-10-05T05:00:00Z',
+    notifications: {
+      emailConfigured: false,
+      adminEmailRecipients: 0,
+      webhookConfigured: false,
+    },
     backups: [
       {
         key: 'backups/tossa_backup_2026-10-04T03-00-00-000Z.json',
@@ -134,6 +139,40 @@ test('backup monitoring distinguishes a delayed archive, failed reload and empty
   await expect(
     page.getByRole('status', { name: 'バックアップ保存実績' })
   ).toContainText('26時間以上');
+  await expect(
+    page.getByRole('status', { name: 'バックアップ保存実績' })
+  ).toContainText('バックアップ失敗時の通知先が未設定です。');
+  response = {
+    success: true,
+    checkedAt: '2026-10-05T05:00:00Z',
+    notifications: {
+      emailConfigured: true,
+      adminEmailRecipients: 2,
+      webhookConfigured: false,
+    },
+    backups: [],
+  };
+  await page.getByRole('button', { name: '再読込', exact: true }).click();
+  await expect(
+    page.getByRole('status', { name: 'バックアップ保存実績' })
+  ).toContainText('エラー通知先は設定済みです（確認済み管理者メール 2 件');
+  response = {
+    success: true,
+    checkedAt: '2026-10-05T05:00:00Z',
+    backups: [
+      {
+        key: 'backups/tossa_backup_2026-10-04T03-00-00-000Z.json',
+        uploaded: '2026-10-05T04:59:00Z',
+        snapshotAt: '2026-10-04T03:00:00Z',
+        size: 1024,
+        totalRecords: 10,
+      },
+    ],
+  };
+  await page.getByRole('button', { name: '再読込', exact: true }).click();
+  await expect(
+    page.getByRole('status', { name: 'バックアップ保存実績' })
+  ).toContainText('エラー通知先の状態を確認できません。');
   response = { success: false, error: 'Test storage unavailable' };
   await page.getByRole('button', { name: '再読込', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText(

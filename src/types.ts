@@ -17,15 +17,7 @@ export interface Bindings {
   VAPID_SUBJECT?: string;
   ALERT_WEBHOOK_URL?: string;
   DISABLE_WRITE_BUFFER?: string;
-  EMAIL?: {
-    send: (message: {
-      to: string;
-      from: { email: string; name?: string };
-      subject: string;
-      html: string;
-      text: string;
-    }) => Promise<{ messageId?: string }>;
-  };
+  EMAIL?: SendEmail;
 }
 
 export interface PushQueueMessage {

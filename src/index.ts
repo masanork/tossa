@@ -30,12 +30,18 @@ import { getPostById } from './db/queries';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// Global Error Handler & Webhook Alerting
+// Global Error Handler & Administrator Alerting
 export async function handleGlobalError(err: Error, c: any) {
   console.error('[Unhandled Error]', err);
 
-  if (c.env?.ALERT_WEBHOOK_URL && c.executionCtx?.waitUntil) {
-    c.executionCtx.waitUntil(
+  let executionCtx: ExecutionContext | undefined;
+  try {
+    executionCtx = c.executionCtx;
+  } catch {
+    // A context is absent in direct Hono unit requests, but present in Workers.
+  }
+  if ((c.env?.EMAIL || c.env?.ALERT_WEBHOOK_URL) && executionCtx?.waitUntil) {
+    executionCtx.waitUntil(
       sendErrorAlert(c.env, err, {
         source: 'http',
         method: c.req.method,
@@ -324,7 +330,7 @@ const worker = Object.assign(app, {
       }
     } catch (queueErr) {
       console.error('[Worker Queue Error]', queueErr);
-      if (env?.ALERT_WEBHOOK_URL) {
+      if (env?.EMAIL || env?.ALERT_WEBHOOK_URL) {
         await sendErrorAlert(env, queueErr, {
           source: (batch as any).queue || 'queues',
           additionalInfo: { messageCount: batch.messages?.length },
@@ -341,22 +347,30 @@ const worker = Object.assign(app, {
     // 10 minutes interval capacity maintenance
     if (event.cron === '*/10 * * * *') {
       ctx.waitUntil(
-        runCapacityMaintenance(env).catch((err) => {
+        runCapacityMaintenance(env).catch(async (err) => {
           console.error('[cron] capacity maintenance failed:', err);
+          await sendErrorAlert(env, err, { source: 'capacity_maintenance' });
         })
       );
       ctx.waitUntil(
-        refreshPublicFeedSnapshot(env, { force: true }).catch((err) => {
-          console.error('[cron] feed maintenance failed:', err);
-        })
+        refreshPublicFeedSnapshot(env, { force: true, strict: true }).catch(
+          async (err) => {
+            console.error('[cron] feed maintenance failed:', err);
+            await sendErrorAlert(env, err, { source: 'feed_maintenance' });
+          }
+        )
       );
       return;
     }
 
     ctx.waitUntil(
       (async () => {
-        await refreshPublicFeedSnapshot(env, { force: true }).catch((err) => {
+        await refreshPublicFeedSnapshot(env, {
+          force: true,
+          strict: true,
+        }).catch(async (err) => {
           console.error('[Worker Scheduled snapshot Error]', err);
+          await sendErrorAlert(env, err, { source: 'feed_maintenance' });
         });
         const result = await performDatabaseBackup(env);
         console.log(
@@ -371,7 +385,11 @@ const worker = Object.assign(app, {
             error: result.error,
           })
         );
-        if (!result.success && !result.busy && env?.ALERT_WEBHOOK_URL) {
+        if (
+          !result.success &&
+          !result.busy &&
+          (env?.EMAIL || env?.ALERT_WEBHOOK_URL)
+        ) {
           await sendErrorAlert(
             env,
             new Error(result.error || 'Scheduled D1 backup failed'),
@@ -382,7 +400,7 @@ const worker = Object.assign(app, {
         }
       })().catch(async (backupErr) => {
         console.error('[Worker Scheduled Backup Error]', backupErr);
-        if (env?.ALERT_WEBHOOK_URL) {
+        if (env?.EMAIL || env?.ALERT_WEBHOOK_URL) {
           await sendErrorAlert(env, backupErr, {
             source: 'scheduled_backup',
           });

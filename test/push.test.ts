@@ -1,5 +1,5 @@
 // test/push.test.ts: Unit Tests for Web Push service, VAPID key generation, and API endpoints
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createMockD1, loadSchemaSql } from './helpers/mockD1';
 import { createTestContext } from './helpers/testApp';
 import { DEVICE_COOKIE } from '../src/middleware/deviceCookie';
@@ -12,6 +12,23 @@ import {
   bytesToBase64url,
 } from '../src/services/push';
 import type { Bindings } from '../src/types';
+
+async function validQueueSubscription(endpoint: string) {
+  const keys = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' },
+    true,
+    ['deriveBits']
+  );
+  const publicKey = new Uint8Array(
+    await crypto.subtle.exportKey('raw', keys.publicKey)
+  );
+  const auth = crypto.getRandomValues(new Uint8Array(16));
+  return {
+    endpoint,
+    p256dh: bytesToBase64url(publicKey),
+    auth: bytesToBase64url(auth),
+  };
+}
 
 describe('Web Push & VAPID Key Engine', () => {
   let db: D1Database;
@@ -289,33 +306,111 @@ describe('Web Push HTTP API Routes', () => {
     it('processes queue batch with ack in processPushQueueBatch', async () => {
       const ctx = createTestContext();
       const { processPushQueueBatch } = await import('../src/services/push');
-      let ackCount = 0;
+      const vapid = await generateVapidKeyPair();
+      ctx.env.VAPID_PUBLIC_KEY = vapid.publicKey;
+      ctx.env.VAPID_PRIVATE_KEY = vapid.privateKey;
+      ctx.env.VAPID_SUBJECT = 'mailto:queue-test@example.com';
+      const fetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('', { status: 201 }));
+      const ack = vi.fn();
+      const retry = vi.fn();
+      const subscription = await validQueueSubscription(
+        'https://push.example.com/consumer_sub1'
+      );
 
       const mockBatch: any = {
         messages: [
           {
             body: {
-              subscription: {
-                endpoint: 'https://push.example.com/consumer_sub1',
-                p256dh:
-                  'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DQA',
-                auth: 'tBHItJI5svbpez7KI4CCXg',
-              },
+              subscription,
               payload: {
                 title: 'キュー配信テスト',
                 body: '非同期ワーカーからの配信',
               },
             },
-            ack: () => {
-              ackCount++;
-            },
-            retry: () => {},
+            ack,
+            retry,
           },
         ],
       };
 
-      await processPushQueueBatch(mockBatch, ctx.env);
-      expect(ackCount).toBe(1);
+      try {
+        await processPushQueueBatch(mockBatch, ctx.env);
+      } finally {
+        fetch.mockRestore();
+      }
+      expect(ack).toHaveBeenCalledTimes(1);
+      expect(retry).not.toHaveBeenCalled();
+    });
+
+    it('retries transient push failures, cleans expired endpoints, and alerts once per batch', async () => {
+      const ctx = createTestContext();
+      const { processPushQueueBatch } = await import('../src/services/push');
+      const vapid = await generateVapidKeyPair();
+      ctx.env.VAPID_PUBLIC_KEY = vapid.publicKey;
+      ctx.env.VAPID_PRIVATE_KEY = vapid.privateKey;
+      ctx.env.VAPID_SUBJECT = 'mailto:queue-test@example.com';
+      await ctx.db
+        .prepare(
+          `INSERT INTO users (id, username, display_name, role, email, email_verified_at)
+           VALUES ('push-admin', 'push-admin', 'Push Admin', 'admin', 'push-admin@example.com', datetime('now'))`
+        )
+        .run();
+      const send = vi.spyOn(ctx.env.EMAIL!, 'send');
+      const expiredEndpoint = 'https://push.example.com/expired';
+      const subscription = await validQueueSubscription(expiredEndpoint);
+      await savePushSubscription(ctx.db, subscription);
+      const fetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async (input) => {
+          const url = String(input);
+          if (url === expiredEndpoint) return new Response('', { status: 410 });
+          if (url.endsWith('/temporary'))
+            return new Response('', { status: 503 });
+          return new Response('', { status: 201 });
+        });
+      const ack = vi.fn();
+      const retry = vi.fn();
+      const batch: any = {
+        messages: [expiredEndpoint, 'temporary', 'success'].map((target) => ({
+          body: {
+            subscription: target.startsWith('https:')
+              ? subscription
+              : {
+                  ...subscription,
+                  endpoint: `https://push.example.com/${target}`,
+                },
+            payload: { title: 'Queue test', body: 'No message data in alert' },
+          },
+          ack,
+          retry,
+        })),
+      };
+
+      try {
+        await processPushQueueBatch(batch, ctx.env);
+      } finally {
+        fetch.mockRestore();
+      }
+
+      expect(ack).toHaveBeenCalledTimes(2);
+      expect(retry).toHaveBeenCalledTimes(1);
+      expect(
+        await ctx.db
+          .prepare(
+            'SELECT COUNT(*) AS count FROM push_subscriptions WHERE endpoint = ?'
+          )
+          .bind(expiredEndpoint)
+          .first<{ count: number }>()
+      ).toEqual({ count: 0 });
+      expect(send).toHaveBeenCalledTimes(1);
+      expect((send.mock.calls[0]![0] as any).bcc).toEqual([
+        'push-admin@example.com',
+      ]);
+      expect((send.mock.calls[0]![0] as any).text).toContain(
+        '通知の送信待ち処理'
+      );
     });
   });
 });

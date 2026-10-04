@@ -13,6 +13,9 @@ if (!inputPath || !outputPath) {
 
 const schema = readFileSync(new URL('../schema.sql', import.meta.url), 'utf8');
 const archive = JSON.parse(readFileSync(inputPath, 'utf8'));
+const MAX_SQL_STATEMENT_BYTES = 64 * 1024;
+const TEXT_CHUNK_BYTES = 24 * 1024;
+const TEXT_STAGE_TABLE = '__tossa_restore_text_stage';
 if (
   archive.metadata?.version !== 2 ||
   !archive.data ||
@@ -44,6 +47,8 @@ function visit(table) {
 }
 for (const table of tables) visit(table);
 const inserts = [];
+const stagedText = [];
+let nextStageId = 1;
 let total = 0;
 for (const table of orderedTables) {
   const rows = archive.data[table];
@@ -84,9 +89,48 @@ for (const table of orderedTables) {
         ? `CAST(X'${Buffer.from(value).toString('hex')}' AS TEXT)`
         : db.prepare('SELECT quote(?) AS literal').get(value).literal
     );
-    inserts.push(
-      `INSERT INTO "${table}" (${names}) VALUES (${literals.join(',')});`
-    );
+    const insertFor = () =>
+      `INSERT INTO "${table}" (${names}) VALUES (${literals.join(',')});`;
+
+    // Hex literals double UTF-8 payload size. Stage selected text values as
+    // BLOB chunks so the final INSERT remains one complete, constraint-safe row.
+    if (Buffer.byteLength(insertFor(), 'utf8') > MAX_SQL_STATEMENT_BYTES) {
+      const candidates = values
+        .map((value, index) => ({
+          value,
+          index,
+          bytes: typeof value === 'string' ? Buffer.byteLength(value) : 0,
+        }))
+        .filter(({ bytes }) => bytes > 0)
+        .sort((left, right) => right.bytes - left.bytes);
+      for (const candidate of candidates) {
+        if (Buffer.byteLength(insertFor(), 'utf8') <= MAX_SQL_STATEMENT_BYTES)
+          break;
+        const bytes = Buffer.from(candidate.value);
+        const id = nextStageId++;
+        literals[candidate.index] =
+          `(SELECT CAST(value AS TEXT) FROM "${TEXT_STAGE_TABLE}" WHERE id = ${id})`;
+        for (
+          let offset = 0;
+          offset < bytes.length;
+          offset += TEXT_CHUNK_BYTES
+        ) {
+          const chunk = bytes.subarray(offset, offset + TEXT_CHUNK_BYTES);
+          const hex = chunk.toString('hex');
+          stagedText.push(
+            offset === 0
+              ? `INSERT INTO "${TEXT_STAGE_TABLE}" (id, value) VALUES (${id}, X'${hex}');`
+              : `UPDATE "${TEXT_STAGE_TABLE}" SET value = CAST(value || X'${hex}' AS BLOB) WHERE id = ${id};`
+          );
+        }
+      }
+    }
+    const insert = insertFor();
+    if (Buffer.byteLength(insert, 'utf8') > MAX_SQL_STATEMENT_BYTES)
+      throw new Error(
+        `Recovery INSERT exceeds the safe statement size: ${table}`
+      );
+    inserts.push(insert);
     total++;
   }
 }
@@ -99,7 +143,18 @@ db.exec('COMMIT');
 const integrity = db.prepare('PRAGMA integrity_check').get().integrity_check;
 if (integrity !== 'ok')
   throw new Error('Restored database integrity check failed');
-const sql = `${schema}\nPRAGMA defer_foreign_keys = ON;\n${inserts.join('\n')}\n`;
+const stageSql = stagedText.length
+  ? `CREATE TABLE "${TEXT_STAGE_TABLE}" (id INTEGER PRIMARY KEY, value BLOB NOT NULL);\n${stagedText.join('\n')}\n`
+  : '';
+if (tables.includes(TEXT_STAGE_TABLE))
+  throw new Error('Schema uses a reserved recovery staging table name');
+const sql = `${schema}\n${stageSql}PRAGMA defer_foreign_keys = ON;\n${inserts.join('\n')}\n${stagedText.length ? `DROP TABLE "${TEXT_STAGE_TABLE}";\n` : ''}`;
+for (const statement of sql.split(';')) {
+  if (Buffer.byteLength(statement, 'utf8') > MAX_SQL_STATEMENT_BYTES)
+    throw new Error(
+      'Recovery SQL contains a statement above the safe size limit'
+    );
+}
 writeFileSync(outputPath, sql, { flag: 'wx', mode: 0o600 });
 db.close();
 console.log(

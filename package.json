@@ -27,7 +27,10 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "tail": "wrangler tail tossa",
-    "backup:restore": "node scripts/restore-backup.mjs"
+    "backup:restore": "node scripts/restore-backup.mjs",
+    "backup:drill": "node scripts/backup-drill.mjs",
+    "smoke:production": "node scripts/smoke-production.mjs",
+    "smoke:admin": "node scripts/smoke-admin.mjs"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",

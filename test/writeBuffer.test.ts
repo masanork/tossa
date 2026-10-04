@@ -294,4 +294,57 @@ describe('Write Buffer & High-Traffic Smoothing Queue', () => {
     expect(retryFn).toHaveBeenCalledTimes(1);
     expect(ackFn).not.toHaveBeenCalled();
   });
+
+  it('retries each failed message and sends one batch-level alert', async () => {
+    const { db, env } = createTestContext();
+    await db
+      .prepare(
+        `INSERT INTO users (id, username, display_name, role, email, email_verified_at)
+         VALUES ('queue-admin', 'queue-admin', 'Queue Admin', 'admin', 'queue-admin@example.com', datetime('now'))`
+      )
+      .run();
+    const send = vi.spyOn(env.EMAIL!, 'send');
+    env.DB = {
+      prepare: (sql: string) => {
+        if (sql.includes('INSERT OR IGNORE INTO posts'))
+          throw new Error('D1 write failed');
+        return db.prepare(sql);
+      },
+    } as D1Database;
+
+    const ack = vi.fn();
+    const retry = vi.fn();
+    const batch: any = {
+      queue: 'tossa-write-queue',
+      messages: ['first', 'second'].map((id) => ({
+        id,
+        body: {
+          type: 'create_post',
+          post: {
+            id: `failed_${id}`,
+            title: 'Queue failure test',
+            area: 'Test area',
+            currentStatus: 'available',
+            statusLabel: 'Open',
+            authorId: null,
+            authorCookieId: null,
+          },
+        } as WriteQueueMessage,
+        ack,
+        retry,
+      })),
+    };
+
+    await processWriteQueueBatch(batch, env);
+
+    expect(ack).not.toHaveBeenCalled();
+    expect(retry).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((send.mock.calls[0]![0] as any).bcc).toEqual([
+      'queue-admin@example.com',
+    ]);
+    expect((send.mock.calls[0]![0] as any).text).toContain(
+      '投稿・状態更新の送信待ち処理'
+    );
+  });
 });
