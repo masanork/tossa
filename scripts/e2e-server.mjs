@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -7,7 +7,14 @@ const state = mkdtempSync(join(tmpdir(), 'tossa-e2e-'));
 const wrangler = resolve('node_modules/wrangler/bin/wrangler.js');
 const env = { ...process.env, WRANGLER_SEND_METRICS: 'false' };
 execFileSync('npm', ['run', 'build:web'], { stdio: 'inherit', env });
-for (const file of ['schema.sql', 'seed.sql']) {
+const fixtures = join(state, 'actors.sql');
+writeFileSync(
+  fixtures,
+  `INSERT INTO users (id,username,display_name,role) VALUES
+('e2e-admin','e2e-admin','E2E Admin','admin'),
+('e2e-moderator','e2e-moderator','E2E Moderator','moderator');`
+);
+for (const file of ['schema.sql', 'seed.sql', fixtures]) {
   execFileSync(
     process.execPath,
     [

@@ -45,6 +45,26 @@ async function checkProduction() {
   ) {
     throw new Error('Offline asset manifest is missing or invalid');
   }
+  if (!offlineAssets.includes(scriptPath))
+    throw new Error('Offline manifest does not include the current frontend');
+  const worker = await (await get('/sw.js')).text();
+  if (!/tossa-shell-[a-f0-9]{20}/.test(worker))
+    throw new Error(
+      'Service Worker is missing its build-specific shell version'
+    );
+  await Promise.all(
+    offlineAssets.map(async (path) => {
+      const response = await get(path);
+      const type = response.headers.get('Content-Type') || '';
+      if (
+        (path.endsWith('.js') && !type.includes('javascript')) ||
+        (path.endsWith('.css') && !type.includes('text/css'))
+      )
+        throw new Error(
+          `Offline asset has an unexpected content type: ${path}`
+        );
+    })
+  );
   const blocked = await fetch(
     new URL('/api/images/backups%2Ftossa_backup_test.json', origin),
     { signal: AbortSignal.timeout(15_000) }

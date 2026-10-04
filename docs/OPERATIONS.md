@@ -82,4 +82,6 @@ npx wrangler d1 execute tossa-recovery-drill --remote --config /private/tmp/toss
 
 現行CIはmainへのpush成功後に自動デプロイする。資源作成と移行が終わるまではmainへpushしない。デプロイ後はインストール済みPWAも開き、更新前の画面と未送信データが残る状況を確認する。
 
+PWAの画面キャッシュはビルド内容ごとに版を生成する。新しい版の保存に失敗した場合は以前の版を保持し、成功した場合も開いている画面の入力を中断しない。下書きを保存して同じサイトのPWA・ブラウザータブをすべて閉じ、再度開くと新版へ切り替わる。保存領域の消去は未送信データを失うため、更新手順には含めない。[実機での確認順](PILOT.md#pwa更新の確認順)を参照する。
+
 Mobile Safari相当の通信断テストは、[Playwright WebKitのオフライン切替の既知不具合](https://github.com/microsoft/playwright/issues/42775)を避け、テスト専用の中継サーバーで接続を切る。実際にネットワーク取得が失敗する状態でService Workerのキャッシュと再送を検証する。Safariの生体認証は物理端末で別途確認する。

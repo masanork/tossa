@@ -13,44 +13,43 @@ const STATIC_PRECACHE = [
 // Install: precache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then(async (cache) => {
-        // Install the shell and all lazy chunks as one version. Never activate an
-        // HTML shell whose hashed JS/CSS cannot load when the device goes offline.
-        const response = await fetch('/offline-assets.json', {
-          cache: 'no-store',
-        });
-        if (!response.ok) throw new Error('Offline asset manifest unavailable');
-        const assets = await response.json();
-        if (
-          !Array.isArray(assets) ||
-          assets.some(
-            (path) => typeof path !== 'string' || !path.startsWith('/assets/')
-          )
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Install the shell and all lazy chunks as one version. Never activate an
+      // HTML shell whose hashed JS/CSS cannot load when the device goes offline.
+      const response = await fetch('/offline-assets.json', {
+        cache: 'no-store',
+      });
+      if (!response.ok) throw new Error('Offline asset manifest unavailable');
+      const assets = await response.json();
+      if (
+        !Array.isArray(assets) ||
+        assets.some(
+          (path) => typeof path !== 'string' || !path.startsWith('/assets/')
         )
-          throw new Error('Invalid offline asset manifest');
-        await cache.addAll([...STATIC_PRECACHE, ...assets]);
-        // Static Assets redirects /index.html to /. A redirected Response cannot
-        // satisfy an offline navigation request; retain its bytes without that flag.
-        const shell = await cache.match('/index.html');
-        if (!shell) throw new Error('Offline shell unavailable');
-        const shellHeaders = new Headers(shell.headers);
-        shellHeaders.delete('Content-Encoding');
-        shellHeaders.delete('Content-Length');
-        await cache.put(
-          '/index.html',
-          new Response(await shell.arrayBuffer(), {
-            status: shell.status,
-            headers: shellHeaders,
-          })
-        );
-      })
-      .then(() => self.skipWaiting())
+      )
+        throw new Error('Invalid offline asset manifest');
+      await cache.addAll([...STATIC_PRECACHE, ...assets]);
+      // Static Assets redirects /index.html to /. A redirected Response cannot
+      // satisfy an offline navigation request; retain its bytes without that flag.
+      const shell = await cache.match('/index.html');
+      if (!shell) throw new Error('Offline shell unavailable');
+      const shellHeaders = new Headers(shell.headers);
+      shellHeaders.delete('Content-Encoding');
+      shellHeaders.delete('Content-Length');
+      await cache.put(
+        '/index.html',
+        new Response(await shell.arrayBuffer(), {
+          status: shell.status,
+          headers: shellHeaders,
+        })
+      );
+    })
   );
 });
 
-// Activate: purge older caches
+// A successful update waits until existing pages close before activation.
+// This keeps old lazy chunks available and does not reload an unsaved draft.
+// Activate: purge only our older caches, leaving other apps' caches intact.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
@@ -59,6 +58,7 @@ self.addEventListener('activate', (event) => {
         Promise.all(
           cacheNames.map((name) => {
             if (
+              name.startsWith('tossa-') &&
               name !== CACHE_NAME &&
               name !== API_CACHE_NAME &&
               name !== TILE_CACHE_NAME
@@ -94,7 +94,9 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(async () => {
-          const cached = await caches.match('/index.html');
+          const cached = await (
+            await caches.open(CACHE_NAME)
+          ).match('/index.html');
           return cached || Response.error();
         })
     );
@@ -209,7 +211,12 @@ self.addEventListener('fetch', (event) => {
 
   // 4. Static assets (assets/*.js, assets/*.css, images, fonts) -> Stale-while-revalidate / Cache-first
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Hashed chunks can belong to the prepared, waiting update when a new
+      // HTML page opens while an older tab is still controlling this origin.
+      const cachedResponse = url.pathname.startsWith('/assets/')
+        ? await caches.match(request)
+        : await cache.match(request);
       const fetchPromise = fetch(request)
         .then(async (networkResponse) => {
           if (networkResponse.status === 200) {

@@ -13,9 +13,11 @@ if (
   !window.location.host.includes('localhost:5173')
 ) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.warn('ServiceWorker registration failed:', err);
-    });
+    navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .catch((err) => {
+        console.warn('ServiceWorker registration failed:', err);
+      });
   });
 }
 

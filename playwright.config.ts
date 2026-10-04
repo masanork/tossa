@@ -21,12 +21,12 @@ export default defineConfig({
     },
     {
       name: 'android',
-      testMatch: '**/reliability.spec.ts',
+      testMatch: ['**/reliability.spec.ts', '**/pwa-upgrade.spec.ts'],
       use: { ...devices['Pixel 7'] },
     },
     {
       name: 'mobile-safari',
-      testMatch: '**/reliability.spec.ts',
+      testMatch: ['**/reliability.spec.ts', '**/pwa-upgrade.spec.ts'],
       use: { ...devices['iPhone 13'] },
     },
   ],
