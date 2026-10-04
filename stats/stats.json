@@ -1,41 +1,41 @@
 {
-  "generatedAt": "2026-10-04T04:59:51.996Z",
+  "generatedAt": "2026-10-04T21:15:27.589Z",
   "git": {
-    "commit": "b60820d"
+    "commit": "3f767a9"
   },
   "src": {
     "name": "src (Worker)",
     "path": "src",
     "files": 29,
-    "lines": 13011,
+    "lines": 13456,
     "testFns": 0
   },
   "web": {
     "name": "web/src (UI)",
     "path": "web/src",
-    "files": 54,
-    "lines": 25079,
+    "files": 58,
+    "lines": 26206,
     "testFns": 0
   },
   "tests": {
     "name": "test (unit)",
     "path": "test",
-    "files": 52,
-    "lines": 8096,
-    "testFns": 288
+    "files": 55,
+    "lines": 8770,
+    "testFns": 315
   },
   "e2e": {
     "name": "e2e",
     "path": "e2e",
     "files": 4,
-    "lines": 1320,
-    "testFns": 21
+    "lines": 1728,
+    "testFns": 25
   },
   "health": {
-    "implLines": 38090,
-    "testLines": 9416,
-    "testRatio": 0.19820654233149496,
-    "depCount": 417,
+    "implLines": 39662,
+    "testLines": 10498,
+    "testRatio": 0.2092902711323764,
+    "depCount": 418,
     "largeFiles": [
       {
         "path": "web/src/lib/AdminModal.svelte",
@@ -54,16 +54,16 @@
         "lines": 1944
       },
       {
-        "path": "web/src/lib/CreatePostModal.svelte",
-        "lines": 1719
+        "path": "web/src/App.svelte",
+        "lines": 1795
       },
       {
-        "path": "web/src/App.svelte",
-        "lines": 1618
+        "path": "web/src/lib/CreatePostModal.svelte",
+        "lines": 1716
       },
       {
         "path": "web/src/lib/api.ts",
-        "lines": 1320
+        "lines": 1323
       },
       {
         "path": "web/src/lib/c2paVerifier.ts",
@@ -84,6 +84,10 @@
       {
         "path": "src/routes/posts.ts",
         "lines": 988
+      },
+      {
+        "path": "web/src/lib/offlineQueue.ts",
+        "lines": 806
       },
       {
         "path": "src/routes/seo.ts",
@@ -110,6 +114,10 @@
         "lines": 645
       },
       {
+        "path": "src/services/backup.ts",
+        "lines": 620
+      },
+      {
         "path": "src/routes/opendata.ts",
         "lines": 554
       },
@@ -122,9 +130,9 @@
   "coverage": {
     "available": true,
     "linePct": 76,
-    "branchPct": 64,
-    "funcPct": 79,
-    "lines": 2704,
-    "coveredLines": 2044
+    "branchPct": 65,
+    "funcPct": 80,
+    "lines": 2881,
+    "coveredLines": 2200
   }
 }
