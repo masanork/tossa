@@ -1,17 +1,17 @@
 # tossa codebase snapshot
 
-Commit `bf3bed3` · 2026-10-04
+Commit `b60820d` · 2026-10-04
 
 | Area           | Files |      Lines |   Tests |
 | -------------- | ----: | ---------: | ------: |
 | Worker `src/`  |    29 |     13,011 |       0 |
-| UI `web/src/`  |    54 |     25,077 |       0 |
+| UI `web/src/`  |    54 |     25,079 |       0 |
 | Unit `test/`   |    52 |      8,096 |     288 |
-| E2E `e2e/`     |     2 |        997 |      19 |
-| **Impl total** |    83 | **38,088** |         |
-| **Test total** |    54 |  **9,093** | **307** |
+| E2E `e2e/`     |     4 |      1,320 |      21 |
+| **Impl total** |    83 | **38,090** |         |
+| **Test total** |    56 |  **9,416** | **309** |
 
-- Test / (impl + test) line ratio: **19%**
+- Test / (impl + test) line ratio: **20%**
 - npm packages (lockfile): **417**
 - Unit coverage (`src/`): **76% lines / 64% branches / 79% funcs**
 
