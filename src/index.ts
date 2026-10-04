@@ -359,7 +359,19 @@ const worker = Object.assign(app, {
           console.error('[Worker Scheduled snapshot Error]', err);
         });
         const result = await performDatabaseBackup(env);
-        if (!result.success && env?.ALERT_WEBHOOK_URL) {
+        console.log(
+          JSON.stringify({
+            event: 'database_backup',
+            success: result.success,
+            skipped: result.busy === true,
+            timestamp: result.metadata?.timestamp,
+            totalRecords: result.metadata?.totalRecords,
+            sizeBytes: result.sizeBytes,
+            durationMs: result.durationMs,
+            error: result.error,
+          })
+        );
+        if (!result.success && !result.busy && env?.ALERT_WEBHOOK_URL) {
           await sendErrorAlert(
             env,
             new Error(result.error || 'Scheduled D1 backup failed'),

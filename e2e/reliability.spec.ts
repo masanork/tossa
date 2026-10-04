@@ -87,6 +87,95 @@ async function waitForOfflineShell(page: Page, origin = '/') {
       });
   });
   await expect(page.locator('header')).toBeVisible();
+  await waitForOutbox(page);
+}
+
+// Opening a nonexistent database in a fixture would create version 1 before
+// the app's upgrade handler, leaving it without stores. Wait for the app's
+// committed migration marker without creating a database ourselves.
+async function waitForOutbox(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(async () => {
+        const name = 'tossa-offline-outbox';
+        if (!(await indexedDB.databases()).some((db) => db.name === name))
+          return false;
+        return new Promise<boolean>((resolve) => {
+          const request = indexedDB.open(name);
+          request.onerror = () => resolve(false);
+          request.onsuccess = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('meta')) {
+              db.close();
+              resolve(false);
+              return;
+            }
+            const tx = db.transaction('meta', 'readonly');
+            const marker = tx.objectStore('meta').get('legacy-migration');
+            tx.oncomplete = () => {
+              db.close();
+              resolve(!!marker.result);
+            };
+            tx.onabort = () => {
+              db.close();
+              resolve(false);
+            };
+          };
+        });
+      })
+    )
+    .toBe(true);
+}
+
+async function readOutbox(page: Page): Promise<any[]> {
+  await waitForOutbox(page);
+  return page.evaluate(
+    () =>
+      new Promise<any[]>((resolve, reject) => {
+        const request = indexedDB.open('tossa-offline-outbox', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction('items', 'readonly');
+          const read = transaction.objectStore('items').getAll();
+          transaction.oncomplete = () => {
+            db.close();
+            resolve(read.result);
+          };
+          transaction.onabort = () => {
+            db.close();
+            reject(transaction.error);
+          };
+        };
+      })
+  );
+}
+
+async function writeOutbox(page: Page, items: unknown[]): Promise<void> {
+  await waitForOutbox(page);
+  await page.evaluate(
+    (entries) =>
+      new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open('tossa-offline-outbox', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction('items', 'readwrite');
+          const store = transaction.objectStore('items');
+          store.clear();
+          for (const item of entries) store.put(item);
+          transaction.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          transaction.onabort = () => {
+            db.close();
+            reject(transaction.error);
+          };
+        };
+      }),
+    items
+  );
 }
 
 test('offline cold reload can open uncached dialogs and keeps a post until reconnection', async ({
@@ -103,25 +192,13 @@ test('offline cold reload can open uncached dialogs and keeps a post until recon
   await page.fill('#post-title', title);
   await page.locator('form button[type="submit"]').click();
   await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          JSON.parse(localStorage.getItem('tossa_offline_outbox') || '[]')
-            .length
-      )
-    )
+    .poll(() => readOutbox(page).then((items) => items.length))
     .toBe(1);
   await network.setOffline(false);
   await expect
-    .poll(
-      () =>
-        page.evaluate(
-          () =>
-            JSON.parse(localStorage.getItem('tossa_offline_outbox') || '[]')
-              .length
-        ),
-      { timeout: 15000 }
-    )
+    .poll(() => readOutbox(page).then((items) => items.length), {
+      timeout: 15000,
+    })
     .toBe(0);
   await expect(
     page.locator('article').filter({ hasText: title })
@@ -144,11 +221,11 @@ test('storage exhaustion leaves the draft open with an explicit error', async ({
   await page.locator('header button:has-text("＋")').click();
   await page.fill('#post-title', 'Do not lose this draft');
   await page.evaluate(() => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = function (key, value) {
-      if (key === 'tossa_offline_outbox')
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (value, ...keys) {
+      if (this.name === 'items')
         throw new DOMException('Storage is full', 'QuotaExceededError');
-      return original.call(this, key, value);
+      return original.call(this, value, ...keys);
     };
   });
   await page.locator('form button[type="submit"]').click();
@@ -156,11 +233,261 @@ test('storage exhaustion leaves the draft open with an explicit error', async ({
     'Do not lose this draft'
   );
   await expect(
-    page.getByText('端末に保存できませんでした。', { exact: false })
+    page.getByText('保存容量が不足しています。', { exact: false })
   ).toBeVisible();
-  expect(
-    await page.evaluate(() => localStorage.getItem('tossa_offline_outbox'))
-  ).toBeNull();
+  expect(await readOutbox(page)).toHaveLength(0);
+});
+
+test('two tabs retain offline additions and receive outbox changes', async ({
+  page,
+  context,
+  network,
+}) => {
+  await context.addInitScript(() =>
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: undefined,
+    })
+  );
+  const second = await context.newPage();
+  let releaseRequest: (() => Promise<void>) | undefined;
+  try {
+    await second.addInitScript(() =>
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+      })
+    );
+    await Promise.all([
+      waitForOfflineShell(page, network.origin),
+      waitForOfflineShell(second, network.origin),
+    ]);
+    await network.setOffline(true);
+    await second.evaluate(() => {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+      });
+      window.dispatchEvent(new Event('offline'));
+    });
+
+    const titleA = `Two tab A ${crypto.randomUUID()}`;
+    const titleB = `Two tab B ${crypto.randomUUID()}`;
+    await page.locator('header button:has-text("＋")').click();
+    await second.locator('header button:has-text("＋")').click();
+    await page.fill('#post-title', titleA);
+    await second.fill('#post-title', titleB);
+    await Promise.all([
+      page.locator('form button[type="submit"]').click(),
+      second.locator('form button[type="submit"]').click(),
+    ]);
+    await expect
+      .poll(() => readOutbox(page).then((items) => items.length))
+      .toBe(2);
+    await expect(second.getByText('未送信: 2件')).toBeVisible();
+
+    for (const tab of [page, second])
+      await tab.evaluate(() => {
+        const state = window as Window & {
+          __tossaReplayHeld?: boolean;
+          __tossaReplayRelease?: () => void;
+        };
+        const originalFetch = window.fetch.bind(window);
+        state.__tossaReplayHeld = false;
+        window.fetch = async (input, init) => {
+          const url =
+            typeof input === 'string'
+              ? input
+              : input instanceof URL
+                ? input.href
+                : input.url;
+          const method =
+            init?.method || (input instanceof Request ? input.method : 'GET');
+          if (
+            url.includes('/api/posts') &&
+            method === 'POST' &&
+            !state.__tossaReplayHeld
+          ) {
+            state.__tossaReplayHeld = true;
+            await new Promise<void>((resolve) => {
+              state.__tossaReplayRelease = resolve;
+            });
+          }
+          return originalFetch(input, init);
+        };
+      });
+    releaseRequest = async () => {
+      await Promise.all(
+        [page, second].map((tab) =>
+          tab.evaluate(() => {
+            const state = window as Window & {
+              __tossaReplayRelease?: () => void;
+            };
+            state.__tossaReplayRelease?.();
+          })
+        )
+      );
+    };
+    await network.setOffline(false);
+    await expect
+      .poll(async () =>
+        (
+          await Promise.all(
+            [page, second].map((tab) =>
+              tab.evaluate(
+                () =>
+                  (window as Window & { __tossaReplayHeld?: boolean })
+                    .__tossaReplayHeld === true
+              )
+            )
+          )
+        ).some(Boolean)
+      )
+      .toBe(true);
+
+    await second.evaluate(() => {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+      });
+      window.dispatchEvent(new Event('offline'));
+    });
+    const titleC = `Two tab during replay ${crypto.randomUUID()}`;
+    await second.locator('header button:has-text("＋")').click();
+    await second.fill('#post-title', titleC);
+    await second.locator('form button[type="submit"]').click();
+    await expect
+      .poll(() => readOutbox(page).then((items) => items.length))
+      .toBe(3);
+    await releaseRequest();
+    await expect
+      .poll(() => readOutbox(page).then((items) => items.length))
+      .toBeLessThanOrEqual(1);
+    const sendButton = page.getByRole('button', { name: '今すぐ送信' });
+    if ((await readOutbox(page)).length > 0) {
+      await expect(sendButton).toBeEnabled();
+      if (await sendButton.isVisible()) await sendButton.click();
+    }
+    await expect
+      .poll(() => readOutbox(page).then((items) => items.length))
+      .toBe(0);
+    const counts = await page.evaluate(
+      async (titles) => {
+        return Promise.all(
+          titles.map(async (title) => {
+            const data = await fetch(
+              `/api/posts?q=${encodeURIComponent(title)}`
+            ).then((response) => response.json());
+            return data.posts.length;
+          })
+        );
+      },
+      [titleA, titleB, titleC]
+    );
+    expect(counts).toEqual([1, 1, 1]);
+  } finally {
+    await releaseRequest?.().catch(() => {});
+    await second.close();
+  }
+});
+
+test('corrupt outbox can be exported and explicitly repaired with valid entries', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const raw = JSON.stringify([
+    {
+      id: 'recover-e2e',
+      type: 'create_post',
+      createdAt: new Date().toISOString(),
+      data: {
+        title: 'recoverable',
+        area: '',
+        currentStatus: 'available',
+        statusLabel: '受付中',
+      },
+    },
+    { id: 'broken-e2e', type: 'create_post', data: null },
+  ]);
+  await writeOutbox(page, JSON.parse(raw));
+  await page.reload();
+  await expect(page.getByText(/未送信データを読み取れません/)).toBeVisible();
+  await expect(page.getByText('端末保存の状態')).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: '保存データを書き出す' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(
+    /^tossa-offline-outbox-.*\.json$/
+  );
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '書き出しを確認して復旧' }).click();
+  await expect(
+    page.getByText(
+      /既存の1件を保持し、新たに0件を復旧、1件を退避ファイルに残しました/
+    )
+  ).toBeVisible();
+  expect(await readOutbox(page)).toMatchObject([{ id: 'recover-e2e' }]);
+});
+
+test('conflicting status report can be reviewed against the latest post and replaced', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const postId = await page.evaluate(async () => {
+    const result = await fetch('/api/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: crypto.randomUUID(),
+        title: `Conflict review ${crypto.randomUUID()}`,
+        area: 'E2E',
+        currentStatus: 'available',
+        statusLabel: '受付中',
+      }),
+    }).then((response) => response.json());
+    return result.id as string;
+  });
+  expect(postId).toBeTruthy();
+  const old = {
+    id: 'old-conflict-report',
+    type: 'update_status',
+    createdAt: new Date().toISOString(),
+    data: {
+      postId,
+      status: 'closed',
+      statusLabel: '終了',
+      note: '保留中の古い内容',
+      expectedUpdatedAt: 'stale-version',
+      observedAt: new Date().toISOString(),
+    },
+    lastError: '更新競合',
+    conflict: true,
+  };
+  await writeOutbox(page, [old]);
+  await page.reload();
+  await page.getByRole('button', { name: '内訳' }).click();
+  await expect(
+    page.getByRole('button', { name: '最新を確認して再入力' })
+  ).toBeVisible();
+  await page.getByRole('button', { name: '最新を確認して再入力' }).click();
+  await expect(page.getByText(/保留中の報告: 終了 \(closed\)/)).toBeVisible();
+  await expect(
+    page.getByText(/下の選択肢には最新の状態が反映されています/)
+  ).toBeVisible();
+  await page.getByRole('button', { name: /混雑中/ }).click();
+  await page.locator('#update-note').fill('現地で確認した新しい内容');
+  await page.locator('form button[type="submit"]').click();
+  await expect(page.locator('#update-note')).not.toBeVisible();
+  await expect
+    .poll(() => readOutbox(page).then((items) => items.length))
+    .toBe(0);
+  const detail = await page.evaluate(
+    async (id) => fetch(`/api/posts/${id}`).then((response) => response.json()),
+    postId
+  );
+  expect(detail.post.current_status).toBe('crowded');
 });
 
 test('private API responses are absent from the offline cache', async ({

@@ -9,6 +9,12 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
   test.setTimeout(60000);
   const builtWorker = readFileSync('web/dist/sw.js', 'utf8');
   expect(builtWorker).toMatch(/tossa-shell-[a-f0-9]{20}/);
+  // The deployed legacy worker cannot answer the IndexedDB capability check.
+  const legacyWorker = builtWorker.replace(
+    /\/\/ Migration is unsafe[\s\S]*?(?=\/\/ Install:)/,
+    ''
+  );
+  expect(legacyWorker).not.toContain('OUTBOX_STORAGE_CHECK');
   let version: 'old' | 'broken' | 'new' = 'old';
   let disconnected = false;
   const server = createServer((incoming, outgoing) => {
@@ -22,7 +28,7 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
         'Cache-Control': 'no-store',
       });
       outgoing.end(
-        builtWorker.replace(
+        (version === 'old' ? legacyWorker : builtWorker).replace(
           /tossa-shell-[a-f0-9]{20}/,
           `tossa-shell-test-${version}`
         )
@@ -77,6 +83,30 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
       createdAt: new Date().toISOString(),
     },
   ];
+  async function migratedQueue(target: typeof page) {
+    return target.evaluate(async () => {
+      const name = 'tossa-offline-outbox';
+      if (!(await indexedDB.databases()).some((db) => db.name === name))
+        return [];
+      return new Promise<unknown[]>((resolve, reject) => {
+        const request = indexedDB.open(name);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const tx = db.transaction('items', 'readonly');
+          const items = tx.objectStore('items').getAll();
+          tx.oncomplete = () => {
+            db.close();
+            resolve(items.result);
+          };
+          tx.onabort = () => {
+            db.close();
+            reject(tx.error);
+          };
+        };
+      });
+    });
+  }
   await context.addInitScript(() =>
     Object.defineProperty(navigator, 'onLine', {
       configurable: true,
@@ -126,6 +156,9 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
     server.closeAllConnections();
     await page.reload();
     await expect(page.locator('header')).toBeVisible();
+    await expect(
+      page.getByText('端末保存を更新するため', { exact: false })
+    ).toBeVisible({ timeout: 10000 });
     expect(
       await page.evaluate(() =>
         JSON.parse(localStorage.getItem('tossa_offline_outbox') || '[]')
@@ -168,11 +201,12 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
     await expect(upgraded.locator('header')).toBeVisible();
     await upgraded.locator('header button:has-text("＋")').click();
     await expect(upgraded.locator('#post-title')).toBeVisible();
+    await expect.poll(() => migratedQueue(upgraded)).toEqual(queue);
     expect(
       await upgraded.evaluate(() =>
-        JSON.parse(localStorage.getItem('tossa_offline_outbox') || '[]')
+        localStorage.getItem('tossa_offline_outbox')
       )
-    ).toEqual(queue);
+    ).toBeNull();
     expect(await upgraded.evaluate(() => caches.has('another-app'))).toBe(true);
     disconnected = false;
     await upgraded.evaluate(() => {
@@ -183,13 +217,7 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
       window.dispatchEvent(new Event('online'));
     });
     await expect
-      .poll(() =>
-        upgraded.evaluate(
-          () =>
-            JSON.parse(localStorage.getItem('tossa_offline_outbox') || '[]')
-              .length
-        )
-      )
+      .poll(async () => (await migratedQueue(upgraded)).length)
       .toBe(0);
     const posts = await upgraded.evaluate(
       async (title) =>

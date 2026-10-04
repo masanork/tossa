@@ -201,7 +201,9 @@ export interface BackupRecord {
   key: string;
   size: number;
   uploaded?: string;
+  snapshotAt?: string;
   totalRecords?: number;
+  snapshotDurationMs?: number;
 }
 
 export interface BackupResult {
@@ -216,6 +218,8 @@ export interface BackupResult {
   };
   deletedOldBackups?: string[];
   error?: string;
+  sizeBytes?: number;
+  durationMs?: number;
 }
 
 export interface OpenDataShelter {

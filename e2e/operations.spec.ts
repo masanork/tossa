@@ -82,6 +82,10 @@ for (const role of ['admin', 'moderator'] as const) {
           exact: false,
         })
       ).toBeVisible();
+      await expect(
+        page.getByRole('status', { name: 'バックアップ保存実績' })
+      ).toContainText('最新の保存日時');
+      await expect(page.getByText('処理時間:', { exact: false })).toBeVisible();
       const downloadEvent = page.waitForEvent('download');
       await page
         .getByRole('button', { name: /をダウンロード$/ })
@@ -99,3 +103,52 @@ for (const role of ['admin', 'moderator'] as const) {
     }
   });
 }
+
+test('backup monitoring distinguishes a delayed archive, failed reload and empty storage', async ({
+  page,
+}) => {
+  const session = token('admin');
+  await page.addInitScript(
+    (value) => localStorage.setItem('tossa_token', value),
+    session
+  );
+  let response: object = {
+    success: true,
+    checkedAt: '2026-10-05T05:00:00Z',
+    backups: [
+      {
+        key: 'backups/tossa_backup_2026-10-04T03-00-00-000Z.json',
+        uploaded: '2026-10-05T04:59:00Z',
+        snapshotAt: '2026-10-04T03:00:00Z',
+        size: 1024,
+        totalRecords: 10,
+      },
+    ],
+  };
+  await page.route('**/api/settings/backups', (route) =>
+    route.fulfill({ json: response })
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: 'E2E Admin', exact: true }).click();
+  await page.getByRole('button', { name: 'バックアップ', exact: true }).click();
+  await expect(
+    page.getByRole('status', { name: 'バックアップ保存実績' })
+  ).toContainText('26時間以上');
+  response = { success: false, error: 'Test storage unavailable' };
+  await page.getByRole('button', { name: '再読込', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText(
+    '保存実績を確認できません'
+  );
+  await expect(
+    page.getByRole('status', { name: 'バックアップ保存実績' })
+  ).toHaveCount(0);
+  await expect(
+    page.getByText('保存されているバックアップはありません', { exact: false })
+  ).toHaveCount(0);
+  response = { success: true, checkedAt: '2026-10-05T05:00:00Z', backups: [] };
+  await page.getByRole('button', { name: '再読込', exact: true }).click();
+  await expect(
+    page.getByRole('status', { name: 'バックアップ保存実績' })
+  ).toContainText('保存実績がありません');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});

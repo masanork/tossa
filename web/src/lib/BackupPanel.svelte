@@ -11,6 +11,7 @@
   } from '@lucide/svelte';
   import { triggerBackupApi, fetchBackupsApi, downloadBackupApi } from './api';
   import type { BackupRecord, BackupResult } from './types';
+  import { backupHealth } from './backupHealth';
   const { token }: { token: string } = $props();
   // Backup state
   let backups = $state<BackupRecord[]>([]);
@@ -22,6 +23,13 @@
   } | null>(null);
   let lastBackupResult = $state<BackupResult | null>(null);
   let downloading = $state<string | null>(null);
+  let checkedAt = $state<string | undefined>();
+  let backupListError = $state<string | null>(null);
+  let hasLoadedBackups = $state(false);
+  const health = $derived(backupHealth(backups, checkedAt));
+  const storedBytes = $derived(
+    backups.reduce((total, backup) => total + backup.size, 0)
+  );
 
   async function download(key: string) {
     if (downloading) return;
@@ -48,23 +56,21 @@
   }
 
   async function loadBackups() {
-    if (!token) return;
+    if (!token || isLoadingBackups) return;
     isLoadingBackups = true;
+    backupListError = null;
+    hasLoadedBackups = false;
     try {
       const res = await fetchBackupsApi(token);
       if (res.success && res.backups) {
         backups = res.backups;
+        checkedAt = res.checkedAt;
+        hasLoadedBackups = true;
       } else {
-        backupStatusMessage = {
-          type: 'error',
-          text: res.error || '一覧を取得できませんでした',
-        };
+        backupListError = res.error || '一覧を取得できませんでした';
       }
     } catch (err: any) {
-      backupStatusMessage = {
-        type: 'error',
-        text: err?.message || '一覧を取得できませんでした',
-      };
+      backupListError = err?.message || '一覧を取得できませんでした';
     } finally {
       isLoadingBackups = false;
     }
@@ -148,7 +154,7 @@
           class="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300"
         >
           <Database class="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <span>D1 自動バックアップ稼働状況</span>
+          <span>D1 バックアップ予定と保存実績</span>
         </div>
         <p
           class="mt-2 text-[11px] leading-relaxed text-blue-800/80 dark:text-blue-300/80"
@@ -160,6 +166,53 @@
           Cloudflare R2（<code>backups/</code>）に保存します（最新 30
           世代を自動保持）。
         </p>
+        {#if hasLoadedBackups}
+          <div
+            class="mt-3 space-y-2 text-xs"
+            role="status"
+            aria-label="バックアップ保存実績"
+          >
+            {#if backups[0]?.uploaded}
+              <p>
+                最新の保存日時: {new Date(backups[0].uploaded).toLocaleString(
+                  'ja-JP'
+                )}
+              </p>
+            {/if}
+            {#if backups[0]?.snapshotAt}
+              <p>
+                データの取得開始: {new Date(
+                  backups[0].snapshotAt
+                ).toLocaleString('ja-JP')}
+              </p>
+            {/if}
+            {#if health.state === 'overdue'}
+              <p class="font-bold text-red-800 dark:text-red-300">
+                要確認: 最新のデータ取得から26時間以上経過しています（{health.ageHours.toFixed(
+                  1
+                )} 時間）。CronとWorkerのエラーを確認してください。
+              </p>
+            {:else if health.state === 'recent'}
+              <p>
+                一覧の確認時点で、最新のデータ取得から {health.ageHours.toFixed(
+                  1
+                )} 時間です。
+              </p>
+            {:else if health.state === 'empty'}
+              <p class="font-bold">
+                保存実績がありません。初回バックアップを実行してください。
+              </p>
+            {:else}
+              <p class="font-bold">
+                保存日時または確認日時を確認できないため、遅延を判定できません。
+              </p>
+            {/if}
+            <p>一覧内の合計容量: {(storedBytes / 1024 / 1024).toFixed(2)} MB</p>
+            <p class="text-[11px]">
+              手動実行も含む保存実績です。自動実行や復元の成功を保証する表示ではありません。
+            </p>
+          </div>
+        {/if}
       </div>
 
       <!-- Manual Backup Trigger Action -->
@@ -201,6 +254,12 @@
               直前のバックアップ結果（計 {lastBackupResult.metadata
                 .totalRecords} 件）:
             </div>
+            {#if lastBackupResult.durationMs !== undefined && lastBackupResult.sizeBytes !== undefined}
+              <p class="mt-1 text-[11px]">
+                処理時間: {(lastBackupResult.durationMs / 1000).toFixed(2)} 秒 / 保存容量:
+                {(lastBackupResult.sizeBytes / 1024).toFixed(1)} KB
+              </p>
+            {/if}
             <div class="mt-1.5 flex flex-wrap gap-1.5">
               {#each Object.entries(lastBackupResult.metadata.tableCounts) as [table, count] (table)}
                 <span
@@ -247,13 +306,20 @@
           <RefreshCw class="mr-2 h-4 w-4 animate-spin" />
           <span>一覧を取得中...</span>
         </div>
-      {:else if backups.length === 0}
+      {:else if backupListError}
+        <p
+          role="alert"
+          class="rounded-lg bg-red-50 p-3 text-xs text-red-800 dark:bg-red-950 dark:text-red-300"
+        >
+          保存実績を確認できません: {backupListError}。「再読込」で再確認してください。
+        </p>
+      {:else if hasLoadedBackups && backups.length === 0}
         <div
           class="rounded-lg bg-slate-50 py-10 text-center text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400"
         >
           保存されているバックアップはありません（専用バックアップ保存先が未設定、または初回実行前）
         </div>
-      {:else}
+      {:else if hasLoadedBackups}
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead>
@@ -264,6 +330,7 @@
                 <th class="pb-2 font-bold">作成日時</th>
                 <th class="pb-2 text-right font-bold">総件数</th>
                 <th class="pb-2 text-right font-bold">サイズ</th>
+                <th class="pb-2 text-right font-bold">スナップショット準備</th>
                 <th class="pb-2 text-right font-bold">保存</th>
               </tr>
             </thead>
@@ -294,6 +361,12 @@
                   >
                     {(b.size / 1024).toFixed(1)} KB
                   </td>
+                  <td
+                    class="py-2.5 text-right text-slate-500 dark:text-slate-400"
+                    >{b.snapshotDurationMs !== undefined
+                      ? `${(b.snapshotDurationMs / 1000).toFixed(2)} 秒`
+                      : '-'}</td
+                  >
                   <td class="py-2.5 text-right">
                     <button
                       type="button"

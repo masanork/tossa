@@ -2,7 +2,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { createPost, updatePost } from './api';
-  import { enqueuePost } from './offlineQueue';
+  import { enqueuePost, isOfflineQueueStorageError } from './offlineQueue';
   import { recordMyPost } from './myPosts';
   import { swipeDown } from './swipeToDismiss';
   import { focusTrap } from './focusTrap';
@@ -769,7 +769,7 @@
         }
       } else {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          enqueuePost(payload);
+          await enqueuePost(payload);
           onCreated();
           onClose();
           return;
@@ -815,12 +815,9 @@
         }
       }
     } catch (err: any) {
-      if (
-        !editingPost &&
-        !(err instanceof Error && err.message.includes('保存できません'))
-      ) {
+      if (!editingPost && !isOfflineQueueStorageError(err)) {
         try {
-          enqueuePost(payload);
+          await enqueuePost(payload);
           onCreated();
           onClose();
           return;

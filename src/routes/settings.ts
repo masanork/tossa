@@ -160,7 +160,15 @@ settingsRoute.post('/backup', async (c) => {
 
   const result = await performDatabaseBackup(c.env);
   if (!result.success) {
-    return c.json({ success: false, error: result.error }, 500);
+    return c.json(
+      {
+        success: false,
+        error: result.busy
+          ? '別のバックアップを実行中です。完了後に再試行してください。'
+          : result.error,
+      },
+      result.busy ? 409 : 500
+    );
   }
 
   return c.json({
@@ -169,6 +177,8 @@ settingsRoute.post('/backup', async (c) => {
     backupKey: result.backupKey,
     metadata: result.metadata,
     deletedOldBackups: result.deletedOldBackups,
+    sizeBytes: result.sizeBytes,
+    durationMs: result.durationMs,
   });
 });
 
@@ -195,6 +205,7 @@ settingsRoute.get('/backups', async (c) => {
   return c.json({
     success: true,
     backups,
+    checkedAt: new Date().toISOString(),
   });
 });
 
@@ -206,7 +217,11 @@ settingsRoute.get('/backup-download', async (c) => {
   if (!session || session.role !== 'admin')
     return c.json({ success: false, error: 'Forbidden' }, 403);
   const key = c.req.query('key') || '';
-  if (!/^backups\/tossa_backup_[0-9TZ-]+\.json$/.test(key))
+  if (
+    !/^backups\/tossa_backup_[0-9TZ-]+(?:_(?:[0-9a-f]{32}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}))?\.json$/.test(
+      key
+    )
+  )
     return c.json({ success: false, error: 'Invalid backup key' }, 400);
   if (!c.env.BACKUPS_BUCKET)
     return c.json(

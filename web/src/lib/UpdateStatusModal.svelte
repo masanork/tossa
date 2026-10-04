@@ -2,7 +2,10 @@
 <script lang="ts">
   import type { Post } from './types';
   import { updatePostStatus } from './api';
-  import { enqueueStatusUpdate } from './offlineQueue';
+  import {
+    enqueueStatusUpdate,
+    isOfflineQueueStorageError,
+  } from './offlineQueue';
   import { swipeDown } from './swipeToDismiss';
   import { focusTrap } from './focusTrap';
   import { X, Check, Clock, Coffee, XCircle, HelpCircle } from '@lucide/svelte';
@@ -12,6 +15,12 @@
     isTop?: boolean;
     zIndex?: number;
     onClose: () => void;
+    onPersisted?: () => void | Promise<void>;
+    conflictReview?: {
+      status: string;
+      statusLabel: string;
+      note?: string;
+    } | null;
     onUpdated: (update?: {
       status: string;
       statusLabel: string;
@@ -24,6 +33,8 @@
     isTop = true,
     zIndex = 50,
     onClose,
+    onPersisted,
+    conflictReview,
     onUpdated,
   }: Props = $props();
 
@@ -111,13 +122,14 @@
           statusLabel: selectedLabel,
           note: note.trim() || undefined,
         };
-        enqueueStatusUpdate({
+        await enqueueStatusUpdate({
           requestId,
           postId: post.id,
           expectedUpdatedAt: post.updated_at,
           observedAt,
           ...payload,
         });
+        await onPersisted?.();
         onUpdated(payload);
         onClose();
         return;
@@ -131,6 +143,7 @@
         { requestId, expectedUpdatedAt: post.updated_at, observedAt }
       );
       if (res.success) {
+        await onPersisted?.();
         onUpdated({
           status: selectedStatus,
           statusLabel: selectedLabel,
@@ -141,7 +154,7 @@
         errorMessage = res.error || '更新に失敗しました';
       }
     } catch (error) {
-      if (error instanceof Error && error.message.includes('保存できません')) {
+      if (isOfflineQueueStorageError(error)) {
         errorMessage = error.message;
         return;
       }
@@ -152,13 +165,14 @@
           statusLabel: selectedLabel,
           note: note.trim() || undefined,
         };
-        enqueueStatusUpdate({
+        await enqueueStatusUpdate({
           requestId,
           postId: post.id,
           expectedUpdatedAt: post.updated_at,
           observedAt,
           ...payload,
         });
+        await onPersisted?.();
         onUpdated(payload);
         onClose();
       } catch (saveError) {
@@ -228,6 +242,24 @@
 
       <!-- Form -->
       <form onsubmit={handleSubmit} class="flex flex-col gap-4 p-5">
+        {#if conflictReview}
+          <div
+            class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            <p class="font-bold">
+              最新の投稿内容を確認し、今回の状況を入力してください。
+            </p>
+            <p class="mt-1">
+              保留中の報告: {conflictReview.statusLabel} ({conflictReview.status})
+            </p>
+            {#if conflictReview.note}<p class="mt-1">
+                メモ: {conflictReview.note}
+              </p>{/if}
+            <p class="mt-1">
+              下の選択肢には最新の状態が反映されています。確認してから再送してください。
+            </p>
+          </div>
+        {/if}
         {#if errorMessage}
           <div
             class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"

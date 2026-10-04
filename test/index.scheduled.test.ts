@@ -137,6 +137,34 @@ describe('Worker Scheduled Handler', () => {
     );
   });
 
+  it('records an overlapping manual backup as skipped without an operational failure alert', async () => {
+    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(performDatabaseBackup).mockResolvedValue({
+      success: false,
+      busy: true,
+      error: 'Another database backup is already running',
+    });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await worker.scheduled!(
+        { cron: '0 3 * * *', type: 'cron', scheduledTime: Date.now() },
+        env,
+        ctx
+      );
+      await Promise.all(waitUntilPromises);
+      expect(sendErrorAlert).not.toHaveBeenCalled();
+      expect(log.mock.calls.map(([value]) => JSON.parse(value))).toContainEqual(
+        expect.objectContaining({
+          event: 'database_backup',
+          success: false,
+          skipped: true,
+        })
+      );
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it('handles and alerts on global scheduled block error', async () => {
     const error = new Error('Global backup error');
     vi.mocked(runCapacityMaintenance).mockResolvedValue();

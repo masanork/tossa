@@ -420,6 +420,22 @@ describe('Backup recovery and observation freshness', () => {
     expect(await response.json()).toEqual({ private: true });
     expect(
       (
+        await request(
+          '/api/settings/backup-download?key=backups%2Ftossa_backup_2026-10-04T00-00-00-000Z_12345678-1234-1234-1234-123456789abc.json',
+          { headers }
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
+        await request(
+          '/api/settings/backup-download?key=backups%2Ftossa_backup_2026-10-04T00-00-00-000Z_12345678123412341234123456789abc.json',
+          { headers }
+        )
+      ).status
+    ).toBe(200);
+    expect(
+      (
         await request('/api/settings/backup-download?key=img_private.png', {
           headers,
         })
@@ -429,7 +445,7 @@ describe('Backup recovery and observation freshness', () => {
       .prepare("UPDATE users SET role='user' WHERE id='backup-admin'")
       .run();
     expect((await request(path, { headers })).status).toBe(403);
-    expect(get).toHaveBeenCalledTimes(1);
+    expect(get).toHaveBeenCalledTimes(3);
   });
   it('migrates existing records without losing history or authenticated administrator access', () => {
     const db = new DatabaseSync(':memory:');
@@ -481,8 +497,19 @@ describe('Backup recovery and observation freshness', () => {
     const { db, env } = createTestContext();
     let archive = '';
     env.BACKUPS_BUCKET = {
-      put: async (_key: string, body: string) => {
-        archive = body;
+      createMultipartUpload: async (key: string) => {
+        const parts: Uint8Array[] = [];
+        return {
+          uploadPart: async (partNumber: number, body: Uint8Array) => {
+            parts[partNumber - 1] = body.slice();
+            return { partNumber, etag: String(partNumber) };
+          },
+          complete: async () => {
+            archive = Buffer.concat(parts).toString('utf8');
+            return { key, size: Buffer.byteLength(archive) };
+          },
+          abort: vi.fn(),
+        };
       },
       list: async () => ({ objects: [], truncated: false }),
     } as unknown as R2Bucket;

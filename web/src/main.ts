@@ -2,6 +2,11 @@ import { mount } from 'svelte';
 import 'leaflet/dist/leaflet.css';
 import './app.css';
 import App from './App.svelte';
+import { registerOutboxClient } from './lib/outboxCompatibility';
+
+// Respond to the active worker's compatibility check before App can open or
+// migrate the offline outbox during startup.
+registerOutboxClient();
 
 const app = mount(App, {
   target: document.getElementById('app')!,

@@ -10,6 +10,58 @@ const STATIC_PRECACHE = [
   '/favicon.svg',
 ];
 
+// Migration is unsafe while an old page can still rewrite the legacy queue.
+// Check all windows, including a new page served under an older controller.
+self.addEventListener('message', (event) => {
+  if (event.data?.type !== 'OUTBOX_STORAGE_CHECK' || !event.ports[0]) return;
+  const reply = event.ports[0];
+  event.waitUntil(
+    (async () => {
+      try {
+        const clients = await self.clients.matchAll({
+          type: 'window',
+          includeUncontrolled: true,
+        });
+        const answers = await Promise.all(
+          clients.map(
+            (client) =>
+              new Promise((resolve) => {
+                const channel = new MessageChannel();
+                let finished = false;
+                const finish = (compatible) => {
+                  if (finished) return;
+                  finished = true;
+                  clearTimeout(timer);
+                  channel.port1.close();
+                  channel.port2.close();
+                  resolve(compatible);
+                };
+                const timer = setTimeout(() => finish(false), 1500);
+                channel.port1.onmessage = (message) =>
+                  finish(message.data?.capability === 'indexeddb-v1');
+                try {
+                  client.postMessage({ type: 'OUTBOX_CLIENT_CHECK' }, [
+                    channel.port2,
+                  ]);
+                } catch {
+                  finish(false);
+                }
+              })
+          )
+        );
+        reply.postMessage({
+          type: 'OUTBOX_STORAGE_RESULT',
+          ready: clients.length > 0 && answers.every(Boolean),
+        });
+      } catch {
+        reply.postMessage({ type: 'OUTBOX_STORAGE_RESULT', ready: false });
+      } finally {
+        reply.close();
+      }
+    })()
+  );
+});
+
 // Install: precache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(

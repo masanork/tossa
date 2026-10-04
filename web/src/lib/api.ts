@@ -226,12 +226,12 @@ export async function createPost(
     observedAt?: string;
     categoryId?: string;
     title: string;
-    area: string;
+    area?: string;
     address?: string;
     lat?: number;
     lng?: number;
-    currentStatus: string;
-    statusLabel: string;
+    currentStatus?: string;
+    statusLabel?: string;
     note?: string;
     url?: string;
     sourceUrl?: string;
@@ -1202,9 +1202,12 @@ export async function downloadBackupApi(
   return response.blob();
 }
 
-export async function fetchBackupsApi(
-  token: string
-): Promise<{ success: boolean; backups?: BackupRecord[]; error?: string }> {
+export async function fetchBackupsApi(token: string): Promise<{
+  success: boolean;
+  backups?: BackupRecord[];
+  checkedAt?: string;
+  error?: string;
+}> {
   try {
     const res = await fetch(`${API_BASE}/settings/backups`, {
       headers: {

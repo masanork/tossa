@@ -53,16 +53,21 @@
   import { getTagDisplay } from './lib/tagDictionary';
   import { mergeVocabularyWithSeeds } from './lib/seedTags';
   import {
-    getPendingQueueCount,
     flushOfflineQueue,
     getOfflineQueue,
+    getRawOfflineQueue,
+    getOfflineQueueExportRaw,
+    recoverOfflineQueue,
     removeQueuedItem,
+    OfflineQueueCorruptError,
     type QueuedItem,
   } from './lib/offlineQueue';
   import { modalManager, type ModalName } from './lib/modalManager.svelte';
   import { geolocationManager } from './lib/geolocation.svelte';
   import { calculateDistance } from './lib/geoDistance';
   import { announcer } from './lib/announcer.svelte';
+  import DeviceStoragePanel from './lib/DeviceStoragePanel.svelte';
+  import { registerOutboxClient } from './lib/outboxCompatibility';
 
   let settings = $state<SystemSettings>({
     site_title: 'tossa',
@@ -167,24 +172,136 @@
   let offlineError = $state<string | null>(null);
   let showQueueDetails = $state(false);
   let queuedItems = $state<QueuedItem[]>([]);
+  let corruptQueueRaw = $state<string | null>(null);
+  let corruptQueueExported = $state(false);
+  let conflictReview = $state<{
+    status: string;
+    statusLabel: string;
+    note?: string;
+  } | null>(null);
+  let pendingConflictItemId = $state<string | null>(null);
   let isSyncing = $state(false);
   let deferredInstallPrompt = $state<any>(null);
   let showInstallBanner = $state(false);
+  let unregisterOutboxClient: (() => void) | null = null;
 
-  function refreshQueue() {
+  let queueRefreshGeneration = 0;
+  async function refreshQueue() {
+    const generation = ++queueRefreshGeneration;
     try {
-      pendingCount = getPendingQueueCount();
-      queuedItems = getOfflineQueue();
+      const queue = await getOfflineQueue();
+      if (generation !== queueRefreshGeneration) return;
+      queuedItems = queue;
+      pendingCount = queue.length;
+      corruptQueueRaw = null;
+      corruptQueueExported = false;
     } catch (error) {
+      if (generation !== queueRefreshGeneration) return;
+      const raw =
+        getRawOfflineQueue() ??
+        (error instanceof OfflineQueueCorruptError
+          ? await getOfflineQueueExportRaw()
+          : null);
+      if (generation !== queueRefreshGeneration) return;
+      if (raw !== corruptQueueRaw) corruptQueueExported = false;
+      corruptQueueRaw = raw;
+      queuedItems = [];
+      pendingCount = 0;
       offlineError =
-        error instanceof Error ? error.message : '未送信データを読み取れません';
+        error instanceof Error
+          ? raw
+            ? `${error.message} 未送信データは変更していません。先にバックアップを書き出してください。`
+            : error.message
+          : '未送信データを読み取れません。データは変更していません。';
     }
   }
 
-  function handleDiscardQueueItem(id: string) {
+  async function handleDiscardQueueItem(id: string) {
     if (confirm(m.offline_discard_confirm())) {
-      removeQueuedItem(id);
-      refreshQueue();
+      try {
+        await removeQueuedItem(id);
+        await refreshQueue();
+      } catch (error) {
+        offlineError =
+          error instanceof Error ? error.message : '削除できませんでした';
+      }
+    }
+  }
+
+  async function handleReviewConflict(item: QueuedItem) {
+    if (item.type !== 'update_status' || !item.conflict) return;
+    try {
+      const detail = await fetchPostDetail(item.data.postId);
+      if (!detail?.post?.id)
+        throw new Error(
+          '投稿が見つからないか、削除されています。保留中の報告は保持しています。'
+        );
+      updatingPost = detail.post;
+      conflictReview = {
+        status: item.data.status,
+        statusLabel: item.data.statusLabel,
+        note: item.data.note,
+      };
+      pendingConflictItemId = item.id;
+      modalManager.open('update_status');
+    } catch (error) {
+      offlineError =
+        error instanceof Error
+          ? error.message
+          : '最新の投稿を取得できませんでした。保留中の報告は保持しています。';
+    }
+  }
+
+  async function handleConflictReplacementSaved() {
+    if (!pendingConflictItemId) return;
+    try {
+      await removeQueuedItem(pendingConflictItemId);
+      await refreshQueue();
+      pendingConflictItemId = null;
+      conflictReview = null;
+    } catch (error) {
+      offlineError =
+        error instanceof Error
+          ? error.message
+          : '古い競合報告を整理できませんでした';
+    }
+  }
+
+  function exportCorruptQueue() {
+    if (!corruptQueueRaw) return;
+    const url = URL.createObjectURL(
+      new Blob([corruptQueueRaw], { type: 'application/json' })
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tossa-offline-outbox-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    corruptQueueExported = true;
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function recoverCorruptQueue() {
+    if (!corruptQueueRaw || !corruptQueueExported) return;
+    if (
+      !confirm(
+        '書き出したJSONを別の場所で確認しましたか？確認後、読み取れる項目だけを保存領域に戻します。壊れた項目は保存領域から除かれ、書き出したファイルに残ります。'
+      )
+    )
+      return;
+    try {
+      const result = await recoverOfflineQueue(corruptQueueRaw);
+      await refreshQueue();
+      offlineError = null;
+      offlineNotice = result.unparseable
+        ? `内容を解析できないため新しい項目は復旧せず、既存の${result.preservedExisting}件を保持しました。元データは書き出したファイルに保全されています。`
+        : `保存領域を修復しました。既存の${result.preservedExisting}件を保持し、新たに${result.recovered}件を復旧、${result.discarded}件を退避ファイルに残しました。`;
+    } catch (error) {
+      offlineError =
+        error instanceof Error
+          ? error.message
+          : '保存領域を修復できませんでした';
     }
   }
 
@@ -259,17 +376,30 @@
     if (name === 'update_status') updatingPost = null;
     if (name === 'messages') messageContextPost = null;
     if (name === 'qr_code') activeQrPost = null;
+    if (name === 'update_status') {
+      conflictReview = null;
+      pendingConflictItemId = null;
+    }
+  }
+
+  function handleStorageChange(event: StorageEvent) {
+    if (event.key === 'tossa_offline_outbox' || event.key === null)
+      void refreshQueue();
+  }
+
+  function handleQueueChange() {
+    void refreshQueue();
   }
 
   async function syncOfflineQueue() {
-    refreshQueue();
+    await refreshQueue();
     if (pendingCount === 0 || isSyncing) return;
 
     isSyncing = true;
     offlineError = null;
     try {
       const res = await flushOfflineQueue(authToken);
-      refreshQueue();
+      await refreshQueue();
       if (res.succeeded > 0) {
         offlineNotice = m.offline_sync_success({ count: res.succeeded });
         announcer.announce(offlineNotice);
@@ -298,7 +428,7 @@
 
   function handleOffline() {
     isOnline = false;
-    refreshQueue();
+    void refreshQueue();
     announcer.announce('オフラインモードに切り替わりました', 'assertive');
   }
 
@@ -327,6 +457,10 @@
   }
 
   onMount(async () => {
+    // Register before any queue operation so the service worker can verify
+    // this client during the IndexedDB migration capability handshake.
+    unregisterOutboxClient = registerOutboxClient();
+    window.addEventListener('offline-queue-change', handleQueueChange);
     // 1. Verify auth token
     if (authToken) {
       const authRes = await checkAuth(authToken);
@@ -362,11 +496,12 @@
     await loadInitialData();
 
     // 3. Online/Offline, PWA & Outbox Listeners
-    refreshQueue();
+    await refreshQueue();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('storage', handleStorageChange);
 
     if (navigator.onLine && pendingCount > 0) {
       await syncOfflineQueue();
@@ -424,6 +559,8 @@
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('offline-queue-change', handleQueueChange);
       window.removeEventListener(
         'beforeinstallprompt',
         handleBeforeInstallPrompt
@@ -431,6 +568,8 @@
       window.removeEventListener('hashchange', checkHashForQrImport);
       window.removeEventListener('popstate', checkPathnameForPostDeepLink);
     }
+    unregisterOutboxClient?.();
+    unregisterOutboxClient = null;
   });
 
   async function checkPathnameForPostDeepLink() {
@@ -889,6 +1028,14 @@
                     {item.lastError}
                   </p>{/if}
               </div>
+              {#if item.type === 'update_status' && item.conflict}
+                <button
+                  type="button"
+                  onclick={() => handleReviewConflict(item)}
+                  class="cursor-pointer rounded bg-amber-900 px-2 py-1 text-[11px] font-bold text-white hover:bg-amber-950"
+                  >最新を確認して再入力</button
+                >
+              {/if}
               <button
                 type="button"
                 onclick={() => handleDiscardQueueItem(item.id)}
@@ -968,6 +1115,14 @@
                     {item.lastError}
                   </p>{/if}
               </div>
+              {#if item.type === 'update_status' && item.conflict}
+                <button
+                  type="button"
+                  onclick={() => handleReviewConflict(item)}
+                  class="cursor-pointer rounded bg-blue-900 px-2 py-1 text-[11px] font-bold text-white hover:bg-blue-950"
+                  >最新を確認して再入力</button
+                >
+              {/if}
               <button
                 type="button"
                 onclick={() => handleDiscardQueueItem(item.id)}
@@ -993,6 +1148,22 @@
         <span>{offlineError}</span>
       </div>
       <div class="flex items-center gap-1.5">
+        {#if corruptQueueRaw}
+          <button
+            type="button"
+            onclick={exportCorruptQueue}
+            class="cursor-pointer rounded bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-white/30"
+            >保存データを書き出す</button
+          >
+          {#if corruptQueueExported}
+            <button
+              type="button"
+              onclick={recoverCorruptQueue}
+              class="cursor-pointer rounded bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-white/30"
+              >書き出しを確認して復旧</button
+            >
+          {/if}
+        {/if}
         <button
           type="button"
           onclick={() => syncOfflineQueue()}
@@ -1019,6 +1190,10 @@
       <span>{offlineNotice}</span>
     </div>
   {/if}
+
+  <div class="mx-auto w-full max-w-4xl px-4">
+    <DeviceStoragePanel />
+  </div>
 
   {#if feedError}
     <div
@@ -1438,6 +1613,8 @@
         post={updatingPost}
         isTop={modalManager.isTop('update_status')}
         zIndex={modalManager.getZIndex('update_status')}
+        {conflictReview}
+        onPersisted={handleConflictReplacementSaved}
         onClose={() => handleCloseModal('update_status')}
         onUpdated={(update) => {
           if (update && updatingPost) {
@@ -1478,7 +1655,7 @@
         onClose={() => handleCloseModal('create')}
         onCreated={(newPost) => {
           initialDraftPost = null;
-          refreshQueue();
+          void refreshQueue();
           if (newPost) {
             posts = [newPost, ...posts.filter((p) => p.id !== newPost.id)];
             totalPosts += 1;
@@ -1487,7 +1664,7 @@
         }}
         onUpdated={() => {
           initialDraftPost = null;
-          refreshQueue();
+          void refreshQueue();
           reloadPosts(true);
         }}
         onOpenAuth={() => {
