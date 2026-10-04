@@ -503,10 +503,17 @@ describe('Backup recovery and observation freshness', () => {
         'Open',
         'recovery-admin',
         'disaster',
-        '日本語\u0000末尾'
+        '日本語の末尾'
       )
       .run();
     expect((await performDatabaseBackup(env)).success).toBe(true);
+    const complete = JSON.parse(archive);
+    expect(complete.data.posts[0].note).toBe('日本語の末尾');
+    // Node 22's SQLite text reader truncates at NUL. Inject the edge case
+    // into the archive and verify stored bytes rather than its text reader.
+    const recoveryNote = '日本語\u0000末尾';
+    complete.data.posts[0].note = recoveryNote;
+    archive = JSON.stringify(complete);
     const dir = mkdtempSync(join(tmpdir(), 'tossa-recovery-'));
     const input = join(dir, 'backup.json'),
       output = join(dir, 'recovered.sql');
@@ -519,9 +526,9 @@ describe('Backup recovery and observation freshness', () => {
     const recovered = new DatabaseSync(':memory:');
     recovered.exec('PRAGMA foreign_keys = ON');
     recovered.exec(readFileSync(output, 'utf8'));
-    expect(recovered.prepare('SELECT note FROM posts').get()?.note).toBe(
-      '日本語\u0000末尾'
-    );
+    expect(
+      recovered.prepare('SELECT hex(note) AS note FROM posts').get()?.note
+    ).toBe(Buffer.from(recoveryNote).toString('hex').toUpperCase());
     expect(
       recovered.prepare('SELECT COUNT(*) AS count FROM disasters').get()?.count
     ).toBe(1);
