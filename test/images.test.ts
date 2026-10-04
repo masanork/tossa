@@ -58,7 +58,7 @@ describe('R2 Images API and Storage', () => {
       'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
     const imagePath = await persistImageToR2(bucket, dataUrl);
-    expect(imagePath).toMatch(/^\/api\/images\/img_[0-9a-zA-Z_]+\.png$/);
+    expect(imagePath).toMatch(/^\/api\/images\/img_[0-9a-zA-Z_-]+\.png$/);
     expect(bucket.put).toHaveBeenCalledTimes(1);
 
     const key = imagePath!.replace('/api/images/', '');
@@ -155,7 +155,7 @@ describe('R2 Images API and Storage', () => {
       .first<{ image_url: string }>();
 
     expect(post!.image_url).toMatch(
-      /^\/api\/images\/img_post_[0-9a-zA-Z_]+\.png$/
+      /^\/api\/images\/img_post_[0-9a-zA-Z_-]+\.png$/
     );
     expect(bucket.put).toHaveBeenCalledTimes(1);
   });

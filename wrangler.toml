@@ -57,6 +57,11 @@ EXPECTED_ORIGIN = "https://tossa.app"
 binding = "IMAGES_BUCKET"
 bucket_name = "tossa-images"
 
+# Private backup archive: never enable public access or a custom domain.
+[[r2_buckets]]
+binding = "BACKUPS_BUCKET"
+bucket_name = "tossa-backups"
+
 # Cloudflare Queues (Asynchronous Web Push & High-Traffic Buffering)
 [[queues.producers]]
 binding = "PUSH_QUEUE"
@@ -66,6 +71,8 @@ queue = "tossa-push-queue"
 queue = "tossa-push-queue"
 max_batch_size = 25
 max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "tossa-push-deadletter"
 
 # Cloudflare Queues (Write Buffer / Smoothing for High-Traffic Spikes)
 [[queues.producers]]
@@ -76,14 +83,14 @@ queue = "tossa-write-queue"
 queue = "tossa-write-queue"
 max_batch_size = 50
 max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "tossa-write-deadletter"
 
 # Cron Triggers (Automated Daily D1 Database Backup & R2 Archival)
 [triggers]
-crons = ["0 3 * * *"] # Daily at 12:00 JST (03:00 UTC)
+crons = ["*/10 * * * *", "0 3 * * *"] # Maintenance + daily backup at 12:00 JST
 
 # Transactional email (onboard tossa.app in Email Sending first)
 [[send_email]]
 name = "EMAIL"
 allowed_sender_addresses = ["noreply@tossa.app"]
-
-

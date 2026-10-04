@@ -30,7 +30,7 @@ export async function createRegOptions(
     })),
     authenticatorSelection: {
       residentKey: 'preferred',
-      userVerification: 'preferred',
+      userVerification: 'required',
     },
   });
 
@@ -58,7 +58,7 @@ export async function verifyRegResponse(
     expectedChallenge: challenge,
     expectedOrigin: env.EXPECTED_ORIGIN,
     expectedRPID: env.RP_ID,
-    requireUserVerification: false,
+    requireUserVerification: true,
   });
 
   if (!verification.verified || !verification.registrationInfo) {
@@ -75,25 +75,29 @@ export async function verifyRegResponse(
     ? JSON.stringify(response.response.transports)
     : null;
 
-  await env.DB.prepare(
-    `INSERT INTO credentials (id, user_id, public_key, counter, device_type, backed_up, transports)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
+  const results = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT INTO credentials (id, user_id, public_key, counter, device_type, backed_up, transports)
+      SELECT ?, id, ?, ?, ?, ?, ? FROM users WHERE id = ? AND current_challenge = ?`
+    ).bind(
       credId,
-      user.id,
       publicKeyB64,
       counter,
       verification.registrationInfo.credentialDeviceType,
       verification.registrationInfo.credentialBackedUp ? 1 : 0,
-      transports
-    )
-    .run();
-
-  // Clear challenge
-  await env.DB.prepare('UPDATE users SET current_challenge = NULL WHERE id = ?')
-    .bind(user.id)
-    .run();
+      transports,
+      user.id,
+      challenge
+    ),
+    env.DB.prepare(
+      `UPDATE users SET role = 'admin' WHERE id = ? AND current_challenge = ? AND NOT EXISTS (SELECT 1 FROM users WHERE role = 'admin')`
+    ).bind(user.id, challenge),
+    env.DB.prepare(
+      'UPDATE users SET current_challenge = NULL WHERE id = ? AND current_challenge = ?'
+    ).bind(user.id, challenge),
+  ]);
+  if (!results[0]?.meta.changes)
+    throw new Error('Registration challenge already used or expired');
 
   return verification;
 }
@@ -119,7 +123,7 @@ export async function createAuthOptions(env: Bindings, user?: User) {
   const options = await generateAuthenticationOptions({
     rpID: env.RP_ID,
     allowCredentials,
-    userVerification: 'preferred',
+    userVerification: 'required',
   });
 
   if (user) {
@@ -164,7 +168,7 @@ export async function verifyAuthResponse(
       counter: cred.counter,
       transports: cred.transports ? JSON.parse(cred.transports) : undefined,
     },
-    requireUserVerification: false,
+    requireUserVerification: true,
   });
 
   if (!verification.verified || !verification.authenticationInfo) {

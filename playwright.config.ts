@@ -19,12 +19,21 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'android',
+      testMatch: '**/reliability.spec.ts',
+      use: { ...devices['Pixel 7'] },
+    },
+    {
+      name: 'mobile-safari',
+      testMatch: '**/reliability.spec.ts',
+      use: { ...devices['iPhone 13'] },
+    },
   ],
   webServer: {
-    command:
-      'npm run build:web && npx wrangler dev --port 8787 --var DISABLE_WRITE_BUFFER:true',
+    command: 'npm run test:e2e:server',
     url: 'http://localhost:8787',
     reuseExistingServer: false,
-    timeout: 30000,
+    timeout: 60000,
   },
 });

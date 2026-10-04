@@ -345,6 +345,12 @@ const worker = Object.assign(app, {
           console.error('[cron] capacity maintenance failed:', err);
         })
       );
+      ctx.waitUntil(
+        refreshPublicFeedSnapshot(env, { force: true }).catch((err) => {
+          console.error('[cron] feed maintenance failed:', err);
+        })
+      );
+      return;
     }
 
     ctx.waitUntil(

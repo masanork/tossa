@@ -349,7 +349,7 @@ describe('Model Context Protocol (MCP) Endpoint', () => {
     expect(tokenBody.token.startsWith('tossa_pat_')).toBe(true);
     expect(tokenBody.tokenName).toBe('Cursor MCP Integration');
 
-    // 2. Use this tossa_pat_ token to create post as Admin (is_verified: true)
+    // An administrator token identifies the author but does not confirm content.
     const mcpRes = await request('/mcp', {
       method: 'POST',
       headers: {
@@ -378,8 +378,8 @@ describe('Model Context Protocol (MCP) Endpoint', () => {
     const mcpBody = await mcpRes.json<any>();
     const postData = JSON.parse(mcpBody.result.content[0].text);
     expect(postData.success).toBe(true);
-    // As admin, post is officially verified
-    expect(postData.is_verified).toBe(true);
+    // Official review requires the separate confirmation action.
+    expect(postData.is_verified).toBe(false);
     expect(postData.author).toBe('MCP管理者');
   });
 

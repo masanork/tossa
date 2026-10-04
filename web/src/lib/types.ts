@@ -29,6 +29,7 @@ export interface Post {
   image_meta?: string; // JSON string
   verification_count?: number;
   last_verified_at?: string | null;
+  observed_at?: string | null;
   attributes: string; // JSON string
   tags?: string; // JSON array string
   is_verified: number;

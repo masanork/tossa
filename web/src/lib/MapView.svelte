@@ -12,6 +12,7 @@
 
   interface Props {
     posts: Post[];
+    onBoundsChange?: (bounds: [number, number, number, number]) => void;
     defaultArea?: string;
     disasterAreas?: DisasterArea[];
     focusWaypointTrigger?: number;
@@ -26,6 +27,7 @@
 
   const {
     posts,
+    onBoundsChange,
     defaultArea,
     disasterAreas = [],
     focusWaypointTrigger,
@@ -42,6 +44,7 @@
   let routeLayer: L.LayerGroup | null = null;
   let leaflet: typeof L | null = null;
   let initialBoundsFitted = false;
+  let boundsTimer: ReturnType<typeof setTimeout> | undefined;
   let isOnline = $state(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -92,6 +95,23 @@
     updateUserLocationOnMap();
     updateWaypointRoute();
     loadOfficialShelters();
+    const reportBounds = () => {
+      clearTimeout(boundsTimer);
+      boundsTimer = setTimeout(() => {
+        if (!map) return;
+        const bounds = map.getBounds();
+        const west = Math.max(-180, bounds.getWest()),
+          east = Math.min(180, bounds.getEast());
+        onBoundsChange?.([
+          west,
+          Math.max(-90, bounds.getSouth()),
+          east,
+          Math.min(90, bounds.getNorth()),
+        ]);
+      }, 200);
+    };
+    map.on('moveend', reportBounds);
+    reportBounds();
 
     // If no posts have coordinates, pan to disasterAreas or defaultArea
     const hasAnyCoords = posts.some((p) => p.lat && p.lng);
@@ -128,6 +148,7 @@
   });
 
   onDestroy(() => {
+    clearTimeout(boundsTimer);
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
     if (map) {

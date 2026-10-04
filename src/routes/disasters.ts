@@ -13,7 +13,7 @@ import {
   updateDisaster,
   deleteDisaster,
 } from '../db/queries';
-import { verifySessionToken } from '../auth/session';
+import { verifyCurrentSession } from '../auth/session';
 
 export const disastersRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -51,7 +51,7 @@ async function requireAdminAuth(c: any) {
     return { error: 'Unauthorized', status: 401 };
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifyCurrentSession(token, c.env);
   if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
     return { error: 'Forbidden', status: 403 };
   }

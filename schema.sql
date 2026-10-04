@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS posts (
     image_url TEXT,               -- 投稿写真（最適化WebP/JPEG Data URLまたは画像URL）
     image_meta TEXT NOT NULL DEFAULT '{}', -- JSON: EXIF（撮影日時・GPS・機種）およびC2PA真正性メタデータ
     verification_count INTEGER NOT NULL DEFAULT 0, -- コミュニティ確認済件数
-    last_verified_at TEXT,        -- 最終確認時刻
+    last_verified_at TEXT,
+    observed_at TEXT,             -- 現場で観測した時刻（通信復旧後の送信時刻とは別）
     attributes TEXT NOT NULL DEFAULT '{}', -- JSON: カテゴリ別任意属性 ({"supplies": ["水", "タオル"], "hours": "9:00-17:00"})
     tags TEXT NOT NULL DEFAULT '[]',       -- JSON配列: 自発的成長タグ (["給水", "ポリタンク持参", "Wi-Fi"])
     is_verified INTEGER NOT NULL DEFAULT 0, -- 1: 自治体・公式確認済
@@ -235,3 +236,29 @@ CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_push_subs_area ON push_subscriptions(area);
 CREATE INDEX IF NOT EXISTS idx_push_subs_device ON push_subscriptions(device_cookie_id);
 
+
+-- Atomic receipts for API retries and Queue redelivery.
+CREATE TABLE IF NOT EXISTS mutation_receipts (
+    id TEXT PRIMARY KEY,
+    post_id TEXT NOT NULL,
+    payload_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_posts_coordinates ON posts(lat, lng);
+
+CREATE TABLE IF NOT EXISTS post_reports (
+  id TEXT PRIMARY KEY,
+  post_id TEXT REFERENCES posts(id) ON DELETE SET NULL,
+  post_title TEXT NOT NULL,
+  device_cookie_id TEXT NOT NULL REFERENCES device_sessions(id),
+  reason TEXT NOT NULL CHECK(reason IN ('outdated','incorrect','spam','privacy')),
+  note TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')),
+  resolution TEXT,
+  resolved_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  resolved_at TEXT,
+  UNIQUE(post_id, device_cookie_id)
+);
+CREATE INDEX IF NOT EXISTS idx_post_reports_status ON post_reports(status, created_at);

@@ -24,10 +24,18 @@ class MockPreparedStatement {
   }
 
   async run() {
-    this.stmt.run(...this.params);
+    if (this.stmt.columns().length > 0) {
+      return {
+        success: true,
+        results: this.stmt.all(...this.params),
+        meta: { changes: 0 },
+      };
+    }
+    const result = this.stmt.run(...this.params);
     return {
       success: true,
-      meta: { changes: 1 },
+      results: [],
+      meta: { changes: Number(result.changes) },
     };
   }
 
@@ -68,10 +76,15 @@ export function createMockD1(schemaSql?: string): D1Database {
     },
     async batch(statements: any[]) {
       const results = [];
-      for (const stmt of statements) {
-        results.push(await stmt.run());
+      sqlite.exec('BEGIN');
+      try {
+        for (const stmt of statements) results.push(await stmt.run());
+        sqlite.exec('COMMIT');
+        return results;
+      } catch (error) {
+        sqlite.exec('ROLLBACK');
+        throw error;
       }
-      return results;
     },
     async dump() {
       return new ArrayBuffer(0);

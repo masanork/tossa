@@ -6,7 +6,13 @@ import { DEVICE_COOKIE } from '../src/middleware/deviceCookie';
 
 describe('Capacity report & public feed snapshot', () => {
   it('returns advice for admins and refreshes the KV snapshot', async () => {
-    const { request, env } = createTestContext();
+    const { request, env, db } = createTestContext();
+    await db
+      .prepare(
+        'INSERT INTO users (id, username, display_name, role) VALUES (?, ?, ?, ?)'
+      )
+      .bind('user_admin_cap', 'admin', 'Admin', 'admin')
+      .run();
     const adminToken = await createSessionToken(
       {
         userId: 'user_admin_cap',

@@ -55,7 +55,7 @@ describe('D1 Database Automated Backup & R2 Archival', () => {
   it('dumps database tables and saves to R2 with metadata', async () => {
     const { db, env } = createTestContext();
     const r2 = createMockR2Bucket();
-    env.IMAGES_BUCKET = r2;
+    env.BACKUPS_BUCKET = r2;
 
     // Seed some test data
     await db
@@ -88,7 +88,7 @@ describe('D1 Database Automated Backup & R2 Archival', () => {
     expect(stored).toBeDefined();
 
     const parsed = JSON.parse(stored!.body);
-    expect(parsed.metadata.version).toBe(1);
+    expect(parsed.metadata.version).toBe(2);
     expect(parsed.data.posts.length).toBe(1);
     expect(parsed.data.posts[0].title).toBe('給水所開設');
     expect(parsed.data.users[0].username).toBe('admin');
@@ -97,7 +97,7 @@ describe('D1 Database Automated Backup & R2 Archival', () => {
   it('rotates older backups exceeding retention limits', async () => {
     const { env } = createTestContext();
     const r2 = createMockR2Bucket();
-    env.IMAGES_BUCKET = r2;
+    env.BACKUPS_BUCKET = r2;
 
     // Pre-populate R2 with 5 backups
     const now = Date.now();
@@ -121,18 +121,18 @@ describe('D1 Database Automated Backup & R2 Archival', () => {
 
   it('handles environment gracefully when R2 is not configured', async () => {
     const { env } = createTestContext();
-    env.IMAGES_BUCKET = undefined;
+    env.BACKUPS_BUCKET = undefined;
 
     const result = await performDatabaseBackup(env);
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('BACKUPS_BUCKET');
     expect(result.backupKey).toBeUndefined();
-    expect(result.metadata).toBeDefined();
   });
 
   it('lists stored backups via listStoredBackups', async () => {
     const { env } = createTestContext();
     const r2 = createMockR2Bucket();
-    env.IMAGES_BUCKET = r2;
+    env.BACKUPS_BUCKET = r2;
 
     r2._store.set('backups/b1.json', {
       body: '{"test": 1}',
@@ -156,7 +156,7 @@ describe('D1 Database Automated Backup & R2 Archival', () => {
   it('requires admin token for POST /api/settings/backup and GET /api/settings/backups', async () => {
     const { request, db, env } = createTestContext();
     const r2 = createMockR2Bucket();
-    env.IMAGES_BUCKET = r2;
+    env.BACKUPS_BUCKET = r2;
 
     // 1. Unauthenticated request -> 401
     const resUnauth = await request('/api/settings/backup', { method: 'POST' });

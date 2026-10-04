@@ -1,6 +1,6 @@
 // web/public/sw.js: tossa Service Worker for Offline & Disaster Resilience
-const CACHE_NAME = 'tossa-shell-v1';
-const API_CACHE_NAME = 'tossa-api-v1';
+const CACHE_NAME = 'tossa-shell-v2';
+const API_CACHE_NAME = 'tossa-api-v2';
 const TILE_CACHE_NAME = 'tossa-tiles-v1';
 
 const STATIC_PRECACHE = [
@@ -15,7 +15,37 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(STATIC_PRECACHE))
+      .then(async (cache) => {
+        // Install the shell and all lazy chunks as one version. Never activate an
+        // HTML shell whose hashed JS/CSS cannot load when the device goes offline.
+        const response = await fetch('/offline-assets.json', {
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Offline asset manifest unavailable');
+        const assets = await response.json();
+        if (
+          !Array.isArray(assets) ||
+          assets.some(
+            (path) => typeof path !== 'string' || !path.startsWith('/assets/')
+          )
+        )
+          throw new Error('Invalid offline asset manifest');
+        await cache.addAll([...STATIC_PRECACHE, ...assets]);
+        // Static Assets redirects /index.html to /. A redirected Response cannot
+        // satisfy an offline navigation request; retain its bytes without that flag.
+        const shell = await cache.match('/index.html');
+        if (!shell) throw new Error('Offline shell unavailable');
+        const shellHeaders = new Headers(shell.headers);
+        shellHeaders.delete('Content-Encoding');
+        shellHeaders.delete('Content-Length');
+        await cache.put(
+          '/index.html',
+          new Response(await shell.arrayBuffer(), {
+            status: shell.status,
+            headers: shellHeaders,
+          })
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -56,11 +86,11 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          if (response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
+        .then(async (response) => {
+          if (response.status === 200)
+            await (
+              await caches.open(CACHE_NAME)
+            ).put(request, response.clone());
           return response;
         })
         .catch(async () => {
@@ -71,25 +101,55 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. Read-only API routes (/api/posts, /api/categories, /api/settings, /api/feed.json)
+  // Cache only public browsing responses. Account, messaging and management
+  // data must never survive logout in a shared browser's offline cache.
   if (url.pathname.startsWith('/api/')) {
+    const publicRoute = [
+      '/api/posts',
+      '/api/posts/tags/vocabulary',
+      '/api/categories',
+      '/api/settings',
+      '/api/feed.json',
+    ].includes(url.pathname);
+    if (
+      !publicRoute ||
+      url.searchParams.get('mine') === 'true' ||
+      request.headers.has('Authorization')
+    )
+      return;
+    const cacheUrl = new URL(url);
+    cacheUrl.searchParams.delete('_t');
+    const cacheKey = new Request(cacheUrl.toString());
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful API responses
-          if (response.status === 200) {
-            const clone = response.clone();
-            caches
-              .open(API_CACHE_NAME)
-              .then((cache) => cache.put(request, clone));
+      (async () => {
+        const apiCache = await caches.open(API_CACHE_NAME);
+        try {
+          const response = await fetch(request);
+          if (
+            response.status === 200 &&
+            !/no-store|private/.test(
+              response.headers.get('Cache-Control') || ''
+            )
+          ) {
+            const headers = new Headers(response.headers);
+            if (!headers.has('X-Data-As-Of'))
+              headers.set('X-Data-As-Of', new Date().toISOString());
+            const stored = new Response(await response.clone().arrayBuffer(), {
+              status: response.status,
+              headers,
+            });
+            await apiCache.put(cacheKey, stored);
           }
           return response;
-        })
-        .catch(async () => {
-          // Network failed (offline/disaster) -> serve from API cache
-          const cached = await caches.match(request);
+        } catch {
+          const cached = await apiCache.match(cacheKey);
           if (cached) {
-            return cached;
+            const headers = new Headers(cached.headers);
+            headers.set('X-Tossa-Offline', 'true');
+            return new Response(cached.body, {
+              status: cached.status,
+              headers,
+            });
           }
           return new Response(
             JSON.stringify({
@@ -101,7 +161,8 @@ self.addEventListener('fetch', (event) => {
               headers: { 'Content-Type': 'application/json' },
             }
           );
-        })
+        }
+      })()
     );
     return;
   }
@@ -125,7 +186,7 @@ self.addEventListener('fetch', (event) => {
             networkResponse.status === 200 ||
             networkResponse.type === 'opaque'
           ) {
-            tileCache.put(request, networkResponse.clone());
+            await tileCache.put(request, networkResponse.clone());
           }
           return networkResponse;
         } catch {
@@ -150,14 +211,16 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)
-        .then((networkResponse) => {
+        .then(async (networkResponse) => {
           if (networkResponse.status === 200) {
             const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            await (await caches.open(CACHE_NAME)).put(request, clone);
           }
           return networkResponse;
         })
         .catch(() => cachedResponse);
+
+      event.waitUntil(fetchPromise);
 
       return cachedResponse || fetchPromise;
     })

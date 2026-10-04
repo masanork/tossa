@@ -20,12 +20,14 @@
     "stats:save": "node --experimental-strip-types scripts/stats.ts --save stats",
     "stats:plot": "node --experimental-strip-types scripts/plot-growth.ts --update --stats-file stats/stats.json",
     "test:e2e": "playwright test",
+    "test:e2e:server": "node scripts/e2e-server.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "knip": "knip",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "tail": "wrangler tail tossa"
+    "tail": "wrangler tail tossa",
+    "backup:restore": "node scripts/restore-backup.mjs"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",
@@ -53,6 +55,6 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.1",
-    "wrangler": "^4.135.0"
+    "wrangler": "^4.147.0"
   }
 }

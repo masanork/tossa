@@ -2,7 +2,7 @@
 import type { Bindings, Post } from '../types';
 import { getPosts } from '../db/queries';
 
-export const FEED_SNAPSHOT_KEY = 'feed:public:v1';
+export const FEED_SNAPSHOT_KEY = 'feed:public:v2';
 const MIN_REFRESH_MS = 3_000;
 
 export interface PublicFeedSnapshot {

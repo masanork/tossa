@@ -4,6 +4,7 @@ export interface Bindings {
   DB: D1Database;
   FEED_KV?: KVNamespace;
   IMAGES_BUCKET?: R2Bucket;
+  BACKUPS_BUCKET?: R2Bucket;
   PUSH_QUEUE?: Queue<PushQueueMessage>;
   WRITE_QUEUE?: Queue<WriteQueueMessage>;
   ASSETS?: Fetcher;
@@ -60,6 +61,8 @@ export type WriteQueueMessage =
         tags?: string[];
         isVerified?: boolean;
         reporterName?: string | null;
+        operation?: { id: string; payloadHash: string };
+        observedAt?: string;
       };
       accessLog?: {
         ip?: string;
@@ -77,6 +80,11 @@ export type WriteQueueMessage =
     }
   | {
       type: 'update_status';
+      operationId?: string;
+      payloadHash?: string;
+      observedAt?: string;
+      expectedUpdatedAt?: string;
+      noteOnly?: boolean;
       postId: string;
       status: string;
       statusLabel: string;
@@ -124,6 +132,7 @@ export interface Post {
   image_meta?: string; // JSON string
   verification_count?: number;
   last_verified_at?: string | null;
+  observed_at?: string | null;
   attributes: string; // JSON string
   tags: string; // JSON array string e.g. '["water", "wi-fi"]'
   is_verified: number; // 0 or 1

@@ -22,6 +22,8 @@ export async function persistImageToR2(
     if (!match || !match[1] || !match[2]) return dataUrl;
 
     const mimeType = match[1] || 'image/webp';
+    if (!/^image\/(png|jpeg|webp|gif|avif)$/.test(mimeType))
+      throw new Error('Unsupported image type');
     const base64Data = match[2];
 
     const binaryString = atob(base64Data);
@@ -59,6 +61,11 @@ imagesRoute.get('/:key', async (c) => {
   }
 
   const key = c.req.param('key');
+  // Only generated raster image keys are public. Never expose other objects,
+  // including legacy backups in this bucket or encoded directory separators.
+  if (!/^img_[a-zA-Z0-9_-]+\.(png|jpg|webp|gif|avif)$/.test(key)) {
+    return c.text('Image not found', 404);
+  }
   const object = await bucket.get(key);
 
   if (!object) {

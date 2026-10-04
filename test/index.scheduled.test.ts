@@ -62,6 +62,7 @@ describe('Worker Scheduled Handler', () => {
     await Promise.all(waitUntilPromises);
 
     expect(runCapacityMaintenance).toHaveBeenCalledWith(env);
+    expect(performDatabaseBackup).not.toHaveBeenCalled();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 

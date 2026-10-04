@@ -121,7 +121,7 @@ tossa features a native **Model Context Protocol (MCP)** remote endpoint. AI age
 }
 ```
 
-_For authorized operations (such as publishing verified official announcements), issue an API Token from the Admin Panel and specify the Authorization header:_
+_For authorized operations, issue an API Token from the Admin Panel and specify the Authorization header. Signing in or posting with a token does not give a post the Moderator Reviewed badge; an administrator or moderator must explicitly confirm it:_
 
 ```json
 {
@@ -250,6 +250,8 @@ npm run db:seed:remote
 
 ### 3. Deploy Application
 
+For an existing installation, complete the resource provisioning and one-time migration in [the operations guide](docs/OPERATIONS.md) before deploying. New installations also need the private backup bucket and Queue dead-letter resources declared in `wrangler.toml`.
+
 ```bash
 npm run deploy
 ```
@@ -261,5 +263,5 @@ npm run deploy
 1. Open **Passkey** in the top-right header.
 2. Enter your name and tap **Continue with Passkey**.
 3. Confirm with fingerprint or face ID. No password.
-4. The first person to authenticate becomes the administrator.
+4. The first person to complete verified Passkey registration becomes the administrator. Requesting registration options alone grants no role.
 5. After that, you can set the service area and emergency banner.

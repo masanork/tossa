@@ -8,7 +8,7 @@ import {
   sendPushNotification,
   broadcastPushNotification,
 } from '../services/push';
-import { verifySessionToken } from '../auth/session';
+import { verifyCurrentSession } from '../auth/session';
 import { DEVICE_COOKIE } from '../middleware/deviceCookie';
 import { getCookie } from 'hono/cookie';
 
@@ -70,7 +70,7 @@ pushRoute.post('/subscribe', async (c) => {
     const authHeader = c.req.header('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
-      const session = await verifySessionToken(token, c.env.JWT_SECRET);
+      const session = await verifyCurrentSession(token, c.env);
       if (session) {
         userId = session.userId;
       }
@@ -165,7 +165,7 @@ pushRoute.post('/test', async (c) => {
     const authHeader = c.req.header('Authorization');
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
-      const session = await verifySessionToken(token, c.env.JWT_SECRET);
+      const session = await verifyCurrentSession(token, c.env);
       if (session) userId = session.userId;
     }
 
@@ -233,7 +233,7 @@ pushRoute.post('/broadcast', async (c) => {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifyCurrentSession(token, c.env);
   if (!session || session.role !== 'admin') {
     return c.json(
       { success: false, error: 'Forbidden: Admin access required' },

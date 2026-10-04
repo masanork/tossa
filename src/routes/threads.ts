@@ -1,7 +1,7 @@
 // src/routes/threads.ts: E2EE Secure Messaging Routes (Threads, Members, Encrypted Messages)
 import { Hono } from 'hono';
 import type { Bindings, ThreadType } from '../types';
-import { verifySessionToken } from '../auth/session';
+import { verifyCurrentSession } from '../auth/session';
 import {
   getUserThreads,
   getThreadById,
@@ -24,7 +24,7 @@ async function getAuthenticatedUser(c: any) {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return null;
-  return await verifySessionToken(token, c.env.JWT_SECRET);
+  return await verifyCurrentSession(token, c.env);
 }
 
 // 1. Register or update own E2EE public key (PUT /api/threads/public-key)

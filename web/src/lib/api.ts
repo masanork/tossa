@@ -168,8 +168,17 @@ export async function fetchPosts(
     mine?: boolean;
     ids?: string[];
     bypassCache?: boolean;
+    limit?: number;
+    offset?: number;
+    bbox?: [number, number, number, number];
+    near?: { lat: number; lng: number };
   } = {}
-): Promise<{ posts: Post[]; total: number }> {
+): Promise<{
+  posts: Post[];
+  total: number;
+  offline: boolean;
+  asOf: string | null;
+}> {
   const query = new URLSearchParams();
   if (params.category) query.set('category', params.category);
   if (params.area) query.set('area', params.area);
@@ -179,11 +188,22 @@ export async function fetchPosts(
   if (params.mine) query.set('mine', 'true');
   if (params.ids && params.ids.length > 0)
     query.set('ids', params.ids.join(','));
+  if (params.limit !== undefined) query.set('limit', String(params.limit));
+  if (params.offset !== undefined) query.set('offset', String(params.offset));
+  if (params.bbox) query.set('bbox', params.bbox.join(','));
+  if (params.near) {
+    query.set('lat', String(params.near.lat));
+    query.set('lng', String(params.near.lng));
+  }
   if (params.bypassCache) query.set('_t', String(Date.now()));
 
   const res = await fetch(`${API_BASE}/posts?${query.toString()}`);
   const data = await res.json();
+  if (!res.ok || !data.success)
+    throw new Error(data.error || '投稿一覧を取得できませんでした');
   return {
+    offline: res.headers.get('X-Tossa-Offline') === 'true',
+    asOf: res.headers.get('X-Data-As-Of'),
     posts: data.posts || [],
     total: data.total || 0,
   };
@@ -202,6 +222,8 @@ export async function fetchPostDetail(
 
 export async function createPost(
   postData: {
+    requestId?: string;
+    observedAt?: string;
     categoryId?: string;
     title: string;
     area: string;
@@ -220,7 +242,12 @@ export async function createPost(
     reporterName?: string;
   },
   token?: string | null
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  id?: string;
+  error?: string;
+  isVerified?: boolean;
+}> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
@@ -291,13 +318,36 @@ export async function updatePostStatus(
   postId: string,
   status?: string,
   statusLabel?: string,
-  note?: string
-): Promise<{ success: boolean; error?: string }> {
+  note?: string,
+  options: {
+    requestId?: string;
+    expectedUpdatedAt?: string;
+    observedAt?: string;
+  } = {}
+): Promise<{ success: boolean; error?: string; conflict?: boolean }> {
   const res = await fetch(`${API_BASE}/posts/${postId}/status`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, statusLabel, note }),
+    body: JSON.stringify({ status, statusLabel, note, ...options }),
   });
+  return await res.json();
+}
+
+export async function confirmOfficialPost(
+  post: Post,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  const res = await fetch(
+    `${API_BASE}/posts/${post.id}/official-verification`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ expectedUpdatedAt: post.updated_at }),
+    }
+  );
   return await res.json();
 }
 
@@ -337,7 +387,8 @@ export async function fetchAuthStatus(): Promise<{
 
 export async function registerPasskey(
   username: string,
-  displayName?: string
+  displayName?: string,
+  token?: string
 ): Promise<{
   success: boolean;
   token?: string;
@@ -348,7 +399,10 @@ export async function registerPasskey(
   // 1. Fetch registration options
   const optRes = await fetch(`${API_BASE}/auth/register-options`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     credentials: 'same-origin',
     body: JSON.stringify({ username, displayName }),
   });
@@ -402,7 +456,10 @@ export async function registerPasskey(
   // 3. Verify attestation response on server
   const verifyRes = await fetch(`${API_BASE}/auth/verify-registration`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     credentials: 'same-origin',
     body: JSON.stringify({ username, response: attestationResponse }),
   });
@@ -826,7 +883,12 @@ export async function createThreadApi(
     }>;
   },
   token: string
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  id?: string;
+  error?: string;
+  isVerified?: boolean;
+}> {
   try {
     const res = await fetch(`${API_BASE}/threads`, {
       method: 'POST',
@@ -870,7 +932,12 @@ export async function sendMessageApi(
   ciphertext: string,
   iv: string,
   token: string
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  id?: string;
+  error?: string;
+  isVerified?: boolean;
+}> {
   try {
     const res = await fetch(`${API_BASE}/threads/${threadId}/messages`, {
       method: 'POST',
@@ -934,7 +1001,12 @@ export async function subscribePushApi(
   area?: string,
   alertTypes?: string[],
   token?: string | null
-): Promise<{ success: boolean; id?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  id?: string;
+  error?: string;
+  isVerified?: boolean;
+}> {
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -1110,6 +1182,26 @@ export async function refreshCapacityApi(
   }
 }
 
+export async function downloadBackupApi(
+  token: string,
+  key: string
+): Promise<Blob> {
+  const response = await fetch(
+    `${API_BASE}/settings/backup-download?key=${encodeURIComponent(key)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    }
+  );
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(
+      result.error || 'バックアップをダウンロードできませんでした'
+    );
+  }
+  return response.blob();
+}
+
 export async function fetchBackupsApi(
   token: string
 ): Promise<{ success: boolean; backups?: BackupRecord[]; error?: string }> {
@@ -1167,4 +1259,61 @@ export async function importCsvApi(
       error: err.message || 'Failed to import CSV dataset',
     };
   }
+}
+
+export interface PostReport {
+  id: string;
+  post_id: string | null;
+  post_title: string;
+  reason: string;
+  note: string;
+  status: string;
+  created_at: string;
+}
+
+export async function reportPost(
+  id: string,
+  reason: string,
+  note: string
+): Promise<{ success: boolean; error?: string }> {
+  return await (
+    await fetch(`${API_BASE}/posts/${id}/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, note }),
+    })
+  ).json();
+}
+
+export async function fetchPostReports(
+  token: string,
+  offset = 0
+): Promise<{
+  success: boolean;
+  reports?: PostReport[];
+  total?: number;
+  error?: string;
+}> {
+  return await (
+    await fetch(`${API_BASE}/posts/reports/moderation?offset=${offset}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+  ).json();
+}
+
+export async function resolvePostReport(
+  id: string,
+  resolution: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  return await (
+    await fetch(`${API_BASE}/posts/reports/${id}/resolve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ resolution }),
+    })
+  ).json();
 }

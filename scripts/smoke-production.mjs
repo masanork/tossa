@@ -32,6 +32,25 @@ async function checkProduction() {
   if (posts.success !== true || !Array.isArray(posts.posts)) {
     throw new Error('Posts endpoint returned an unexpected response');
   }
+  if (posts.posts.some((post) => 'author_cookie_id' in post)) {
+    throw new Error('Public posts expose device ownership keys');
+  }
+  const offlineAssets = await (await get('/offline-assets.json')).json();
+  if (
+    !Array.isArray(offlineAssets) ||
+    !offlineAssets.length ||
+    offlineAssets.some(
+      (path) => typeof path !== 'string' || !path.startsWith('/assets/')
+    )
+  ) {
+    throw new Error('Offline asset manifest is missing or invalid');
+  }
+  const blocked = await fetch(
+    new URL('/api/images/backups%2Ftossa_backup_test.json', origin),
+    { signal: AbortSignal.timeout(15_000) }
+  );
+  if (blocked.status !== 404)
+    throw new Error('Image API does not block backup keys');
 }
 
 for (let attempt = 1; attempt <= 5; attempt++) {

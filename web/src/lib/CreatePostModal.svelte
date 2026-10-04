@@ -706,6 +706,8 @@
     }
   }
 
+  const requestId = crypto.randomUUID();
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!title.trim()) {
@@ -715,6 +717,25 @@
 
     isSubmitting = true;
     errorMessage = '';
+
+    const payload = {
+      requestId,
+      observedAt: new Date().toISOString(),
+      title: title.trim(),
+      area: area.trim(),
+      address: address.trim() || undefined,
+      lat: lat ?? undefined,
+      lng: lng ?? undefined,
+      currentStatus: currentStatus || 'available',
+      statusLabel: statusLabel || (isDisaster ? '開いている' : 'お知らせ'),
+      note: note.trim() || undefined,
+      url: url.trim() || undefined,
+      sourceUrl: sourceUrl.trim() || undefined,
+      imageUrl: imagePreviewUrl || undefined,
+      imageMeta: imageMeta ? (imageMeta as any) : undefined,
+      attributes: Object.keys(attributes).length ? attributes : undefined,
+      tags: selectedTags.length ? selectedTags : undefined,
+    };
 
     try {
       if (editingPost) {
@@ -748,48 +769,13 @@
         }
       } else {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          enqueuePost({
-            title: title.trim(),
-            area: area.trim(),
-            address: address.trim() || undefined,
-            lat: lat !== null ? lat : undefined,
-            lng: lng !== null ? lng : undefined,
-            currentStatus: currentStatus || 'available',
-            statusLabel:
-              statusLabel || (isDisaster ? '開いている' : 'お知らせ'),
-            note: note.trim() || undefined,
-            url: url.trim() || undefined,
-            sourceUrl: sourceUrl.trim() || undefined,
-            imageUrl: imagePreviewUrl || undefined,
-            imageMeta: imageMeta ? (imageMeta as any) : undefined,
-            tags: selectedTags.length > 0 ? selectedTags : undefined,
-          });
+          enqueuePost(payload);
           onCreated();
           onClose();
           return;
         }
 
-        const res = await createPost(
-          {
-            title: title.trim(),
-            area: area.trim(),
-            address: address.trim() || undefined,
-            lat: lat !== null ? lat : undefined,
-            lng: lng !== null ? lng : undefined,
-            currentStatus: currentStatus || 'available',
-            statusLabel:
-              statusLabel || (isDisaster ? '開いている' : 'お知らせ'),
-            note: note.trim() || undefined,
-            url: url.trim() || undefined,
-            sourceUrl: sourceUrl.trim() || undefined,
-            imageUrl: imagePreviewUrl || undefined,
-            imageMeta: imageMeta ? (imageMeta as any) : undefined,
-            attributes:
-              Object.keys(attributes).length > 0 ? attributes : undefined,
-            tags: selectedTags.length > 0 ? selectedTags : undefined,
-          },
-          token
-        );
+        const res = await createPost(payload, token);
 
         if (res.success) {
           const assignedId = res.id || `post_${Date.now()}`;
@@ -814,7 +800,8 @@
             tags: JSON.stringify(selectedTags),
             verification_count: 0,
             last_verified_at: null,
-            is_verified: token ? 1 : 0,
+            observed_at: payload.observedAt,
+            is_verified: res.isVerified ? 1 : 0,
             reporter_name: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -828,25 +815,22 @@
         }
       }
     } catch (err: any) {
-      if (!editingPost) {
-        enqueuePost({
-          title: title.trim(),
-          area: area.trim(),
-          address: address.trim() || undefined,
-          lat: lat !== null ? lat : undefined,
-          lng: lng !== null ? lng : undefined,
-          currentStatus,
-          statusLabel,
-          note: note.trim() || undefined,
-          url: url.trim() || undefined,
-          sourceUrl: sourceUrl.trim() || undefined,
-          imageUrl: imagePreviewUrl || undefined,
-          imageMeta: imageMeta ? (imageMeta as any) : undefined,
-          tags: selectedTags.length > 0 ? selectedTags : undefined,
-        });
-        onCreated();
-        onClose();
-        return;
+      if (
+        !editingPost &&
+        !(err instanceof Error && err.message.includes('保存できません'))
+      ) {
+        try {
+          enqueuePost(payload);
+          onCreated();
+          onClose();
+          return;
+        } catch (saveError) {
+          errorMessage =
+            saveError instanceof Error
+              ? saveError.message
+              : '端末に保存できませんでした';
+          return;
+        }
       }
       errorMessage = err.message || '通信エラーが発生しました';
     } finally {

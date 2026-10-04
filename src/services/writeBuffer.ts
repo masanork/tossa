@@ -86,7 +86,7 @@ export async function processWriteQueueBatch(
         }
 
         wrote = true;
-        await createPost(env.DB, {
+        const created = await createPost(env.DB, {
           id: msg.post.id,
           authorId: msg.post.authorId,
           authorCookieId: msg.post.authorCookieId,
@@ -107,7 +107,14 @@ export async function processWriteQueueBatch(
           tags: msg.post.tags,
           isVerified: msg.post.isVerified,
           reporterName: msg.post.reporterName,
+          operation: msg.post.operation,
+          observedAt: msg.post.observedAt,
         });
+
+        if (!created) {
+          message.ack();
+          continue;
+        }
 
         if (msg.accessLog) {
           await logAccess(
@@ -122,23 +129,34 @@ export async function processWriteQueueBatch(
         }
 
         if (msg.pushBroadcast) {
-          broadcastPushNotification(env, msg.pushBroadcast).catch((err) =>
+          await broadcastPushNotification(env, msg.pushBroadcast).catch((err) =>
             console.error('[writeBuffer] Async push broadcast error:', err)
           );
         }
       } else if (msg.type === 'update_status') {
         wrote = true;
-        await updatePostStatus(
+        const result = await updatePostStatus(
           env.DB,
           msg.postId,
           msg.status,
           msg.statusLabel,
           msg.note,
-          msg.ipHash
+          msg.ipHash,
+          {
+            operationId: msg.operationId || `queue_${message.id}`,
+            payloadHash: msg.payloadHash,
+            observedAt: msg.observedAt,
+            expectedUpdatedAt: msg.expectedUpdatedAt,
+            noteOnly: msg.noteOnly,
+          }
         );
 
-        if (msg.pushBroadcast) {
-          broadcastPushNotification(env, msg.pushBroadcast).catch((err) =>
+        if (result === 'conflict')
+          console.warn('[writeBuffer] obsolete status update discarded', {
+            postId: msg.postId,
+          });
+        if (result === 'applied' && msg.pushBroadcast) {
+          await broadcastPushNotification(env, msg.pushBroadcast).catch((err) =>
             console.error('[writeBuffer] Async push broadcast error:', err)
           );
         }

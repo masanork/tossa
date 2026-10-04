@@ -13,6 +13,19 @@ export default defineConfig({
     }),
     tailwindcss(),
     svelte(),
+    {
+      name: 'offline-asset-manifest',
+      generateBundle(_options, bundle) {
+        const assets = Object.keys(bundle)
+          .filter((name) => /\.(js|css|woff2?)$/.test(name))
+          .map((name) => `/${name}`);
+        this.emitFile({
+          type: 'asset',
+          fileName: 'offline-assets.json',
+          source: JSON.stringify(assets),
+        });
+      },
+    },
   ],
   server: {
     port: 5173,

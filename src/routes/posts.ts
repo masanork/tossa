@@ -11,6 +11,7 @@ import {
   updatePostStatus,
   verifyPost,
   getVocabularyTags,
+  getUserById,
 } from '../db/queries';
 import { logAccess, getClientIp } from '../middleware/deviceCookie';
 import { verifySessionToken } from '../auth/session';
@@ -34,12 +35,39 @@ export const postsRoute = new Hono<{
   Variables: PostsVariables;
 }>();
 
+async function hash(value: string): Promise<string> {
+  const bytes = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(value)
+  );
+  return Array.from(new Uint8Array(bytes), (b) =>
+    b.toString(16).padStart(2, '0')
+  ).join('');
+}
+
+async function operationFor(c: any, requestId: unknown, payload: unknown) {
+  if (requestId === undefined) return undefined;
+  if (
+    typeof requestId !== 'string' ||
+    !/^[a-zA-Z0-9_-]{8,100}$/.test(requestId)
+  )
+    throw new Error('Invalid requestId');
+  const id = `op_${await hash(`${c.get('deviceSessionId')}:${requestId}`)}`;
+  return {
+    id,
+    payloadHash: await hash(JSON.stringify({ path: c.req.path, payload })),
+  };
+}
+
 /** Get optional Passkey session without rejecting anonymous requests */
 async function getOptionalSession(c: any) {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return null;
-  return await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  if (!session) return null;
+  const user = await getUserById(c.env.DB, session.userId);
+  return user ? { ...session, role: user.role } : null;
 }
 
 // GET /api/posts/tags/vocabulary (Tag vocabulary list)
@@ -61,10 +89,56 @@ postsRoute.get('/', async (c) => {
   const tag = c.req.query('tag');
   const mine = c.req.query('mine');
   const idsParam = c.req.query('ids');
-  const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : 50;
-  const offset = c.req.query('offset')
-    ? parseInt(c.req.query('offset')!, 10)
-    : 0;
+  const limit = Number(c.req.query('limit') ?? 50);
+  const offset = Number(c.req.query('offset') ?? 0);
+  if (
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 100 ||
+    !Number.isInteger(offset) ||
+    offset < 0 ||
+    offset > 100_000
+  )
+    return c.json({ success: false, error: 'Invalid pagination' }, 400);
+  const bboxRaw = c.req.query('bbox');
+  let bbox: [number, number, number, number] | undefined;
+  if (bboxRaw !== undefined) {
+    const pieces = bboxRaw.split(',');
+    const values = pieces.map(Number);
+    if (
+      values.length !== 4 ||
+      pieces.some((v) => !v.trim()) ||
+      values.some((v) => !Number.isFinite(v)) ||
+      values[0]! < -180 ||
+      values[0]! > 180 ||
+      values[2]! < -180 ||
+      values[2]! > 180 ||
+      values[1]! < -90 ||
+      values[3]! > 90 ||
+      values[1]! > values[3]!
+    )
+      return c.json({ success: false, error: 'Invalid bbox' }, 400);
+    bbox = values as [number, number, number, number];
+  }
+  const nearLat = c.req.query('lat');
+  const nearLng = c.req.query('lng');
+  let near: { lat: number; lng: number } | undefined;
+  if (nearLat !== undefined || nearLng !== undefined) {
+    const lat = Number(nearLat),
+      lng = Number(nearLng);
+    if (
+      nearLat === undefined ||
+      nearLng === undefined ||
+      !nearLat.trim() ||
+      !nearLng.trim() ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    )
+      return c.json({ success: false, error: 'Invalid location' }, 400);
+    near = { lat, lng };
+  }
   const deviceId = c.get('deviceSessionId') || null;
   const session = await getOptionalSession(c);
 
@@ -106,12 +180,17 @@ postsRoute.get('/', async (c) => {
   }
 
   const isPrivateList = mine === 'true';
-  const skipEdgeCache = isPrivateList || c.env.DISABLE_WRITE_BUFFER === 'true';
+  const skipEdgeCache =
+    isPrivateList ||
+    !!near ||
+    c.req.query('_t') !== undefined ||
+    c.env.DISABLE_WRITE_BUFFER === 'true';
 
   if (!skipEdgeCache) {
     try {
       const cacheUrl = new URL(c.req.url);
       cacheUrl.searchParams.delete('_t');
+      cacheUrl.searchParams.set('_cache_version', '2');
       const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
       const cached = await caches.default.match(cacheKey);
       if (cached) {
@@ -130,11 +209,17 @@ postsRoute.get('/', async (c) => {
     !search &&
     !tag &&
     !ids &&
+    !bbox &&
+    !near &&
     offset === 0;
 
   if (unfilteredPublic && !skipEdgeCache) {
     const snapshot = await readPublicFeedSnapshot(c.env);
-    if (snapshot) {
+    if (
+      snapshot &&
+      Number.isFinite(Date.parse(snapshot.generatedAt)) &&
+      Date.now() - Date.parse(snapshot.generatedAt) <= 60_000
+    ) {
       const capped = Math.min(Math.max(limit || 50, 1), 100);
       const payload = {
         success: true,
@@ -149,11 +234,13 @@ postsRoute.get('/', async (c) => {
           'Cache-Control':
             'public, max-age=15, s-maxage=15, stale-while-revalidate=60',
           'X-Feed-Source': 'kv',
+          'X-Data-As-Of': snapshot.generatedAt,
         },
       });
       try {
         const cacheUrl = new URL(c.req.url);
         cacheUrl.searchParams.delete('_t');
+        cacheUrl.searchParams.set('_cache_version', '2');
         executionCtxOf(c)?.waitUntil(
           caches.default.put(
             new Request(cacheUrl.toString(), { method: 'GET' }),
@@ -180,6 +267,8 @@ postsRoute.get('/', async (c) => {
     ids,
     authorId,
     authorCookieId,
+    bbox,
+    near,
     limit,
     offset,
   });
@@ -232,6 +321,7 @@ postsRoute.get('/', async (c) => {
   try {
     const cacheUrl = new URL(c.req.url);
     cacheUrl.searchParams.delete('_t');
+    cacheUrl.searchParams.set('_cache_version', '2');
     const cacheKey = new Request(cacheUrl.toString(), { method: 'GET' });
     executionCtxOf(c)?.waitUntil(
       caches.default.put(cacheKey, response.clone())
@@ -246,22 +336,22 @@ postsRoute.get('/', async (c) => {
 // GET /api/posts/:id
 postsRoute.get('/:id', async (c) => {
   const id = c.req.param('id');
-  const post = await getPostById(c.env.DB, id);
+  const post = await getPostById(c.env.DB, id, true);
 
   if (!post) {
     return c.json({ success: false, error: 'Post not found' }, 404);
   }
 
+  const { author_cookie_id: _cookie, ...publicPost } = post;
   const history = await getStatusUpdatesByPostId(c.env.DB, id);
   const deviceId = c.get('deviceSessionId') || null;
 
-  c.header('Cache-Control', 'no-cache');
-  c.header('CDN-Cache-Control', 'public, max-age=5, stale-while-revalidate=30');
+  c.header('Cache-Control', 'private, no-store');
 
   return c.json({
     success: true,
     post: {
-      ...post,
+      ...publicPost,
       is_owner: !!(
         deviceId &&
         (post as any).author_cookie_id &&
@@ -275,7 +365,7 @@ postsRoute.get('/:id', async (c) => {
 // GET /api/posts/:id/ogp.svg - Dynamic vector OGP banner with QR code
 postsRoute.get('/:id/ogp.svg', async (c) => {
   const id = c.req.param('id');
-  const post = await getPostById(c.env.DB, id);
+  const post = await getPostById(c.env.DB, id, true);
   if (!post) {
     return c.text('Post not found', 404);
   }
@@ -304,7 +394,57 @@ postsRoute.post('/', async (c) => {
     );
   }
 
-  const postId = `post_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  let operation;
+  try {
+    operation = await operationFor(c, body.requestId, body);
+  } catch {
+    return c.json({ success: false, error: 'Invalid requestId' }, 400);
+  }
+  const postId = operation
+    ? `post_${operation.id}`
+    : `post_${crypto.randomUUID()}`;
+  if (operation) {
+    const receipt = await c.env.DB.prepare(
+      'SELECT payload_hash FROM mutation_receipts WHERE id = ?'
+    )
+      .bind(operation.id)
+      .first<{ payload_hash: string }>();
+    if (receipt) {
+      if (receipt.payload_hash !== operation.payloadHash)
+        return c.json(
+          {
+            success: false,
+            error: 'Request ID already used with different data',
+          },
+          409
+        );
+      return c.json(
+        { success: true, id: postId, buffered: false, duplicate: true },
+        200
+      );
+    }
+  }
+
+  if (
+    body.observedAt !== undefined &&
+    (typeof body.observedAt !== 'string' ||
+      !Number.isFinite(Date.parse(body.observedAt)) ||
+      Date.parse(body.observedAt) > Date.now() + 300_000)
+  )
+    return c.json({ success: false, error: 'Invalid observation time' }, 400);
+
+  for (const [field, bound] of [
+    ['lat', 90],
+    ['lng', 180],
+  ] as const) {
+    if (
+      body[field] !== undefined &&
+      body[field] !== null &&
+      (!Number.isFinite(Number(body[field])) ||
+        Math.abs(Number(body[field])) > bound)
+    )
+      return c.json({ success: false, error: 'Invalid coordinates' }, 400);
+  }
 
   // Persist image to Cloudflare R2 if configured, stripping heavy Base64 from D1
   const storedImageUrl = await persistImageToR2(
@@ -321,8 +461,8 @@ postsRoute.post('/', async (c) => {
     title: body.title.trim(),
     area: typeof body.area === 'string' ? body.area.trim() : '',
     address: body.address,
-    lat: body.lat ? parseFloat(body.lat) : undefined,
-    lng: body.lng ? parseFloat(body.lng) : undefined,
+    lat: body.lat != null ? Number(body.lat) : undefined,
+    lng: body.lng != null ? Number(body.lng) : undefined,
     currentStatus: body.currentStatus || 'available',
     statusLabel: body.statusLabel || body.currentStatus || 'お知らせ',
     note: body.note,
@@ -332,8 +472,13 @@ postsRoute.post('/', async (c) => {
     imageMeta: body.imageMeta,
     attributes: body.attributes,
     tags: Array.isArray(body.tags) ? body.tags : undefined,
-    isVerified: !!session, // Posts made with authenticated Passkey receive verified status
+    isVerified: false,
     reporterName: body.reporterName || session?.username || null,
+    operation,
+    observedAt:
+      typeof body.observedAt === 'string'
+        ? body.observedAt
+        : new Date().toISOString(),
   };
 
   const ip = getClientIp(c.req.raw);
@@ -367,14 +512,27 @@ postsRoute.post('/', async (c) => {
   // Try async write buffer via Cloudflare Queues
   const enqueued = await enqueuePostCreation(c.env, {
     type: 'create_post',
-    post: postData,
+    post: {
+      ...postData,
+      imageMeta: postData.imageMeta
+        ? JSON.stringify(postData.imageMeta)
+        : undefined,
+      attributes: postData.attributes
+        ? JSON.stringify(postData.attributes)
+        : undefined,
+    },
     accessLog,
     pushBroadcast,
   });
 
   if (!enqueued) {
     // Synchronous write fallback (local/dev/testing)
-    await createPost(c.env.DB, postData);
+    const created = await createPost(c.env.DB, postData);
+    if (!created)
+      return c.json(
+        { success: true, id: postId, duplicate: true, buffered: false },
+        200
+      );
     await logAccess(
       c.env.DB,
       'post_created',
@@ -385,7 +543,7 @@ postsRoute.post('/', async (c) => {
       { postId }
     );
     if (pushBroadcast) {
-      broadcastPushNotification(c.env, pushBroadcast).catch((err) =>
+      await broadcastPushNotification(c.env, pushBroadcast).catch((err) =>
         console.error('[push] post broadcast failed:', err)
       );
     }
@@ -402,6 +560,7 @@ postsRoute.post('/', async (c) => {
         : 'Post created successfully',
       buffered: enqueued,
       hasPasskey: !!session,
+      isVerified: postData.isVerified,
     },
     201
   );
@@ -413,7 +572,7 @@ postsRoute.put('/:id', async (c) => {
   const deviceId = c.get('deviceSessionId') || null;
 
   const postId = c.req.param('id');
-  const post = await getPostById(c.env.DB, postId);
+  const post = await getPostById(c.env.DB, postId, true);
   if (!post) {
     return c.json({ success: false, error: 'Post not found' }, 404);
   }
@@ -429,7 +588,7 @@ postsRoute.put('/:id', async (c) => {
     post.author_id &&
     post.author_id === session.userId
   );
-  const isAdmin = session?.role === 'admin';
+  const isAdmin = session?.role === 'admin' || session?.role === 'moderator';
 
   if (!isCookieOwner && !isPasskeyAuthor && !isAdmin) {
     return c.json(
@@ -507,7 +666,7 @@ postsRoute.delete('/:id', async (c) => {
   const deviceId = c.get('deviceSessionId') || null;
 
   const postId = c.req.param('id');
-  const post = await getPostById(c.env.DB, postId);
+  const post = await getPostById(c.env.DB, postId, true);
   if (!post) {
     return c.json({ success: false, error: 'Post not found' }, 404);
   }
@@ -522,7 +681,7 @@ postsRoute.delete('/:id', async (c) => {
     post.author_id &&
     post.author_id === session.userId
   );
-  const isAdmin = session?.role === 'admin';
+  const isAdmin = session?.role === 'admin' || session?.role === 'moderator';
 
   if (!isCookieOwner && !isPasskeyAuthor && !isAdmin) {
     return c.json(
@@ -556,7 +715,7 @@ postsRoute.delete('/:id', async (c) => {
 // POST /api/posts/:id/status - Micro-update (One-tap status update)
 postsRoute.post('/:id/status', async (c) => {
   const postId = c.req.param('id');
-  const post = await getPostById(c.env.DB, postId);
+  const post = await getPostById(c.env.DB, postId, true);
 
   if (!post) {
     return c.json({ success: false, error: 'Post not found' }, 404);
@@ -571,6 +730,33 @@ postsRoute.post('/:id/status', async (c) => {
   if (!body.status && !note) {
     return c.json({ success: false, error: 'Status or note is required' }, 400);
   }
+
+  let operation;
+  try {
+    operation = await operationFor(c, body.requestId, body);
+  } catch {
+    return c.json({ success: false, error: 'Invalid requestId' }, 400);
+  }
+  if (
+    body.observedAt !== undefined &&
+    (typeof body.observedAt !== 'string' ||
+      !Number.isFinite(Date.parse(body.observedAt)) ||
+      Date.parse(body.observedAt) > Date.now() + 300_000)
+  ) {
+    return c.json({ success: false, error: 'Invalid observation time' }, 400);
+  }
+  if (
+    body.expectedUpdatedAt !== undefined &&
+    typeof body.expectedUpdatedAt !== 'string'
+  )
+    return c.json({ success: false, error: 'Invalid version' }, 400);
+  const options = {
+    operationId: operation?.id || `update_${crypto.randomUUID()}`,
+    payloadHash: operation?.payloadHash,
+    expectedUpdatedAt: body.expectedUpdatedAt,
+    observedAt: body.observedAt || new Date().toISOString(),
+    noteOnly: !body.status,
+  };
 
   // Generate anonymized hash from IP for spam rate limiting and privacy
   const clientIp = c.req.header('cf-connecting-ip') || 'unknown';
@@ -598,20 +784,41 @@ postsRoute.post('/:id/status', async (c) => {
         }
       : undefined;
 
-  const enqueued = await enqueueStatusUpdate(c.env, {
-    type: 'update_status',
-    postId,
-    status,
-    statusLabel,
-    note,
-    ipHash,
-    pushBroadcast,
-  });
+  const enqueued =
+    body.expectedUpdatedAt === undefined &&
+    (await enqueueStatusUpdate(c.env, {
+      type: 'update_status',
+      postId,
+      status,
+      statusLabel,
+      note,
+      ipHash,
+      pushBroadcast,
+      ...options,
+    }));
 
   if (!enqueued) {
-    await updatePostStatus(c.env.DB, postId, status, statusLabel, note, ipHash);
-    if (pushBroadcast) {
-      broadcastPushNotification(c.env, pushBroadcast).catch((err) =>
+    const result = await updatePostStatus(
+      c.env.DB,
+      postId,
+      status,
+      statusLabel,
+      note,
+      ipHash,
+      options
+    );
+    if (result === 'conflict')
+      return c.json(
+        {
+          success: false,
+          conflict: true,
+          error:
+            '他の人が状況を更新しました。最新情報を確認してから再報告してください。',
+        },
+        409
+      );
+    if (result === 'applied' && pushBroadcast) {
+      await broadcastPushNotification(c.env, pushBroadcast).catch((err) =>
         console.error('[push] status broadcast failed:', err)
       );
     }
@@ -628,10 +835,44 @@ postsRoute.post('/:id/status', async (c) => {
   });
 });
 
+// Explicit content confirmation by a current administrator or moderator.
+postsRoute.post('/:id/official-verification', async (c) => {
+  const session = await getOptionalSession(c);
+  if (!session || !['admin', 'moderator'].includes(session.role))
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  const post = await getPostById(c.env.DB, c.req.param('id'));
+  if (!post) return c.json({ success: false, error: 'Post not found' }, 404);
+  const body = await c.req.json<{ expectedUpdatedAt: string }>();
+  const result = await c.env.DB.prepare(
+    'UPDATE posts SET is_verified = 1 WHERE id = ? AND updated_at = ?'
+  )
+    .bind(post.id, body.expectedUpdatedAt)
+    .run();
+  if (!result.meta.changes)
+    return c.json(
+      {
+        success: false,
+        error: '投稿が更新されました。内容を再確認してください。',
+      },
+      409
+    );
+  await logAccess(
+    c.env.DB,
+    'post_official_verified',
+    c.get('deviceSessionId') || null,
+    session.userId,
+    getClientIp(c.req.raw),
+    c.req.header('User-Agent') || '',
+    { postId: post.id }
+  );
+  scheduleFeedRefresh(c.env, c as any);
+  return c.json({ success: true });
+});
+
 // POST /api/posts/:id/verify - Community on-site verification
 postsRoute.post('/:id/verify', async (c) => {
   const postId = c.req.param('id');
-  const post = await getPostById(c.env.DB, postId);
+  const post = await getPostById(c.env.DB, postId, true);
 
   if (!post) {
     return c.json({ success: false, error: 'Post not found' }, 404);
@@ -657,4 +898,90 @@ postsRoute.post('/:id/verify', async (c) => {
     verificationCount: result.verificationCount,
     lastVerifiedAt: result.lastVerifiedAt,
   });
+});
+
+// A report does not change the public status. Moderators review it explicitly.
+postsRoute.post('/:id/report', async (c) => {
+  const post = await getPostById(c.env.DB, c.req.param('id'));
+  if (!post) return c.json({ success: false, error: 'Post not found' }, 404);
+  const body = await c.req.json<{ reason: string; note?: string }>();
+  if (
+    !['outdated', 'incorrect', 'spam', 'privacy'].includes(body.reason) ||
+    (body.note !== undefined &&
+      (typeof body.note !== 'string' || body.note.length > 2000))
+  )
+    return c.json({ success: false, error: 'Invalid report' }, 400);
+  await c.env.DB.prepare(
+    `INSERT INTO post_reports (id,post_id,post_title,device_cookie_id,reason,note)
+    VALUES (?,?,?,?,?,?) ON CONFLICT(post_id,device_cookie_id) DO NOTHING`
+  )
+    .bind(
+      `report_${crypto.randomUUID()}`,
+      post.id,
+      post.title,
+      c.get('deviceSessionId'),
+      body.reason,
+      body.note?.trim() || ''
+    )
+    .run();
+  return c.json({ success: true }, 201);
+});
+
+postsRoute.get('/reports/moderation', async (c) => {
+  const session = await getOptionalSession(c);
+  if (!session || !['admin', 'moderator'].includes(session.role))
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  const offset = Number(c.req.query('offset') || 0);
+  if (!Number.isInteger(offset) || offset < 0 || offset > 100_000)
+    return c.json({ success: false, error: 'Invalid offset' }, 400);
+  const reports = await c.env.DB.prepare(
+    `SELECT id,post_id,post_title,reason,note,status,created_at FROM post_reports WHERE status='open' ORDER BY created_at,id LIMIT 50 OFFSET ?`
+  )
+    .bind(offset)
+    .all();
+  const count = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS total FROM post_reports WHERE status='open'"
+  ).first<{ total: number }>();
+  c.header('Cache-Control', 'private, no-store');
+  return c.json({
+    success: true,
+    reports: reports.results,
+    total: count?.total || 0,
+  });
+});
+
+postsRoute.post('/reports/:reportId/resolve', async (c) => {
+  const session = await getOptionalSession(c);
+  if (!session || !['admin', 'moderator'].includes(session.role))
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  const body = await c.req.json<{ resolution: string }>();
+  if (
+    typeof body.resolution !== 'string' ||
+    !body.resolution.trim() ||
+    body.resolution.length > 2000
+  )
+    return c.json(
+      { success: false, error: 'Record the review and action taken' },
+      400
+    );
+  const result = await c.env.DB.prepare(
+    "UPDATE post_reports SET status='resolved',resolution=?,resolved_by=?,resolved_at=datetime('now') WHERE id=? AND status='open'"
+  )
+    .bind(body.resolution.trim(), session.userId, c.req.param('reportId'))
+    .run();
+  if (!result.meta.changes)
+    return c.json(
+      { success: false, error: 'Report not found or already resolved' },
+      409
+    );
+  await logAccess(
+    c.env.DB,
+    'report_resolved',
+    c.get('deviceSessionId') || null,
+    session.userId,
+    getClientIp(c.req.raw),
+    c.req.header('User-Agent') || '',
+    { reportId: c.req.param('reportId') }
+  );
+  return c.json({ success: true });
 });

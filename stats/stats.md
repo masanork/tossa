@@ -2,14 +2,14 @@
 
 Commit `896c3d2` · 2026-09-24
 
-| Area | Files | Lines | Tests |
-| --- | ---: | ---: | ---: |
-| Worker `src/` | 29 | 12,352 | 0 |
-| UI `web/src/` | 50 | 24,267 | 0 |
-| Unit `test/` | 50 | 7,402 | 271 |
-| E2E `e2e/` | 1 | 709 | 14 |
-| **Impl total** | 79 | **36,619** | |
-| **Test total** | 51 | **8,111** | **285** |
+| Area           | Files |      Lines |   Tests |
+| -------------- | ----: | ---------: | ------: |
+| Worker `src/`  |    29 |     12,352 |       0 |
+| UI `web/src/`  |    50 |     24,267 |       0 |
+| Unit `test/`   |    50 |      7,402 |     271 |
+| E2E `e2e/`     |     1 |        709 |      14 |
+| **Impl total** |    79 | **36,619** |         |
+| **Test total** |    51 |  **8,111** | **285** |
 
 - Test / (impl + test) line ratio: **18%**
 - npm packages (lockfile): **417**

@@ -3,6 +3,7 @@ import type { Bindings } from '../types';
 
 export const BACKUP_TABLES = [
   'categories',
+  'disasters',
   'posts',
   'status_updates',
   'post_verifications',
@@ -16,6 +17,8 @@ export const BACKUP_TABLES = [
   'access_logs',
   'device_user_links',
   'push_subscriptions',
+  'mutation_receipts',
+  'post_reports',
 ] as const;
 
 export interface BackupMetadata {
@@ -46,36 +49,33 @@ export async function performDatabaseBackup(
   env: Bindings,
   options: { maxRetention?: number } = {}
 ): Promise<BackupResult> {
-  const maxRetention = options.maxRetention ?? 30;
+  const maxRetention = Math.max(1, Math.min(options.maxRetention ?? 30, 365));
   const timestamp = new Date().toISOString();
   const tableCounts: Record<string, number> = {};
   const data: Record<string, any[]> = {};
   let totalRecords = 0;
 
   try {
-    // 1. Sequentially dump each whitelisted table
-    for (const table of BACKUP_TABLES) {
-      try {
-        const query = `SELECT * FROM ${table}`;
-        const stmt = env.DB.prepare(query);
-        const { results } = await stmt.all();
-        const records = Array.isArray(results) ? results : [];
-        data[table] = records;
-        tableCounts[table] = records.length;
-        totalRecords += records.length;
-      } catch (err: any) {
-        // Handle case where table might not exist in an older migration
-        console.warn(
-          `[Backup] Table ${table} dump skipped or failed:`,
-          err?.message
-        );
-        data[table] = [];
-        tableCounts[table] = 0;
-      }
+    if (!env.BACKUPS_BUCKET)
+      throw new Error('Private BACKUPS_BUCKET is not configured');
+    // D1 batch is a transaction: all tables come from one consistent snapshot.
+    // Any missing table or query failure fails the backup, rather than creating
+    // an incomplete archive labelled as successful.
+    const dumps = await env.DB.batch(
+      BACKUP_TABLES.map((table) => env.DB.prepare(`SELECT * FROM ${table}`))
+    );
+    for (const [index, table] of BACKUP_TABLES.entries()) {
+      const dump = dumps[index];
+      if (!dump?.success || !Array.isArray(dump.results))
+        throw new Error(`Backup failed for ${table}`);
+      const records = dump.results;
+      data[table] = records;
+      tableCounts[table] = records.length;
+      totalRecords += records.length;
     }
 
     const metadata: BackupMetadata = {
-      version: 1,
+      version: 2,
       timestamp,
       totalRecords,
       tableCounts,
@@ -92,22 +92,23 @@ export async function performDatabaseBackup(
 
     const deletedOldBackups: string[] = [];
 
-    // 2. Archive to R2 if IMAGES_BUCKET is bound
-    if (env.IMAGES_BUCKET) {
-      await env.IMAGES_BUCKET.put(backupKey, jsonString, {
+    // 2. Archive to the private R2 bucket.
+    if (env.BACKUPS_BUCKET) {
+      await env.BACKUPS_BUCKET.put(backupKey, jsonString, {
         httpMetadata: {
           contentType: 'application/json',
         },
         customMetadata: {
           createdAt: timestamp,
           totalRecords: String(totalRecords),
-          version: '1',
+          version: '2',
         },
       });
 
       // 3. Rotation: Keep the newest `maxRetention` backups, delete older ones
       try {
-        const listResult = await env.IMAGES_BUCKET.list({ prefix: 'backups/' });
+        const objects = await listBackupObjects(env.BACKUPS_BUCKET);
+        const listResult = { objects };
         if (
           listResult &&
           listResult.objects &&
@@ -122,22 +123,18 @@ export async function performDatabaseBackup(
 
           const toDelete = sorted.slice(0, sorted.length - maxRetention);
           for (const item of toDelete) {
-            await env.IMAGES_BUCKET.delete(item.key);
+            await env.BACKUPS_BUCKET.delete(item.key);
             deletedOldBackups.push(item.key);
           }
         }
       } catch (rotErr: any) {
         console.warn('[Backup] Rotation cleanup error:', rotErr?.message);
       }
-    } else {
-      console.info(
-        '[Backup] IMAGES_BUCKET not bound. Backup generated in memory only.'
-      );
     }
 
     return {
       success: true,
-      backupKey: env.IMAGES_BUCKET ? backupKey : undefined,
+      backupKey: env.BACKUPS_BUCKET ? backupKey : undefined,
       metadata,
       deletedOldBackups,
     };
@@ -161,11 +158,12 @@ export async function listStoredBackups(env: Bindings): Promise<
     totalRecords?: number;
   }>
 > {
-  if (!env.IMAGES_BUCKET) {
+  if (!env.BACKUPS_BUCKET) {
     return [];
   }
 
-  const listResult = await env.IMAGES_BUCKET.list({ prefix: 'backups/' });
+  const objects = await listBackupObjects(env.BACKUPS_BUCKET);
+  const listResult = { objects };
   if (!listResult || !listResult.objects) {
     return [];
   }
@@ -185,4 +183,19 @@ export async function listStoredBackups(env: Bindings): Promise<
       ? parseInt(obj.customMetadata.totalRecords, 10)
       : undefined,
   }));
+}
+
+async function listBackupObjects(bucket: R2Bucket): Promise<R2Object[]> {
+  const objects: R2Object[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await bucket.list({
+      prefix: 'backups/',
+      cursor,
+      include: ['customMetadata'],
+    });
+    objects.push(...page.objects);
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return objects;
 }

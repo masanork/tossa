@@ -1,6 +1,13 @@
 // src/routes/auth.ts: WebAuthn Passkey Authentication Routes
 import { Hono } from 'hono';
-import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import {
+  getCookie,
+  setCookie,
+  deleteCookie,
+  getSignedCookie,
+  setSignedCookie,
+} from 'hono/cookie';
+import type { Context } from 'hono';
 import type { Bindings, User } from '../types';
 import {
   createRegOptions,
@@ -46,6 +53,43 @@ export const authRoute = new Hono<{
   Variables: AuthVariables;
 }>();
 
+type RegistrationTicket = {
+  userId: string;
+  challenge: string;
+  expiresAt: number;
+  initial: boolean;
+};
+
+async function registrationTicket(
+  c: Context<{ Bindings: Bindings; Variables: AuthVariables }>
+): Promise<RegistrationTicket | null> {
+  const raw = await getSignedCookie(c, c.env.JWT_SECRET, 'tossa_registration');
+  if (!raw) return null;
+  try {
+    const ticket = JSON.parse(raw) as RegistrationTicket;
+    return ticket.expiresAt > Date.now() ? ticket : null;
+  } catch {
+    return null;
+  }
+}
+
+async function recentlyAuthenticatedAs(
+  c: Context<{ Bindings: Bindings; Variables: AuthVariables }>,
+  user: User
+): Promise<boolean> {
+  const token = c.req.header('Authorization')?.replace(/^Bearer /, '');
+  if (!token) return false;
+  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const age = Math.floor(Date.now() / 1000) - (session?.issuedAt ?? 0);
+  return (
+    !!session &&
+    session.type !== 'api_token' &&
+    session.userId === user.id &&
+    age >= 0 &&
+    age <= 300
+  );
+}
+
 // 0. Get authentication and bootstrap status (GET /api/auth/status)
 authRoute.get('/status', async (c) => {
   const total = await countUsers(c.env.DB);
@@ -66,17 +110,37 @@ authRoute.post('/register-options', async (c) => {
   }
 
   const cleanUsername = body.username.trim();
+  if (!cleanUsername || cleanUsername.length > 100)
+    return c.json({ success: false, error: 'Invalid username' }, 400);
   const displayName = body.displayName?.trim() || cleanUsername;
 
   let user = await getUserByUsername(c.env.DB, cleanUsername);
+  const isNewUser = !user;
+  if (user) {
+    const ticket = await registrationTicket(c);
+    const creds = await getUserCredentials(c.env.DB, user.id);
+    const ownsInitialRegistration =
+      creds.length === 0 &&
+      ticket?.initial &&
+      ticket.userId === user.id &&
+      ticket.challenge === user.current_challenge;
+    if (!ownsInitialRegistration && !(await recentlyAuthenticatedAs(c, user))) {
+      return c.json(
+        {
+          success: false,
+          error:
+            'この名前は登録済みです。本人のPasskeyで再認証してから鍵を追加してください。',
+        },
+        403
+      );
+    }
+  }
 
   // If user does not exist, create a new record.
-  // The first user registered after deployment automatically receives 'admin' role; subsequent users get 'user'
+  // Administrator bootstrap happens only after successful Passkey verification.
   if (!user) {
-    const totalUsers = await countUsers(c.env.DB);
-    const adminCount = await countAdmins(c.env.DB);
-    const role: 'admin' | 'user' =
-      totalUsers === 0 || adminCount === 0 ? 'admin' : 'user';
+    // Reserving a name must not reserve the administrator role.
+    const role = 'user';
 
     const newId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     await c.env.DB.prepare(
@@ -97,6 +161,18 @@ authRoute.post('/register-options', async (c) => {
 
   const existingCreds = await getUserCredentials(c.env.DB, user.id);
   const options = await createRegOptions(c.env, user, existingCreds);
+  await setSignedCookie(
+    c,
+    'tossa_registration',
+    JSON.stringify({
+      userId: user.id,
+      challenge: options.challenge,
+      expiresAt: Date.now() + 300_000,
+      initial: isNewUser || existingCreds.length === 0,
+    } satisfies RegistrationTicket),
+    c.env.JWT_SECRET,
+    CHALLENGE_COOKIE_OPTIONS
+  );
 
   setCookie(
     c,
@@ -108,7 +184,7 @@ authRoute.post('/register-options', async (c) => {
   return c.json({
     success: true,
     options,
-    isFirstAdmin: user.role === 'admin',
+    isFirstAdmin: (await countAdmins(c.env.DB)) === 0,
   });
 });
 
@@ -128,6 +204,34 @@ authRoute.post('/verify-registration', async (c) => {
   }
 
   const cookieChallenge = getCookie(c, 'tossa_reg_challenge');
+  const ticket = await registrationTicket(c);
+  if (
+    !ticket ||
+    ticket.userId !== user.id ||
+    ticket.challenge !== cookieChallenge ||
+    ticket.challenge !== user.current_challenge
+  ) {
+    return c.json(
+      {
+        success: false,
+        error: 'Registration expired or does not belong to this account',
+      },
+      403
+    );
+  }
+  const credentials = await getUserCredentials(c.env.DB, user.id);
+  if (
+    (!ticket.initial || credentials.length > 0) &&
+    !(await recentlyAuthenticatedAs(c, user))
+  ) {
+    return c.json(
+      {
+        success: false,
+        error: 'Reauthenticate with your existing Passkey before adding a key',
+      },
+      403
+    );
+  }
 
   try {
     const verification = await verifyRegResponse(
@@ -137,7 +241,11 @@ authRoute.post('/verify-registration', async (c) => {
       cookieChallenge
     );
     deleteCookie(c, 'tossa_reg_challenge', { path: '/api/auth' });
+    deleteCookie(c, 'tossa_registration', { path: '/api/auth' });
 
+    const registeredUser = await getUserById(c.env.DB, user.id);
+    if (!registeredUser) throw new Error('Registered user not found');
+    user.role = registeredUser.role;
     // Issue session token upon successful registration
     const token = await createSessionToken(
       { userId: user.id, username: user.username, role: user.role },
@@ -317,6 +425,8 @@ authRoute.get('/me', async (c) => {
         username: user.username,
         displayName: user.display_name,
         role: user.role,
+        issuedAt: session.issuedAt ?? 0,
+        type: session.type,
       },
       c.env.JWT_SECRET
     );
@@ -394,7 +504,7 @@ async function getAdminUserFromToken(
   if (!session) return null;
   const user = await getUserById(env.DB, session.userId);
   if (!user) return null;
-  if (session.role === 'admin' || user.role === 'admin') {
+  if (user.role === 'admin') {
     return { user, session };
   }
   return null;

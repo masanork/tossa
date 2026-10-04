@@ -6,7 +6,7 @@ import {
   updateSystemSettingsBatch,
   getActiveDisasters,
 } from '../db/queries';
-import { verifySessionToken } from '../auth/session';
+import { verifyCurrentSession } from '../auth/session';
 import { broadcastPushNotification } from '../services/push';
 import { performDatabaseBackup, listStoredBackups } from '../services/backup';
 import {
@@ -76,7 +76,7 @@ settingsRoute.post('/', async (c) => {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifyCurrentSession(token, c.env);
   if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
     return c.json({ success: false, error: 'Forbidden' }, 403);
   }
@@ -153,8 +153,8 @@ settingsRoute.post('/backup', async (c) => {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
-  if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
+  const session = await verifyCurrentSession(token, c.env);
+  if (!session || session.role !== 'admin') {
     return c.json({ success: false, error: 'Forbidden' }, 403);
   }
 
@@ -174,21 +174,55 @@ settingsRoute.post('/backup', async (c) => {
 
 // GET /api/settings/backups - List backups stored in R2 (Admin only)
 settingsRoute.get('/backups', async (c) => {
+  c.header('Cache-Control', 'private, no-store');
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
-  if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
+  const session = await verifyCurrentSession(token, c.env);
+  if (!session || session.role !== 'admin') {
     return c.json({ success: false, error: 'Forbidden' }, 403);
   }
 
+  if (!c.env.BACKUPS_BUCKET)
+    return c.json(
+      { success: false, error: 'Private backup storage is not configured' },
+      503
+    );
   const backups = await listStoredBackups(c.env);
   return c.json({
     success: true,
     backups,
+  });
+});
+
+settingsRoute.get('/backup-download', async (c) => {
+  c.header('Cache-Control', 'private, no-store');
+  const token = c.req.header('Authorization')?.replace(/^Bearer /, '');
+  if (!token) return c.json({ success: false, error: 'Unauthorized' }, 401);
+  const session = await verifyCurrentSession(token, c.env);
+  if (!session || session.role !== 'admin')
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  const key = c.req.query('key') || '';
+  if (!/^backups\/tossa_backup_[0-9TZ-]+\.json$/.test(key))
+    return c.json({ success: false, error: 'Invalid backup key' }, 400);
+  if (!c.env.BACKUPS_BUCKET)
+    return c.json(
+      { success: false, error: 'Private backup storage is not configured' },
+      503
+    );
+  const object = await c.env.BACKUPS_BUCKET.get(key);
+  if (!object)
+    return c.json({ success: false, error: 'Backup not found' }, 404);
+  return new Response(object.body, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Disposition': `attachment; filename="${key.slice('backups/'.length)}"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
   });
 });
 
@@ -202,7 +236,7 @@ async function requireAdmin(c: {
   if (!token) {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifyCurrentSession(token, c.env);
   if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
     return c.json({ success: false, error: 'Forbidden' }, 403);
   }
@@ -241,7 +275,7 @@ settingsRoute.post('/import-csv', async (c) => {
     return c.json({ success: false, error: 'Unauthorized' }, 401);
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifyCurrentSession(token, c.env);
   if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
     return c.json({ success: false, error: 'Forbidden' }, 403);
   }

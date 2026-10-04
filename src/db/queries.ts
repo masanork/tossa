@@ -81,6 +81,8 @@ export async function getPosts(
     authorCookieId?: string;
     limit?: number;
     offset?: number;
+    bbox?: [number, number, number, number];
+    near?: { lat: number; lng: number };
   } = {}
 ): Promise<{ posts: Post[]; total: number }> {
   const conditions: string[] = [];
@@ -124,9 +126,23 @@ export async function getPosts(
   }
 
   if (filter.search) {
-    conditions.push('(p.title LIKE ? OR p.note LIKE ? OR p.address LIKE ?)');
-    const term = `%${filter.search}%`;
+    // D1 limits LIKE patterns to 50 bytes. Literal substring search also avoids
+    // interpreting user-entered % and _ as wildcards.
+    conditions.push(
+      '(instr(lower(p.title), lower(?)) > 0 OR instr(lower(p.note), lower(?)) > 0 OR instr(lower(p.address), lower(?)) > 0)'
+    );
+    const term = filter.search;
     params.push(term, term, term);
+  }
+
+  if (filter.bbox) {
+    const [west, south, east, north] = filter.bbox;
+    conditions.push('p.lat BETWEEN ? AND ?');
+    params.push(south, north);
+    conditions.push(
+      west <= east ? 'p.lng BETWEEN ? AND ?' : '(p.lng >= ? OR p.lng <= ?)'
+    );
+    params.push(west, east);
   }
 
   const whereClause =
@@ -144,12 +160,22 @@ export async function getPosts(
   const limit = Math.min(filter.limit || 50, 100);
   const offset = filter.offset || 0;
 
+  const order = filter.near
+    ? '(p.lat IS NULL OR p.lng IS NULL), (sin(radians(p.lat)) * ? + cos(radians(p.lat)) * ? * cos(radians(p.lng) - ?)) DESC, p.id'
+    : 'p.updated_at DESC, p.id';
+  const sortParams = filter.near
+    ? [
+        Math.sin((filter.near.lat * Math.PI) / 180),
+        Math.cos((filter.near.lat * Math.PI) / 180),
+        (filter.near.lng * Math.PI) / 180,
+      ]
+    : [];
   const listQuery = `
     SELECT 
       p.id, p.category_id, p.title, p.area, p.address, p.lat, p.lng,
       p.current_status, p.status_label, p.note, p.url, p.source_url,
-      p.image_url, p.verification_count, p.last_verified_at,
-      p.attributes, p.tags, p.is_verified, p.author_id, p.author_cookie_id,
+      p.image_url, p.verification_count, p.last_verified_at, p.observed_at,
+      p.attributes, p.tags, p.is_verified, p.author_id, ${filter.authorCookieId ? 'p.author_cookie_id,' : ''}
       p.reporter_name, p.disaster_id, p.created_at, p.updated_at,
       c.name as category_name,
       c.icon as category_icon,
@@ -157,11 +183,11 @@ export async function getPosts(
     FROM posts p
     LEFT JOIN categories c ON p.category_id = c.id
     ${whereClause}
-    ORDER BY p.updated_at DESC
+    ORDER BY ${order}
     LIMIT ? OFFSET ?
   `;
 
-  const listParams = [...params, limit, offset];
+  const listParams = [...params, ...sortParams, limit, offset];
   const listRes = await db
     .prepare(listQuery)
     .bind(...listParams)
@@ -219,7 +245,8 @@ export async function purgeOldAccessLogs(
 
 export async function getPostById(
   db: D1Database,
-  id: string
+  id: string,
+  includeOwnership = false
 ): Promise<Post | null> {
   const query = `
     SELECT 
@@ -231,7 +258,10 @@ export async function getPostById(
     LEFT JOIN categories c ON p.category_id = c.id
     WHERE p.id = ?
   `;
-  return await db.prepare(query).bind(id).first<Post>();
+  const post = await db.prepare(query).bind(id).first<Post>();
+  if (!post || includeOwnership) return post;
+  const { author_cookie_id: _cookie, ...publicPost } = post;
+  return publicPost;
 }
 
 export async function getStatusUpdatesByPostId(
@@ -270,21 +300,23 @@ export async function createPost(
     tags?: string[];
     isVerified?: boolean;
     reporterName?: string | null;
+    operation?: { id: string; payloadHash: string };
+    observedAt?: string;
   }
-): Promise<void> {
+): Promise<boolean> {
   const attrJson = post.attributes ? JSON.stringify(post.attributes) : '{}';
   const tagsJson =
     post.tags && post.tags.length > 0 ? JSON.stringify(post.tags) : '[]';
   const imageMetaJson = post.imageMeta ? JSON.stringify(post.imageMeta) : '{}';
 
-  await db
+  const statement = db
     .prepare(
-      `INSERT INTO posts (
+      `INSERT OR IGNORE INTO posts (
         id, author_id, author_cookie_id, category_id, title, area, address, lat, lng,
         current_status, status_label, note, url, source_url, image_url, image_meta,
         attributes, tags, is_verified, reporter_name,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+        observed_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
     .bind(
       post.id,
@@ -294,8 +326,8 @@ export async function createPost(
       post.title,
       post.area || '',
       post.address || null,
-      post.lat || null,
-      post.lng || null,
+      post.lat ?? null,
+      post.lng ?? null,
       post.currentStatus,
       post.statusLabel,
       post.note || null,
@@ -306,25 +338,42 @@ export async function createPost(
       attrJson,
       tagsJson,
       post.isVerified ? 1 : 0,
-      post.reporterName || null
-    )
-    .run();
+      post.reporterName || null,
+      post.observedAt || new Date().toISOString()
+    );
 
-  // Create initial status update record
-  await db
+  const initial = db
     .prepare(
-      `INSERT INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash, created_at)
+    SELECT ?, id, ?, ?, ?, 'initial', observed_at FROM posts WHERE id = ?`
     )
     .bind(
-      `update_${crypto.randomUUID()}`,
-      post.id,
+      `initial_${post.id}`,
       post.currentStatus,
       post.statusLabel,
       post.note || 'Initial registration',
-      'initial'
-    )
-    .run();
+      post.id
+    );
+  if (post.operation) {
+    const receipt = await db
+      .prepare('SELECT payload_hash FROM mutation_receipts WHERE id = ?')
+      .bind(post.operation.id)
+      .first<{ payload_hash: string }>();
+    if (receipt && receipt.payload_hash !== post.operation.payloadHash)
+      throw new Error('Idempotency key reused with different data');
+    if (receipt) return false;
+  }
+  const statements = [statement, initial];
+  if (post.operation)
+    statements.push(
+      db
+        .prepare(
+          'INSERT OR IGNORE INTO mutation_receipts (id, post_id, payload_hash) VALUES (?, ?, ?)'
+        )
+        .bind(post.operation.id, post.id, post.operation.payloadHash)
+    );
+  const results = await db.batch(statements);
+  return (results[0]?.meta.changes ?? 0) > 0;
 }
 
 export async function updatePost(
@@ -398,15 +447,15 @@ export async function updatePost(
         title = ?, area = ?, address = ?, lat = ?, lng = ?,
         current_status = ?, status_label = ?, note = ?, url = ?, source_url = ?,
         image_url = ?, image_meta = ?, attributes = ?, tags = ?,
-        updated_at = datetime('now')
+        updated_at = datetime('now'), observed_at = datetime('now'), is_verified = 0, verification_count = 0, last_verified_at = NULL
        WHERE id = ?`
     )
     .bind(
       updatedTitle,
       updatedArea,
       updatedAddress || null,
-      updatedLat || null,
-      updatedLng || null,
+      updatedLat ?? null,
+      updatedLng ?? null,
       updatedStatus,
       updatedStatusLabel,
       updatedNote || null,
@@ -461,33 +510,95 @@ export async function updatePostStatus(
   status: string,
   statusLabel: string,
   note: string | null,
-  ipHash: string | null
-): Promise<void> {
-  // 1. Update post current status and timestamp
-  await db
-    .prepare(
-      `UPDATE posts 
-       SET current_status = ?, status_label = ?, updated_at = datetime('now')
-       WHERE id = ?`
-    )
-    .bind(status, statusLabel, postId)
-    .run();
-
-  // 2. Append history record
-  await db
-    .prepare(
-      `INSERT INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
-    )
-    .bind(
-      `update_${crypto.randomUUID()}`,
-      postId,
-      status,
-      statusLabel,
-      note,
-      ipHash
-    )
-    .run();
+  ipHash: string | null,
+  options: {
+    operationId?: string;
+    payloadHash?: string;
+    expectedUpdatedAt?: string;
+    observedAt?: string;
+    noteOnly?: boolean;
+  } = {}
+): Promise<'applied' | 'duplicate' | 'conflict'> {
+  const id = options.operationId || `update_${crypto.randomUUID()}`;
+  const payloadHash =
+    options.payloadHash || JSON.stringify([postId, status, statusLabel, note]);
+  const existing = await db
+    .prepare('SELECT payload_hash FROM mutation_receipts WHERE id = ?')
+    .bind(id)
+    .first<{ payload_hash: string }>();
+  if (existing) {
+    if (existing.payload_hash !== payloadHash)
+      throw new Error('Idempotency key reused with different data');
+    return 'duplicate';
+  }
+  const observedAt = options.observedAt || new Date().toISOString();
+  const now = new Date().toISOString();
+  const results = await db.batch([
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO status_updates (id, post_id, status, status_label, note, reporter_ip_hash, created_at)
+      SELECT ?, id, CASE WHEN ? THEN current_status ELSE ? END, CASE WHEN ? THEN status_label ELSE ? END, ?, ?, ? FROM posts WHERE id = ?
+      AND (? IS NULL OR updated_at = ?)
+      AND (? OR observed_at IS NULL OR julianday(observed_at) <= julianday(?))
+      AND NOT EXISTS (SELECT 1 FROM mutation_receipts WHERE id = ?)`
+      )
+      .bind(
+        id,
+        !!options.noteOnly,
+        status,
+        !!options.noteOnly,
+        statusLabel,
+        note,
+        ipHash,
+        observedAt,
+        postId,
+        options.expectedUpdatedAt ?? null,
+        options.expectedUpdatedAt ?? null,
+        !!options.noteOnly,
+        observedAt,
+        id
+      ),
+    db
+      .prepare(
+        `UPDATE posts SET current_status = CASE WHEN ? THEN current_status ELSE ? END,
+      status_label = CASE WHEN ? THEN status_label ELSE ? END, updated_at = ?,
+      observed_at = CASE WHEN ? THEN observed_at ELSE ? END,
+      is_verified = CASE WHEN ? THEN is_verified ELSE 0 END,
+      verification_count = CASE WHEN ? THEN verification_count ELSE 0 END,
+      last_verified_at = CASE WHEN ? THEN last_verified_at ELSE NULL END
+      WHERE id = ? AND EXISTS (SELECT 1 FROM status_updates WHERE id = ?)
+      AND NOT EXISTS (SELECT 1 FROM mutation_receipts WHERE id = ?)`
+      )
+      .bind(
+        !!options.noteOnly,
+        status,
+        !!options.noteOnly,
+        statusLabel,
+        now,
+        !!options.noteOnly,
+        observedAt,
+        !!options.noteOnly,
+        !!options.noteOnly,
+        !!options.noteOnly,
+        postId,
+        id,
+        id
+      ),
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO mutation_receipts (id, post_id, payload_hash)
+      SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM status_updates WHERE id = ?)`
+      )
+      .bind(id, postId, payloadHash, id),
+  ]);
+  if ((results[0]?.meta.changes ?? 0) > 0) return 'applied';
+  const receipt = await db
+    .prepare('SELECT payload_hash FROM mutation_receipts WHERE id = ?')
+    .bind(id)
+    .first<{ payload_hash: string }>();
+  if (receipt && receipt.payload_hash !== payloadHash)
+    throw new Error('Idempotency key reused with different data');
+  return receipt ? 'duplicate' : 'conflict';
 }
 
 // On-site community verification (trust endorsement)

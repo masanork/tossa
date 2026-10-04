@@ -7,7 +7,7 @@ import {
   getSystemSettings,
   type FederatedGeoJSONFeature,
 } from '../db/queries';
-import { verifySessionToken } from '../auth/session';
+import { verifyCurrentSession } from '../auth/session';
 
 export const federationRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -97,7 +97,7 @@ federationRoute.post('/import', async (c) => {
     );
   }
 
-  const session = await verifySessionToken(token, c.env.JWT_SECRET);
+  const session = await verifyCurrentSession(token, c.env);
   if (!session || (session.role !== 'admin' && session.role !== 'moderator')) {
     return c.json({ success: false, error: 'Permission denied' }, 403);
   }

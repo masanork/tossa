@@ -1,7 +1,13 @@
 <!-- web/src/lib/PostCard.svelte -->
 <script lang="ts">
   import type { Post, ImageMeta, User, StatusUpdate } from './types';
-  import { verifyPost, fetchPostDetail, updatePostStatus } from './api';
+  import {
+    verifyPost,
+    fetchPostDetail,
+    updatePostStatus,
+    confirmOfficialPost,
+    reportPost,
+  } from './api';
   import {
     MapPin,
     Clock,
@@ -42,10 +48,12 @@
   import { isPeerPostId } from './peerPosts';
   import { getTagDisplay } from './tagDictionary';
   import { isMyPost } from './myPosts';
+  import InformationAge from './InformationAge.svelte';
 
   interface Props {
     post: Post;
     currentUser?: User | null;
+    freshnessMinutes?: number;
     onOpenUpdateStatus: (post: Post) => void;
     onSelectTag?: (tag: string) => void;
     onEditPost?: (post: Post) => void;
@@ -58,6 +66,7 @@
   const {
     post,
     currentUser,
+    freshnessMinutes = 10080,
     onOpenUpdateStatus,
     onSelectTag,
     onEditPost,
@@ -69,7 +78,8 @@
 
   const isAuthorOrAdmin = $derived.by(() => {
     // Passkey admin
-    if (currentUser?.role === 'admin') return true;
+    if (currentUser && ['admin', 'moderator'].includes(currentUser.role))
+      return true;
     // Original author with Passkey
     if (currentUser && post.author_id && post.author_id === currentUser.id)
       return true;
@@ -77,6 +87,46 @@
     if (post.is_owner || isMyPost(post.id)) return true;
     return false;
   });
+
+  let showReportForm = $state(false);
+  let reportReason = $state('outdated');
+  let reportNote = $state('');
+  let reportMessage = $state<string | null>(null);
+  let isReporting = $state(false);
+  async function handleReport(event: Event) {
+    event.preventDefault();
+    isReporting = true;
+    try {
+      const result = await reportPost(post.id, reportReason, reportNote);
+      reportMessage = result.success
+        ? m.report_received()
+        : result.error || m.report_failed();
+      if (result.success) showReportForm = false;
+    } catch {
+      reportMessage = m.report_failed();
+    } finally {
+      isReporting = false;
+    }
+  }
+
+  let isConfirmingOfficial = $state(false);
+  let officialConfirmationError = $state<string | null>(null);
+  async function handleConfirmOfficial() {
+    const token = localStorage.getItem('tossa_token');
+    if (!token || isConfirmingOfficial) return;
+    isConfirmingOfficial = true;
+    officialConfirmationError = null;
+    try {
+      const result = await confirmOfficialPost(post, token);
+      if (result.success) post.is_verified = 1;
+      else
+        officialConfirmationError = result.error || m.confirm_official_error();
+    } catch {
+      officialConfirmationError = m.confirm_official_error();
+    } finally {
+      isConfirmingOfficial = false;
+    }
+  }
 
   // Verification state
   let verificationCount = $state(0);
@@ -408,7 +458,13 @@
         </span>
       {/if}
 
-      {#if post.is_verified === 1}
+      {#if post.author_id && post.is_verified !== 1}
+        <span
+          class="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >{m.registered_author()}</span
+        >
+      {/if}
+      {#if post.is_verified === 1 && !isPeer}
         <span
           class="inline-flex items-center gap-0.5 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300"
         >
@@ -434,6 +490,76 @@
       <span>{formatRelativeTime(post.updated_at)}</span>
     </div>
   </div>
+
+  <InformationAge
+    observedAt={post.observed_at || post.updated_at}
+    confirmedAt={lastVerifiedAt}
+    maxAgeMinutes={freshnessMinutes}
+  />
+  {#if currentUser && ['admin', 'moderator'].includes(currentUser.role) && post.is_verified !== 1 && !isPeer}
+    <button
+      type="button"
+      disabled={isConfirmingOfficial}
+      onclick={handleConfirmOfficial}
+      class="mb-2 rounded-lg border border-blue-300 px-3 py-1 text-xs font-bold text-blue-800 dark:border-blue-700 dark:text-blue-200"
+      >{m.confirm_official()}</button
+    >
+  {/if}
+  {#if officialConfirmationError}<p
+      role="alert"
+      class="mb-2 text-xs text-red-700 dark:text-red-300"
+    >
+      {officialConfirmationError}
+    </p>{/if}
+
+  {#if !isPeer}
+    <button
+      type="button"
+      onclick={() => {
+        showReportForm = !showReportForm;
+      }}
+      class="mb-2 text-xs text-slate-700 underline dark:text-slate-200"
+      >{m.report_information()}</button
+    >
+    {#if showReportForm}
+      <form
+        onsubmit={handleReport}
+        class="mb-3 flex flex-col gap-2 rounded-lg border border-slate-300 p-3 dark:border-slate-700"
+      >
+        <label class="text-xs"
+          >{m.report_reason()}<select
+            bind:value={reportReason}
+            class="ml-2 rounded border border-slate-400 bg-white p-1 text-slate-900 dark:bg-slate-900 dark:text-slate-100"
+          >
+            <option value="outdated">{m.report_outdated()}</option><option
+              value="incorrect">{m.report_incorrect()}</option
+            ><option value="spam">{m.report_spam()}</option><option
+              value="privacy">{m.report_privacy()}</option
+            >
+          </select></label
+        >
+        <label class="text-xs"
+          >{m.report_note()}<textarea
+            bind:value={reportNote}
+            maxlength="2000"
+            class="mt-1 w-full rounded border border-slate-400 bg-white p-2 text-slate-900 dark:bg-slate-900 dark:text-slate-100"
+          ></textarea></label
+        >
+        <button
+          type="submit"
+          disabled={isReporting}
+          class="rounded bg-slate-800 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+          >{m.report_send()}</button
+        >
+      </form>
+    {/if}
+    {#if reportMessage}<p
+        role="status"
+        class="mb-2 text-xs text-slate-700 dark:text-slate-200"
+      >
+        {reportMessage}
+      </p>{/if}
+  {/if}
 
   <!-- Photo (if attached) -->
   {#if post.image_url}

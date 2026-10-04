@@ -1,5 +1,6 @@
 <!-- web/src/App.svelte -->
 <script lang="ts">
+  import { isPeerPostId } from './lib/peerPosts';
   import { onMount, onDestroy } from 'svelte';
   import type {
     Post,
@@ -78,6 +79,19 @@
     )
   );
   let totalPosts = $state(0);
+  let serverTotal = $state(0);
+  let nextOffset = $state(0);
+  let isLoadingMore = $state(false);
+  let feedError = $state<string | null>(null);
+  let cachedAsOf = $state<string | null>(null);
+  let feedIsOffline = $state(false);
+  let feedRequest = 0;
+  let mapPosts = $state<Post[] | null>(null);
+  let mapTotal = $state(0);
+  let mapRequest = 0;
+  let mapBounds = $state<[number, number, number, number] | undefined>(
+    undefined
+  );
   let isLoading = $state(true);
 
   // Filter state (vocabulary tag, keyword, area)
@@ -158,8 +172,13 @@
   let showInstallBanner = $state(false);
 
   function refreshQueue() {
-    pendingCount = getPendingQueueCount();
-    queuedItems = getOfflineQueue();
+    try {
+      pendingCount = getPendingQueueCount();
+      queuedItems = getOfflineQueue();
+    } catch (error) {
+      offlineError =
+        error instanceof Error ? error.message : '未送信データを読み取れません';
+    }
   }
 
   function handleDiscardQueueItem(id: string) {
@@ -263,6 +282,9 @@
         offlineError = m.offline_sync_failed({ count: res.failed });
         announcer.announce(offlineError, 'assertive');
       }
+    } catch (error) {
+      offlineError =
+        error instanceof Error ? error.message : '同期に失敗しました';
     } finally {
       isSyncing = false;
     }
@@ -340,7 +362,7 @@
     await loadInitialData();
 
     // 3. Online/Offline, PWA & Outbox Listeners
-    pendingCount = getPendingQueueCount();
+    refreshQueue();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -481,10 +503,23 @@
     }
   }
 
-  async function reloadPosts(bypassCache = false) {
+  async function reloadPosts(bypassCache = false, append = false) {
+    const request = ++feedRequest;
+    feedError = null;
+    const offset = append ? nextOffset : 0;
     try {
       const [postRes, tags] = await Promise.all([
         fetchPosts({
+          limit: 50,
+          offset,
+          near:
+            geolocationManager.sortByDistance &&
+            geolocationManager.currentLocation
+              ? {
+                  lat: geolocationManager.currentLocation.lat,
+                  lng: geolocationManager.currentLocation.lng,
+                }
+              : undefined,
           area: selectedArea || undefined,
           tag: selectedTag || undefined,
           status: filterAvailableOnly ? 'available' : undefined,
@@ -493,8 +528,21 @@
         }),
         fetchVocabularyTags(),
       ]);
-      const serverPosts = postRes.posts || [];
-      const peerPosts = getPeerPosts();
+      if (request !== feedRequest) return;
+      const serverPosts = append
+        ? [
+            ...posts.filter((p) => !isPeerPostId(p.id)),
+            ...postRes.posts,
+          ].filter(
+            (p, index, all) =>
+              all.findIndex((other) => other.id === p.id) === index
+          )
+        : postRes.posts;
+      const peerPosts = getPeerPosts().filter(matchesFilters);
+      serverTotal = postRes.total;
+      nextOffset = offset + postRes.posts.length;
+      feedIsOffline = postRes.offline;
+      cachedAsOf = postRes.asOf;
       let merged = mergePostsWithPeer(serverPosts, peerPosts);
 
       // Preserve recently authored local posts that may still be in Write Queue buffer or edge cache
@@ -510,12 +558,81 @@
       }
 
       posts = merged;
-      totalPosts = posts.length;
+      totalPosts =
+        postRes.total +
+        peerPosts.filter((p) => !serverPosts.some((other) => other.id === p.id))
+          .length;
       vocabularyTags = tags;
     } catch (err) {
+      if (request === feedRequest)
+        feedError =
+          err instanceof Error ? err.message : '情報を取得できませんでした';
       console.error('Failed to reload posts:', err);
     }
   }
+
+  function matchesFilters(post: Post): boolean {
+    let tags: string[] = [];
+    try {
+      tags = JSON.parse(post.tags || '[]');
+    } catch {}
+    return (
+      (!selectedArea || post.area === selectedArea) &&
+      (!selectedTag || tags.includes(selectedTag)) &&
+      (!filterAvailableOnly || post.current_status === 'available') &&
+      (!searchQuery ||
+        `${post.title} ${post.note || ''} ${post.address || ''}`
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase()))
+    );
+  }
+
+  async function loadMorePosts() {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+    try {
+      await reloadPosts(false, true);
+    } finally {
+      isLoadingMore = false;
+    }
+  }
+
+  async function loadMapPosts(bounds?: [number, number, number, number]) {
+    if (bounds) mapBounds = bounds;
+    const request = ++mapRequest;
+    try {
+      const result = await fetchPosts({
+        bbox: bounds || mapBounds,
+        limit: 100,
+        area: selectedArea || undefined,
+        tag: selectedTag || undefined,
+        status: filterAvailableOnly ? 'available' : undefined,
+        q: searchQuery || undefined,
+      });
+      if (request !== mapRequest) return;
+      mapPosts = mergePostsWithPeer(
+        result.posts,
+        getPeerPosts().filter(matchesFilters)
+      );
+      mapTotal = result.total;
+    } catch (error) {
+      feedError =
+        error instanceof Error
+          ? error.message
+          : '地図の情報を取得できませんでした';
+    }
+  }
+
+  $effect(() => {
+    const filters = [
+      selectedArea,
+      selectedTag,
+      searchQuery,
+      filterAvailableOnly,
+    ];
+    void filters;
+    if (viewMode === 'map') void loadMapPosts();
+  });
 
   function handleToggleAvailableOnly() {
     filterAvailableOnly = !filterAvailableOnly;
@@ -768,6 +885,9 @@
                   >
                   <span class="font-bold">{item.data.statusLabel}</span>
                 {/if}
+                {#if item.lastError}<p class="mt-1 text-xs">
+                    {item.lastError}
+                  </p>{/if}
               </div>
               <button
                 type="button"
@@ -844,6 +964,9 @@
                   >
                   <span class="font-bold">{item.data.statusLabel}</span>
                 {/if}
+                {#if item.lastError}<p class="mt-1 text-xs">
+                    {item.lastError}
+                  </p>{/if}
               </div>
               <button
                 type="button"
@@ -895,6 +1018,34 @@
       <Check class="h-4 w-4 shrink-0" />
       <span>{offlineNotice}</span>
     </div>
+  {/if}
+
+  {#if feedError}
+    <div
+      role="alert"
+      class="mx-auto mb-3 max-w-4xl rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200"
+    >
+      {feedError}
+    </div>
+  {/if}
+  {#if feedIsOffline}
+    <div
+      role="status"
+      class="mx-auto mb-3 max-w-4xl rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+    >
+      {m.cached_information_notice({
+        time: cachedAsOf
+          ? new Date(cachedAsOf).toLocaleString()
+          : m.unknown_time(),
+      })}
+    </div>
+  {/if}
+  {#if viewMode === 'map' && mapTotal > 100}
+    <p
+      class="mx-auto mb-3 max-w-4xl px-4 text-sm text-slate-700 dark:text-slate-200"
+    >
+      {m.map_truncated_notice({ total: mapTotal })}
+    </p>
   {/if}
 
   <!-- Organic vocabulary tag filter bar -->
@@ -986,7 +1137,10 @@
       <!-- Distance / GPS sort toggle button -->
       <button
         type="button"
-        onclick={() => geolocationManager.toggleSortByDistance()}
+        onclick={async () => {
+          await geolocationManager.toggleSortByDistance();
+          await reloadPosts();
+        }}
         disabled={geolocationManager.isLocating}
         class={`flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold shadow-2xs transition-all ${
           geolocationManager.sortByDistance
@@ -1116,7 +1270,8 @@
       {:else}
         {#await import('./lib/MapView.svelte') then { default: MapView }}
           <MapView
-            posts={displayPosts}
+            posts={mapPosts || displayPosts}
+            onBoundsChange={loadMapPosts}
             defaultArea={settings.default_area || ''}
             disasterAreas={parsedDisasterAreas}
             {focusWaypointTrigger}
@@ -1235,6 +1390,9 @@
             <PostCard
               {post}
               {currentUser}
+              freshnessMinutes={settings.operation_mode === 'disaster'
+                ? 60
+                : 10080}
               onOpenUpdateStatus={handleOpenUpdateStatus}
               onSelectTag={handleSelectTag}
               onEditPost={handleEditPost}
@@ -1245,6 +1403,18 @@
             />
           {/each}
         </div>
+        {#if nextOffset < serverTotal}
+          <button
+            type="button"
+            onclick={loadMorePosts}
+            disabled={isLoadingMore}
+            class="mx-auto mt-4 block rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-800 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          >
+            {isLoadingMore
+              ? m.loading_posts()
+              : m.load_more_posts({ loaded: nextOffset, total: serverTotal })}
+          </button>
+        {/if}
       {/if}
     {/if}
   </main>
@@ -1308,16 +1478,16 @@
         onClose={() => handleCloseModal('create')}
         onCreated={(newPost) => {
           initialDraftPost = null;
-          pendingCount = getPendingQueueCount();
+          refreshQueue();
           if (newPost) {
             posts = [newPost, ...posts.filter((p) => p.id !== newPost.id)];
-            totalPosts = posts.length;
+            totalPosts += 1;
           }
           reloadPosts(true);
         }}
         onUpdated={() => {
           initialDraftPost = null;
-          pendingCount = getPendingQueueCount();
+          refreshQueue();
           reloadPosts(true);
         }}
         onOpenAuth={() => {

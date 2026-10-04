@@ -1,3 +1,4 @@
+import type { Bindings } from '../types';
 // src/auth/session.ts: Lightweight signed session token for Cloudflare Workers
 
 export interface SessionPayload {
@@ -8,6 +9,7 @@ export interface SessionPayload {
   exp: number; // Unix timestamp in seconds
   type?: 'session' | 'api_token';
   tokenName?: string;
+  issuedAt?: number;
 }
 
 async function getHmacKey(secret: string): Promise<CryptoKey> {
@@ -56,6 +58,7 @@ export async function createSessionToken(
 
   const fullPayload: SessionPayload = {
     ...payload,
+    issuedAt: payload.issuedAt ?? Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + expiresInSeconds,
   };
 
@@ -93,12 +96,17 @@ export async function verifySessionToken(
   const key = await getHmacKey(secret);
   const enc = new TextEncoder();
 
-  const isValid = await crypto.subtle.verify(
-    'HMAC',
-    key,
-    base64UrlDecode(sigB64),
-    enc.encode(payloadB64)
-  );
+  let isValid: boolean;
+  try {
+    isValid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64UrlDecode(sigB64),
+      enc.encode(payloadB64)
+    );
+  } catch {
+    return null;
+  }
 
   if (!isValid) return null;
 
@@ -151,4 +159,16 @@ export async function createApiToken(
     expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
     tokenName: name,
   };
+}
+
+export async function verifyCurrentSession(
+  token: string,
+  env: Bindings
+): Promise<SessionPayload | null> {
+  const session = await verifySessionToken(token, env.JWT_SECRET);
+  if (!session) return null;
+  const user = await env.DB.prepare('SELECT role FROM users WHERE id = ?')
+    .bind(session.userId)
+    .first<{ role: SessionPayload['role'] }>();
+  return user ? { ...session, role: user.role } : null;
 }

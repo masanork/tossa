@@ -94,12 +94,15 @@
     selectedLabel = label;
   }
 
+  const requestId = crypto.randomUUID();
+
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!post) return;
 
     isSubmitting = true;
     errorMessage = '';
+    const observedAt = new Date().toISOString();
 
     try {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -109,7 +112,10 @@
           note: note.trim() || undefined,
         };
         enqueueStatusUpdate({
+          requestId,
           postId: post.id,
+          expectedUpdatedAt: post.updated_at,
+          observedAt,
           ...payload,
         });
         onUpdated(payload);
@@ -121,7 +127,8 @@
         post.id,
         selectedStatus,
         selectedLabel,
-        note
+        note.trim() || undefined,
+        { requestId, expectedUpdatedAt: post.updated_at, observedAt }
       );
       if (res.success) {
         onUpdated({
@@ -133,19 +140,33 @@
       } else {
         errorMessage = res.error || '更新に失敗しました';
       }
-    } catch {
-      // Offline fallback: save to local outbox
-      const payload = {
-        status: selectedStatus,
-        statusLabel: selectedLabel,
-        note: note.trim() || undefined,
-      };
-      enqueueStatusUpdate({
-        postId: post.id,
-        ...payload,
-      });
-      onUpdated(payload);
-      onClose();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('保存できません')) {
+        errorMessage = error.message;
+        return;
+      }
+      try {
+        // Offline fallback: save to local outbox
+        const payload = {
+          status: selectedStatus,
+          statusLabel: selectedLabel,
+          note: note.trim() || undefined,
+        };
+        enqueueStatusUpdate({
+          requestId,
+          postId: post.id,
+          expectedUpdatedAt: post.updated_at,
+          observedAt,
+          ...payload,
+        });
+        onUpdated(payload);
+        onClose();
+      } catch (saveError) {
+        errorMessage =
+          saveError instanceof Error
+            ? saveError.message
+            : '端末に保存できませんでした';
+      }
     } finally {
       isSubmitting = false;
     }

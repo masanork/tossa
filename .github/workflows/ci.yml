@@ -62,11 +62,8 @@ jobs:
       - name: Run Unit & Integration Tests with Coverage (Vitest)
         run: npm run test:coverage
 
-      - name: Install Playwright Chromium & System Dependencies
-        run: npx playwright install --with-deps chromium
-
-      - name: Initialize Local D1 Database Schema & Seed
-        run: npm run db:reset:local
+      - name: Install Playwright Chromium, WebKit & System Dependencies
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run E2E Tests (Playwright)
         run: npm run test:e2e
@@ -87,6 +84,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           node --experimental-strip-types scripts/stats.ts --save stats
           node --experimental-strip-types scripts/plot-growth.ts --update --stats-file stats/stats.json
+          npx prettier --write stats/stats.md
           git add stats/
           if git diff --cached --quiet; then
             echo "No stats changes"
@@ -129,6 +127,12 @@ jobs:
       - name: Compile Frontend & i18n Resources
         run: npm run build:web
 
+      - name: Verify Required Production Schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 execute tossa-db --remote --command 'SELECT observed_at FROM posts LIMIT 0; SELECT id FROM mutation_receipts LIMIT 0; SELECT id FROM post_reports LIMIT 0;'
+
       - name: Deploy Worker
         uses: cloudflare/wrangler-action@v4
         with:
@@ -136,7 +140,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           packageManager: npm
-          wranglerVersion: '4.135.0'
+          wranglerVersion: '4.147.0'
           command: deploy
 
       - name: Smoke test production

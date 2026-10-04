@@ -33,7 +33,8 @@ describe('Auth API (First-come admin & Role Delegation)', () => {
       .bind('alice')
       .first<any>();
     expect(user1).toBeTruthy();
-    expect(user1.role).toBe('admin'); // First user automatically becomes admin!
+    expect(user1.role).toBe('user'); // Admin is assigned only after credential verification.
+    expect((await res1.json()).isFirstAdmin).toBe(true);
 
     // 2. Second user registration option request
     const res2 = await request('/api/auth/register-options', {

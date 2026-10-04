@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { Bindings } from '../types';
-import { verifySessionToken, type SessionPayload } from '../auth/session';
+import { verifyCurrentSession, type SessionPayload } from '../auth/session';
 import {
   getPosts,
   getPostById,
@@ -506,7 +506,7 @@ async function executeTool(
           imageMeta: {},
           attributes: {},
           tags: Array.isArray(args.tags) ? args.tags : [],
-          isVerified: isAdmin,
+          isVerified: false,
           authorId: authUser?.userId || null,
           authorCookieId: null,
           reporterName,
@@ -518,7 +518,7 @@ async function executeTool(
           args.category_id === 'water' ||
           args.category_id === 'shelter'
         ) {
-          broadcastPushNotification(env, {
+          await broadcastPushNotification(env, {
             title: `【${args.status_label}】${args.title}`,
             body: `${args.area}: ${args.note || '情報が更新されました'}`,
             url: `${publicOrigin(env)}/#post-${id}`,
@@ -536,7 +536,7 @@ async function executeTool(
               success: true,
               message: '生活情報を投稿しました',
               post_id: id,
-              is_verified: isAdmin,
+              is_verified: false,
               author: reporterName,
               url: `${publicOrigin(env)}/#post-${id}`,
             },
@@ -881,7 +881,7 @@ async function getAuthUser(c: any): Promise<SessionPayload | null> {
   const authHeader = c.req.header('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return null;
-  return await verifySessionToken(token, c.env.JWT_SECRET);
+  return await verifyCurrentSession(token, c.env);
 }
 
 /** Compute anonymous SHA-256 IP hash for abuse protection */
