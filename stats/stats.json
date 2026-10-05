@@ -1,28 +1,28 @@
 {
-  "generatedAt": "2026-10-05T08:40:55.431Z",
+  "generatedAt": "2026-10-05T23:56:08.299Z",
   "git": {
-    "commit": "a259cef"
+    "commit": "24d61c9"
   },
   "src": {
     "name": "src (Worker)",
     "path": "src",
     "files": 31,
-    "lines": 14353,
+    "lines": 14490,
     "testFns": 0
   },
   "web": {
     "name": "web/src (UI)",
     "path": "web/src",
     "files": 59,
-    "lines": 26924,
+    "lines": 26942,
     "testFns": 0
   },
   "tests": {
     "name": "test (unit)",
     "path": "test",
-    "files": 58,
-    "lines": 9861,
-    "testFns": 348
+    "files": 59,
+    "lines": 10134,
+    "testFns": 356
   },
   "e2e": {
     "name": "e2e",
@@ -32,14 +32,14 @@
     "testFns": 26
   },
   "health": {
-    "implLines": 41277,
-    "testLines": 11833,
-    "testRatio": 0.22280173225381283,
+    "implLines": 41432,
+    "testLines": 12106,
+    "testRatio": 0.22611976540027645,
     "depCount": 418,
     "largeFiles": [
       {
         "path": "web/src/lib/AdminModal.svelte",
-        "lines": 3757
+        "lines": 3772
       },
       {
         "path": "src/municipalities.ts",
@@ -63,7 +63,7 @@
       },
       {
         "path": "web/src/lib/api.ts",
-        "lines": 1539
+        "lines": 1542
       },
       {
         "path": "web/src/lib/c2paVerifier.ts",
@@ -83,7 +83,7 @@
       },
       {
         "path": "src/routes/posts.ts",
-        "lines": 988
+        "lines": 1000
       },
       {
         "path": "web/src/lib/offlineQueue.ts",
@@ -119,7 +119,7 @@
       },
       {
         "path": "src/services/push.ts",
-        "lines": 561
+        "lines": 608
       },
       {
         "path": "src/routes/opendata.ts",
@@ -129,10 +129,10 @@
   },
   "coverage": {
     "available": true,
-    "linePct": 78,
+    "linePct": 79,
     "branchPct": 67,
     "funcPct": 82,
-    "lines": 3209,
-    "coveredLines": 2510
+    "lines": 3261,
+    "coveredLines": 2563
   }
 }
