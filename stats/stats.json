@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-05T05:40:38.654Z",
+  "generatedAt": "2026-10-05T08:40:55.431Z",
   "git": {
-    "commit": "29a009f"
+    "commit": "a259cef"
   },
   "src": {
     "name": "src (Worker)",
@@ -28,13 +28,13 @@
     "name": "e2e",
     "path": "e2e",
     "files": 4,
-    "lines": 1937,
+    "lines": 1972,
     "testFns": 26
   },
   "health": {
     "implLines": 41277,
-    "testLines": 11798,
-    "testRatio": 0.2222892133772963,
+    "testLines": 11833,
+    "testRatio": 0.22280173225381283,
     "depCount": 418,
     "largeFiles": [
       {
