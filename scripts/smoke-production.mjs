@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 const origin = process.env.SMOKE_BASE_URL || 'https://tossa.app';
 
 async function get(path) {
@@ -35,7 +37,24 @@ async function checkProduction() {
   if (posts.posts.some((post) => 'author_cookie_id' in post)) {
     throw new Error('Public posts expose device ownership keys');
   }
-  const offlineAssets = await (await get('/offline-assets.json')).json();
+  const worker = await (await get('/sw.js')).text();
+  if (!/tossa-shell-[a-f0-9]{20}/.test(worker))
+    throw new Error(
+      'Service Worker is missing its build-specific shell version'
+    );
+  const manifestPath = worker.match(
+    /['"](\/offline-assets-[a-f0-9]{20}\.json)['"]/
+  )?.[1];
+  if (!manifestPath)
+    throw new Error('Service Worker is missing its versioned asset manifest');
+  const manifest = await (await get(manifestPath)).text();
+  const manifestHash = createHash('sha256')
+    .update(manifest)
+    .digest('hex')
+    .slice(0, 20);
+  if (manifestPath !== `/offline-assets-${manifestHash}.json`)
+    throw new Error('Offline asset manifest does not match its versioned URL');
+  const offlineAssets = JSON.parse(manifest);
   if (
     !Array.isArray(offlineAssets) ||
     !offlineAssets.length ||
@@ -47,19 +66,25 @@ async function checkProduction() {
   }
   if (!offlineAssets.includes(scriptPath))
     throw new Error('Offline manifest does not include the current frontend');
-  const worker = await (await get('/sw.js')).text();
-  if (!/tossa-shell-[a-f0-9]{20}/.test(worker))
-    throw new Error(
-      'Service Worker is missing its build-specific shell version'
-    );
   await Promise.all(
     offlineAssets.map(async (path) => {
       const response = await get(path);
-      const type = response.headers.get('Content-Type') || '';
-      if (
-        (path.endsWith('.js') && !type.includes('javascript')) ||
-        (path.endsWith('.css') && !type.includes('text/css'))
-      )
+      const type = (response.headers.get('Content-Type') || '')
+        .split(';', 1)[0]
+        .trim()
+        .toLowerCase();
+      const allowedTypes = {
+        js: ['text/javascript', 'application/javascript'],
+        css: ['text/css'],
+        woff: ['font/woff', 'application/font-woff', 'application/x-font-woff'],
+        woff2: [
+          'font/woff2',
+          'application/font-woff2',
+          'application/x-font-woff2',
+        ],
+      };
+      const extension = path.match(/\.([^.]+)$/)?.[1];
+      if (!allowedTypes[extension]?.includes(type))
         throw new Error(
           `Offline asset has an unexpected content type: ${path}`
         );
@@ -71,6 +96,22 @@ async function checkProduction() {
   );
   if (blocked.status !== 404)
     throw new Error('Image API does not block backup keys');
+
+  const preview = await fetch(
+    new URL('/api/settings/statistics/preview', origin),
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+      signal: AbortSignal.timeout(15_000),
+    }
+  );
+  if (
+    preview.status !== 401 ||
+    preview.headers.get('Cache-Control') !== 'private, no-store' ||
+    preview.headers.has('Set-Cookie')
+  )
+    throw new Error('Statistics preview is not read-only and auth protected');
 }
 
 for (let attempt = 1; attempt <= 5; attempt++) {

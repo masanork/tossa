@@ -9,13 +9,17 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
   test.setTimeout(60000);
   const builtWorker = readFileSync('web/dist/sw.js', 'utf8');
   expect(builtWorker).toMatch(/tossa-shell-[a-f0-9]{20}/);
+  const manifestPath = builtWorker.match(
+    /['"](\/offline-assets-[a-f0-9]{20}\.json)['"]/
+  )?.[1];
+  expect(manifestPath).toBeTruthy();
   // The deployed legacy worker cannot answer the IndexedDB capability check.
   const legacyWorker = builtWorker.replace(
     /\/\/ Migration is unsafe[\s\S]*?(?=\/\/ Install:)/,
     ''
   );
   expect(legacyWorker).not.toContain('OUTBOX_STORAGE_CHECK');
-  let version: 'old' | 'broken' | 'new' = 'old';
+  let version: 'old' | 'broken' | 'broken-type' | 'new' = 'old';
   let disconnected = false;
   const server = createServer((incoming, outgoing) => {
     if (disconnected) {
@@ -35,12 +39,23 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
       );
       return;
     }
-    if (incoming.url === '/offline-assets.json' && version === 'broken') {
+    if (incoming.url === manifestPath && version === 'broken') {
       outgoing.writeHead(503);
       outgoing.end();
       return;
     }
-    if (incoming.url === '/offline-assets.json' && version === 'new') {
+    if (
+      version === 'broken-type' &&
+      incoming.url?.startsWith('/assets/') &&
+      incoming.url.endsWith('.js')
+    ) {
+      // A stale manifest can request a missing JS chunk which the SPA asset
+      // handler answers with index.html and HTTP 200. Installation must fail.
+      outgoing.writeHead(200, { 'Content-Type': 'text/html' });
+      outgoing.end('<!doctype html><title>SPA fallback</title>');
+      return;
+    }
+    if (incoming.url === manifestPath && version === 'new') {
       const assets = JSON.parse(
         readFileSync('web/dist/offline-assets.json', 'utf8')
       );
@@ -152,6 +167,26 @@ test('failed update keeps the old shell; successful update preserves a legacy ou
       return failed;
     });
     expect(state).toBe('redundant');
+    version = 'broken-type';
+    const badTypeState = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration) throw new Error('No registration');
+      const failed = new Promise<string>((resolve) =>
+        registration.addEventListener(
+          'updatefound',
+          () => {
+            const worker = registration.installing;
+            worker?.addEventListener('statechange', () => {
+              if (worker.state === 'redundant') resolve(worker.state);
+            });
+          },
+          { once: true }
+        )
+      );
+      await registration.update();
+      return failed;
+    });
+    expect(badTypeState).toBe('redundant');
     disconnected = true;
     server.closeAllConnections();
     await page.reload();

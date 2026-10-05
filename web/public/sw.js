@@ -2,6 +2,7 @@
 const CACHE_NAME = 'tossa-shell-v2';
 const API_CACHE_NAME = 'tossa-api-v2';
 const TILE_CACHE_NAME = 'tossa-tiles-v1';
+const OFFLINE_ASSET_MANIFEST = '__OFFLINE_ASSET_MANIFEST__';
 
 const STATIC_PRECACHE = [
   '/',
@@ -68,7 +69,7 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME).then(async (cache) => {
       // Install the shell and all lazy chunks as one version. Never activate an
       // HTML shell whose hashed JS/CSS cannot load when the device goes offline.
-      const response = await fetch('/offline-assets.json', {
+      const response = await fetch(OFFLINE_ASSET_MANIFEST, {
         cache: 'no-store',
       });
       if (!response.ok) throw new Error('Offline asset manifest unavailable');
@@ -76,11 +77,51 @@ self.addEventListener('install', (event) => {
       if (
         !Array.isArray(assets) ||
         assets.some(
-          (path) => typeof path !== 'string' || !path.startsWith('/assets/')
+          (path) =>
+            typeof path !== 'string' ||
+            !path.startsWith('/assets/') ||
+            !/\.(js|css|woff2?)$/.test(path)
         )
       )
         throw new Error('Invalid offline asset manifest');
-      await cache.addAll([...STATIC_PRECACHE, ...assets]);
+      // Do not allow SPA fallback HTML to be stored under a hashed JS/CSS URL.
+      // Validate all responses before writing any of the versioned assets.
+      const assetResponses = await Promise.all(
+        assets.map(async (path) => {
+          const assetResponse = await fetch(path, { cache: 'no-store' });
+          const contentType = assetResponse.headers
+            .get('Content-Type')
+            ?.split(';', 1)[0]
+            .trim()
+            .toLowerCase();
+          const extension = path.match(/\.([^.]+)$/)?.[1];
+          const validTypes = {
+            css: ['text/css'],
+            js: ['text/javascript', 'application/javascript'],
+            woff: [
+              'font/woff',
+              'application/font-woff',
+              'application/x-font-woff',
+            ],
+            woff2: [
+              'font/woff2',
+              'application/font-woff2',
+              'application/x-font-woff2',
+            ],
+          };
+          const validType = validTypes[extension]?.includes(contentType);
+          if (!assetResponse.ok || !validType)
+            throw new Error(`Offline asset unavailable or invalid: ${path}`);
+          return [path, assetResponse];
+        })
+      );
+      // Do not leave even the new HTML shell in a failed, unactivated cache.
+      await cache.addAll(STATIC_PRECACHE);
+      await Promise.all(
+        assetResponses.map(([path, assetResponse]) =>
+          cache.put(path, assetResponse)
+        )
+      );
       // Static Assets redirects /index.html to /. A redirected Response cannot
       // satisfy an offline navigation request; retain its bytes without that flag.
       const shell = await cache.match('/index.html');

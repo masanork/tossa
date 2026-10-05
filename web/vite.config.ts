@@ -24,10 +24,24 @@ export default defineConfig({
           .filter((name) => /\.(js|css|woff2?)$/.test(name))
           .sort()
           .map((name) => `/${name}`);
+        const source = JSON.stringify(assets);
+        const manifestHash = createHash('sha256')
+          .update(source)
+          .digest('hex')
+          .slice(0, 20);
+        const versionedManifest = `offline-assets-${manifestHash}.json`;
+        if (bundle[versionedManifest] || bundle['offline-assets.json'])
+          this.error('Offline asset manifest output already exists');
+        this.emitFile({
+          type: 'asset',
+          fileName: versionedManifest,
+          source,
+        });
+        // Keep the fixed alias for older service workers still installing.
         this.emitFile({
           type: 'asset',
           fileName: 'offline-assets.json',
-          source: JSON.stringify(assets),
+          source,
         });
       },
       writeBundle(options, bundle) {
@@ -41,9 +55,38 @@ export default defineConfig({
         }
         for (const name of ['manifest.webmanifest', 'favicon.svg', 'sw.js'])
           hash.update(readFileSync(resolve('public', name)));
-        const worker = readFileSync(resolve('public/sw.js'), 'utf8').replace(
+        const workerTemplate = readFileSync(resolve('public/sw.js'), 'utf8');
+        const manifestFiles = Object.keys(bundle).filter((name) =>
+          /^offline-assets-[a-f0-9]{20}\.json$/.test(name)
+        );
+        if (manifestFiles.length !== 1)
+          throw new Error(
+            `Expected one versioned offline asset manifest, found ${manifestFiles.length}`
+          );
+        const replaceExactlyOnce = (
+          input: string,
+          needle: string,
+          replacement: string,
+          label: string
+        ) => {
+          const first = input.indexOf(needle);
+          if (first < 0 || input.indexOf(needle, first + needle.length) >= 0)
+            throw new Error(
+              `Expected exactly one ${label} placeholder in sw.js`
+            );
+          return `${input.slice(0, first)}${replacement}${input.slice(first + needle.length)}`;
+        };
+        const shellHash = hash.digest('hex').slice(0, 20);
+        const worker = replaceExactlyOnce(
+          replaceExactlyOnce(
+            workerTemplate,
+            '__OFFLINE_ASSET_MANIFEST__',
+            `/${manifestFiles[0]}`,
+            'offline asset manifest'
+          ),
           'tossa-shell-v2',
-          `tossa-shell-${hash.digest('hex').slice(0, 20)}`
+          `tossa-shell-${shellHash}`,
+          'shell cache name'
         );
         writeFileSync(resolve(options.dir || 'dist', 'sw.js'), worker);
       },
