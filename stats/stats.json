@@ -1,45 +1,45 @@
 {
-  "generatedAt": "2026-10-04T22:24:56.996Z",
+  "generatedAt": "2026-10-05T05:40:38.654Z",
   "git": {
-    "commit": "83428be"
+    "commit": "29a009f"
   },
   "src": {
     "name": "src (Worker)",
     "path": "src",
-    "files": 29,
-    "lines": 13671,
+    "files": 31,
+    "lines": 14353,
     "testFns": 0
   },
   "web": {
     "name": "web/src (UI)",
     "path": "web/src",
-    "files": 58,
-    "lines": 26245,
+    "files": 59,
+    "lines": 26924,
     "testFns": 0
   },
   "tests": {
     "name": "test (unit)",
     "path": "test",
-    "files": 56,
-    "lines": 9333,
-    "testFns": 331
+    "files": 58,
+    "lines": 9861,
+    "testFns": 348
   },
   "e2e": {
     "name": "e2e",
     "path": "e2e",
     "files": 4,
-    "lines": 1767,
-    "testFns": 25
+    "lines": 1937,
+    "testFns": 26
   },
   "health": {
-    "implLines": 39916,
-    "testLines": 11100,
-    "testRatio": 0.21757879880821704,
+    "implLines": 41277,
+    "testLines": 11798,
+    "testRatio": 0.2222892133772963,
     "depCount": 418,
     "largeFiles": [
       {
         "path": "web/src/lib/AdminModal.svelte",
-        "lines": 3753
+        "lines": 3757
       },
       {
         "path": "src/municipalities.ts",
@@ -63,7 +63,7 @@
       },
       {
         "path": "web/src/lib/api.ts",
-        "lines": 1328
+        "lines": 1539
       },
       {
         "path": "web/src/lib/c2paVerifier.ts",
@@ -129,10 +129,10 @@
   },
   "coverage": {
     "available": true,
-    "linePct": 77,
-    "branchPct": 65,
-    "funcPct": 81,
-    "lines": 2952,
-    "coveredLines": 2273
+    "linePct": 78,
+    "branchPct": 67,
+    "funcPct": 82,
+    "lines": 3209,
+    "coveredLines": 2510
   }
 }
