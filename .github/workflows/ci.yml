@@ -72,6 +72,15 @@ jobs:
       - name: Run E2E Tests (Playwright)
         run: npm run test:e2e
 
+      - name: Preserve Failed E2E Diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure-diagnostics
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Verify Production Build
         run: npm run build
 

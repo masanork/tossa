@@ -281,6 +281,12 @@ test('two tabs retain offline additions and receive outbox changes', async ({
       page.locator('form button[type="submit"]').click(),
       second.locator('form button[type="submit"]').click(),
     ]);
+    // The IDB commit can be observed before the submit handler closes its
+    // dialog. Finish both submissions before opening another draft.
+    await Promise.all([
+      expect(page.locator('#post-title')).toBeHidden(),
+      expect(second.locator('#post-title')).toBeHidden(),
+    ]);
     await expect
       .poll(() => readOutbox(page).then((items) => items.length))
       .toBe(2);
@@ -356,9 +362,14 @@ test('two tabs retain offline additions and receive outbox changes', async ({
     await second.locator('header button:has-text("＋")').click();
     await second.fill('#post-title', titleC);
     await second.locator('form button[type="submit"]').click();
+    await expect(second.locator('#post-title')).toBeHidden();
     await expect
-      .poll(() => readOutbox(page).then((items) => items.length))
-      .toBe(3);
+      .poll(() =>
+        readOutbox(page).then((items) =>
+          items.map((item) => item.data.title).sort()
+        )
+      )
+      .toEqual([titleA, titleB, titleC].sort());
     await releaseRequest();
     await expect
       .poll(() => readOutbox(page).then((items) => items.length))
