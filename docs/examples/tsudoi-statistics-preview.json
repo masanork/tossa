@@ -1,0 +1,54 @@
+{
+  "format": "tossa-statistics-preview-v1",
+  "source": "tsudoi",
+  "visibility": "public_aggregate",
+  "generatedAt": "2026-10-05T09:05:00+09:00",
+  "records": [
+    {
+      "id": "shelter-001-occupancy-1",
+      "revision": 1,
+      "entity": {
+        "kind": "shelter",
+        "id": "shelter-001",
+        "label": "第一避難所"
+      },
+      "metric": "current_occupancy",
+      "status": "reported",
+      "value": 43,
+      "observedAt": "2026-10-05T09:00:00+09:00",
+      "sourceUrl": "https://tsudoi.example.org/public/statistics/shelter-001"
+    },
+    {
+      "id": "shelter-001-capacity-1",
+      "revision": 1,
+      "entity": {
+        "kind": "shelter",
+        "id": "shelter-001",
+        "label": "第一避難所"
+      },
+      "metric": "capacity",
+      "status": "reported",
+      "value": 100,
+      "observedAt": "2026-10-05T09:00:00+09:00",
+      "sourceUrl": "https://tsudoi.example.org/public/statistics/shelter-001"
+    },
+    {
+      "id": "event-001-participants-1",
+      "revision": 1,
+      "entity": {
+        "kind": "event",
+        "id": "event-001",
+        "label": "地域交流会"
+      },
+      "metric": "participants_unique",
+      "status": "withheld",
+      "value": null,
+      "observedAt": "2026-10-05T09:00:00+09:00",
+      "sourceUrl": "https://tsudoi.example.org/public/statistics/event-001",
+      "period": {
+        "start": "2026-10-05T08:00:00+09:00",
+        "end": "2026-10-05T09:00:00+09:00"
+      }
+    }
+  ]
+}

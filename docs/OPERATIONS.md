@@ -131,6 +131,23 @@ npm run backup:drill
 
 復元SQLは[D1のSQL文100,000バイト上限](https://developers.cloudflare.com/d1/platform/limits/)を超えないよう64KiB以下に抑える。大きい文字列は24KiBずつBLOBの作業表に構築し、完成した値を実テーブルへ一度だけ挿入する。途中状態の行を実テーブルへ入れず、最後に作業表を削除する。
 
+## tsudoi統計の取り込み前プレビュー
+
+管理画面の「連携」で、tsudoi統計のJSONを読み込み、対応先の投稿IDを指定してプレビューする。現在の管理者だけが利用できる。これはtossa側の暫定的な受け入れ形式で、tsudoiの公式フィード仕様ではない。フィードが確定したら、その形式からこの正規化形式への変換を用意する。
+
+例は [tsudoi統計サンプル](examples/tsudoi-statistics-preview.json)。実際の施設・統計ではなく、避難所43人・定員100人と、人数非公開のイベントを含む合成データ。サンプルのリンク先も例示用。入力は公開可能な集計だけとし、名簿・個人の行動履歴・認証情報を含めない。
+
+- `format`: `tossa-statistics-preview-v1`、`source`: `tsudoi`、`visibility`: `public_aggregate` を指定する。未知の項目は受け付けず、送信全体は1MiB・統計100件以内に制限する。
+- 各統計は安定した `id`、正の整数の `revision`、対象の `entity.kind`（`shelter` / `event`）・`entity.id`・`entity.label`、指標、状態、値、集計時刻、出典URLを持つ。出典URLはHTTPSの公開リンクを指定する。このプレビューでは外部URLへアクセスしない。
+- 指標は `current_occupancy`（集計時点の避難所滞在人数）、`capacity`（定員）、`participants_unique`（期間内の実人数）、`attendance_total`（期間内の延べ人数）。人数の意味や測定方法が異なる指標を同じものとして変換しない。期間内の指標には `period.start` / `period.end` が必要で、定員・現在滞在人数には指定しない。
+- `status: reported` はゼロを含む非負の整数、`unavailable`（未取得）と `withheld`（非公開）は `value: null` を指定する。ゼロと未取得・非公開を区別する。
+- `observedAt` は集計時点、`generatedAt` は提供側のデータ生成時刻、プレビューの `checkedAt` はtossaが検証した時刻。時刻にはタイムゾーンが必要。JSONの新しい取得日時だけで古い集計を最新扱いにしない。
+- 対応付けは対象種別と外部IDごとに手動指定する。名前だけで自動統合しない。未指定の対象は未対応と表示する。存在しない投稿、同じ対象や投稿への重複した対応付けはエラーとする。
+
+APIは `POST /api/settings/statistics/preview` に、管理者のBearer認証と `Content-Type: application/json` で `{ "feed": <上記形式>, "mappings": [{ "kind": "shelter", "externalId": "shelter-001", "postId": "<既存投稿ID>" }] }` を送る。応答は検証済みの統計と対応先の投稿ID・タイトル、未対応件数だけで、投稿者情報は返さない。現在の権限をDBで確認するため降格・削除後のセッションでは利用できない。
+
+プレビューはDB保存・公開・定期取得を行わず、既存投稿の内容・状態・運営確認を変更しない。訂正を示す版番号は検証・表示するが、複数の取得結果間の保存履歴や旧版への巻き戻し防止は永続取り込みを追加する段階で実装する。同一入力内の重複・矛盾はエラーにする。実フィードとの互換性、更新頻度・公開範囲・訂正と撤回の扱いは接続時に確認する。
+
 ## 更新時の確認
 
 `npm run format:check`、`lint`、`knip`、`typecheck`、`test:coverage`、`test:e2e`、`build` を通す。E2Eは一時ディレクトリに独立したDBを作り、開発者の既存ローカルDBを変更しない。

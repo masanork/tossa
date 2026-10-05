@@ -88,6 +88,14 @@ export const deviceCookieMiddleware = createMiddleware<{
   Bindings: Bindings;
   Variables: { deviceSessionId: string };
 }>(async (c, next) => {
+  // The administrator preview carries JSON via POST but only reads existing data.
+  if (
+    c.req.method === 'POST' &&
+    c.req.path === '/api/settings/statistics/preview'
+  ) {
+    await next();
+    return;
+  }
   let deviceId = getCookie(c, DEVICE_COOKIE);
   const isHttps = c.req.url.startsWith('https');
 

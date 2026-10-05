@@ -8,6 +8,7 @@ import type { Bindings } from './types';
 import { categoriesRoute } from './routes/categories';
 import { postsRoute } from './routes/posts';
 import { settingsRoute } from './routes/settings';
+import { statisticsRoute } from './routes/statistics';
 import { authRoute } from './routes/auth';
 import { federationRoute } from './routes/federation';
 import { threadsRoute } from './routes/threads';
@@ -264,6 +265,7 @@ app.use(
 app.route('/api/categories', categoriesRoute);
 app.route('/api/posts', postsRoute);
 app.route('/api/settings', settingsRoute);
+app.route('/api/settings/statistics', statisticsRoute);
 app.route('/api/auth', authRoute);
 app.route('/api/threads', threadsRoute);
 app.route('/api/push', pushRoute);

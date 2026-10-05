@@ -740,6 +740,217 @@ export async function deleteUserApi(
 
 // ================= Federation & Migration Functions =================
 
+export type StatisticsPreviewKind = 'event' | 'shelter';
+export type StatisticsPreviewMetric =
+  'current_occupancy' | 'capacity' | 'participants_unique' | 'attendance_total';
+export type StatisticsPreviewRecordStatus =
+  'reported' | 'unavailable' | 'withheld';
+
+export interface StatisticsPreviewMapping {
+  kind: StatisticsPreviewKind;
+  externalId: string;
+  postId: string;
+}
+
+export interface StatisticsPreviewRecord {
+  id: string;
+  revision: number;
+  entity: { kind: StatisticsPreviewKind; id: string; label: string };
+  metric: StatisticsPreviewMetric;
+  status: StatisticsPreviewRecordStatus;
+  value: number | null;
+  observedAt: string;
+  sourceUrl: string;
+  period?: { start: string; end: string };
+  targetPost: { id: string; title: string } | null;
+}
+
+export interface StatisticsPreview {
+  checkedAt: string;
+  generatedAt: string;
+  source: 'tsudoi';
+  recordCount: number;
+  entityCount: number;
+  unmappedEntityCount: number;
+  records: StatisticsPreviewRecord[];
+  warnings: string[];
+}
+
+function isStatisticsPreview(value: unknown): value is StatisticsPreview {
+  if (typeof value !== 'object' || value === null) return false;
+  const preview = value as Partial<StatisticsPreview>;
+  const isSafeSourceUrl = (value: string): boolean => {
+    try {
+      const url = new URL(value);
+      const host = url.hostname.toLowerCase().replace(/\.$/u, '');
+      if (
+        url.protocol !== 'https:' ||
+        url.username ||
+        url.password ||
+        url.hash ||
+        host === 'localhost' ||
+        host.endsWith('.localhost') ||
+        host.endsWith('.local') ||
+        host.endsWith('.internal')
+      )
+        return false;
+      const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/u.exec(host);
+      if (ipv4) {
+        const [first = NaN, second = NaN] = ipv4.slice(1).map(Number);
+        if (
+          ipv4.slice(1).some((part) => Number(part) > 255) ||
+          first === 0 ||
+          first === 10 ||
+          first === 127 ||
+          (first === 169 && second === 254) ||
+          (first === 172 && second >= 16 && second <= 31) ||
+          (first === 192 && second === 168) ||
+          first >= 224
+        )
+          return false;
+      }
+      if (host.startsWith('[') && host.endsWith(']')) {
+        const ipv6 = host.slice(1, -1);
+        if (
+          ipv6 === '::' ||
+          ipv6 === '::1' ||
+          /^(?:fc|fd)[0-9a-f]{2}:/u.test(ipv6) ||
+          /^fe[89ab][0-9a-f]:/u.test(ipv6) ||
+          ipv6.startsWith('::ffff:')
+        )
+          return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  return (
+    typeof preview.checkedAt === 'string' &&
+    typeof preview.generatedAt === 'string' &&
+    preview.source === 'tsudoi' &&
+    typeof preview.recordCount === 'number' &&
+    Number.isSafeInteger(preview.recordCount) &&
+    preview.recordCount >= 0 &&
+    typeof preview.entityCount === 'number' &&
+    Number.isSafeInteger(preview.entityCount) &&
+    preview.entityCount >= 0 &&
+    typeof preview.unmappedEntityCount === 'number' &&
+    Number.isSafeInteger(preview.unmappedEntityCount) &&
+    preview.unmappedEntityCount >= 0 &&
+    preview.unmappedEntityCount <= preview.entityCount &&
+    Array.isArray(preview.records) &&
+    preview.records.length === preview.recordCount &&
+    Array.isArray(preview.warnings) &&
+    preview.warnings.every((warning) => typeof warning === 'string') &&
+    preview.records.every(
+      (record) =>
+        record !== null &&
+        typeof record === 'object' &&
+        typeof record.id === 'string' &&
+        typeof record.revision === 'number' &&
+        typeof record.entity?.id === 'string' &&
+        typeof record.entity?.label === 'string' &&
+        (record.entity.kind === 'event' || record.entity.kind === 'shelter') &&
+        [
+          'current_occupancy',
+          'capacity',
+          'participants_unique',
+          'attendance_total',
+        ].includes(record.metric) &&
+        ['reported', 'unavailable', 'withheld'].includes(record.status) &&
+        (record.value === null || typeof record.value === 'number') &&
+        (record.status === 'reported'
+          ? Number.isSafeInteger(record.value) && record.value! >= 0
+          : record.value === null) &&
+        typeof record.observedAt === 'string' &&
+        Number.isFinite(Date.parse(record.observedAt)) &&
+        typeof record.sourceUrl === 'string' &&
+        isSafeSourceUrl(record.sourceUrl) &&
+        (record.metric === 'participants_unique' ||
+        record.metric === 'attendance_total'
+          ? record.period !== undefined &&
+            Number.isFinite(Date.parse(record.period.start)) &&
+            Number.isFinite(Date.parse(record.period.end))
+          : record.period === undefined) &&
+        (record.targetPost === null ||
+          (typeof record.targetPost === 'object' &&
+            typeof record.targetPost.id === 'string' &&
+            typeof record.targetPost.title === 'string'))
+    )
+  );
+}
+
+export async function previewTsudoiStatisticsApi(
+  token: string,
+  feed: unknown,
+  mappings: StatisticsPreviewMapping[],
+  signal?: AbortSignal
+): Promise<
+  | { success: true; preview: StatisticsPreview }
+  | { success: false; error: string }
+> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/settings/statistics/preview`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ feed, mappings }),
+      signal,
+    });
+  } catch {
+    return {
+      success: false,
+      error: '通信エラーのため統計プレビューを作成できませんでした。',
+    };
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return {
+      success: false,
+      error: '管理者として認証できません。再ログインしてください。',
+    };
+  }
+  if (response.status === 413) {
+    return {
+      success: false,
+      error: 'JSONファイルは1 MiB以下にしてください。',
+    };
+  }
+  if (!response.ok) {
+    return {
+      success: false,
+      error:
+        '統計プレビューを作成できませんでした。JSON形式と公開データの内容を確認してください。',
+    };
+  }
+  try {
+    const body: unknown = await response.json();
+    if (
+      typeof body !== 'object' ||
+      body === null ||
+      !('success' in body) ||
+      body.success !== true ||
+      !('preview' in body) ||
+      !isStatisticsPreview(body.preview)
+    ) {
+      return {
+        success: false,
+        error: 'サーバーから不正なプレビュー応答が返されました。',
+      };
+    }
+    return { success: true, preview: body.preview };
+  } catch {
+    return {
+      success: false,
+      error: 'サーバーから不正なプレビュー応答が返されました。',
+    };
+  }
+}
+
 export async function importFederationFromUrl(
   remoteUrl: string,
   token: string

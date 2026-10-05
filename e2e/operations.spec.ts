@@ -17,6 +17,17 @@ function token(role: 'admin' | 'moderator') {
   return `${payload}.${createHmac('sha256', 'tossa-e2e-only-not-a-production-secret').update(payload).digest('base64url')}`;
 }
 
+async function createOperationPost(
+  page: import('@playwright/test').Page,
+  title: string
+) {
+  const response = await page.request.post('/api/posts', {
+    data: { title, requestId: crypto.randomUUID() },
+  });
+  expect(response.status()).toBe(201);
+  return response.json() as Promise<{ id: string }>;
+}
+
 for (const role of ['admin', 'moderator'] as const) {
   test(`${role} reviews and resolves a report; backups remain admin-only`, async ({
     page,
@@ -63,6 +74,9 @@ for (const role of ['admin', 'moderator'] as const) {
       await expect(
         page.getByRole('button', { name: 'バックアップ', exact: true })
       ).toHaveCount(0);
+      await expect(
+        page.getByRole('button', { name: 'データ合流', exact: true })
+      ).toHaveCount(0);
       expect(
         (
           await page.request.get('/api/settings/backups', {
@@ -70,6 +84,21 @@ for (const role of ['admin', 'moderator'] as const) {
           })
         ).status()
       ).toBe(403);
+      expect(
+        (
+          await page.request.post('/api/settings/statistics/preview', {
+            headers: { Authorization: `Bearer ${session}` },
+            data: { feed: {}, mappings: [] },
+          })
+        ).status()
+      ).toBe(403);
+      expect(
+        (
+          await page.request.post('/api/settings/statistics/preview', {
+            data: { feed: {}, mappings: [] },
+          })
+        ).status()
+      ).toBe(401);
     } else {
       await page
         .getByRole('button', { name: 'バックアップ', exact: true })
@@ -103,6 +132,136 @@ for (const role of ['admin', 'moderator'] as const) {
     }
   });
 }
+
+test('admin previews public tsudoi statistics without saving them', async ({
+  page,
+}) => {
+  const title = `Statistics preview target ${crypto.randomUUID()}`;
+  const post = await createOperationPost(page, title);
+  const beforePreviewResponse = await page.request.get(`/api/posts/${post.id}`);
+  expect(beforePreviewResponse.status()).toBe(200);
+  const beforePostBytes = await beforePreviewResponse.body();
+  const beforePost = (await beforePreviewResponse.json()).post;
+  const session = token('admin');
+  await page.addInitScript(
+    (value) => localStorage.setItem('tossa_token', value),
+    session
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: 'E2E Admin', exact: true }).click();
+  await page.getByRole('button', { name: 'データ合流', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'つどい統計データのプレビュー' })
+  ).toBeVisible();
+  await expect(
+    page.getByText('このプレビューは保存されず、現地の投稿も変更しません。', {
+      exact: false,
+    })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'サンプルJSONを読み込む' }).click();
+  await page.getByRole('button', { name: '対応付けを追加' }).click();
+  await page.getByLabel('対応付け 1 の外部ID').fill('shelter-001');
+  await page.getByLabel('対応付け 1 の投稿ID').fill(post.id);
+  await page.getByRole('button', { name: '統計プレビューを作成' }).click();
+  const preview = page.locator(
+    '[aria-labelledby="tsudoi-preview-title"] [aria-live="polite"]'
+  );
+  await expect(preview).toContainText('43');
+  await expect(preview).toContainText('100');
+  await expect(preview).toContainText('現在滞在人数');
+  await expect(preview).toContainText('定員');
+  await expect(preview).toContainText('集計値');
+  await expect(preview).toContainText('非公開');
+  await expect(preview).toContainText('版1');
+  await expect(preview).toContainText('未対応対象');
+  await expect(preview).toContainText('未対応');
+  await expect(preview).toContainText('観測時刻');
+  await expect(preview).toContainText('出典を確認');
+  const sourceLink = preview.getByRole('link', { name: '出典を確認' }).first();
+  await expect(sourceLink).toHaveAttribute('target', '_blank');
+  await expect(sourceLink).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(preview).toContainText('2026');
+
+  const feedText = await page
+    .getByRole('textbox', { name: '公開統計JSON' })
+    .inputValue();
+  const delayedApiResponse = await page.request.post(
+    '/api/settings/statistics/preview',
+    {
+      headers: { Authorization: `Bearer ${session}` },
+      data: {
+        feed: JSON.parse(feedText),
+        mappings: [
+          { kind: 'shelter', externalId: 'shelter-001', postId: post.id },
+        ],
+      },
+    }
+  );
+  expect(delayedApiResponse.status()).toBe(200);
+  const delayedResponseBody = await delayedApiResponse.json();
+  await page.evaluate((responseBody) => {
+    const originalFetch = window.fetch.bind(window);
+    const state = window as typeof window & {
+      __statsPreviewStarted?: boolean;
+      __releaseStatsPreview?: () => void;
+    };
+    state.__statsPreviewStarted = false;
+    window.fetch = async (input, init) => {
+      const path = new URL(
+        typeof input === 'string' ? input : input.url,
+        location.href
+      ).pathname;
+      if (path === '/api/settings/statistics/preview') {
+        state.__statsPreviewStarted = true;
+        return await new Promise<Response>((resolve) => {
+          state.__releaseStatsPreview = () =>
+            resolve(
+              new Response(JSON.stringify(responseBody), {
+                headers: { 'Content-Type': 'application/json' },
+              })
+            );
+        });
+      }
+      return originalFetch(input, init);
+    };
+  }, delayedResponseBody);
+  await page.getByRole('button', { name: '統計プレビューを作成' }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const state = window as typeof window & {
+          __statsPreviewStarted?: boolean;
+        };
+        return state.__statsPreviewStarted === true;
+      })
+    )
+    .toBe(true);
+  await page
+    .getByRole('textbox', { name: '公開統計JSON' })
+    .fill(`${feedText}\n`);
+  await page.evaluate(() => {
+    const state = window as typeof window & {
+      __releaseStatsPreview?: () => void;
+    };
+    state.__releaseStatsPreview?.();
+  });
+  await expect(
+    page.locator(
+      '[aria-labelledby="tsudoi-preview-title"] [aria-live="polite"]'
+    )
+  ).toHaveCount(0);
+
+  const afterPreviewResponse = await page.request.get(`/api/posts/${post.id}`);
+  expect(afterPreviewResponse.status()).toBe(200);
+  const afterPostBytes = await afterPreviewResponse.body();
+  const afterPost = (await afterPreviewResponse.json()).post;
+  expect(afterPost).toEqual(beforePost);
+  expect(afterPost.title).toBe(beforePost.title);
+  expect(afterPost.current_status).toBe(beforePost.current_status);
+  expect(afterPost.is_verified).toBe(beforePost.is_verified);
+  expect(afterPost.attributes).toEqual(beforePost.attributes);
+  expect(afterPostBytes.equals(beforePostBytes)).toBe(true);
+});
 
 test('backup monitoring distinguishes a delayed archive, failed reload and empty storage', async ({
   page,

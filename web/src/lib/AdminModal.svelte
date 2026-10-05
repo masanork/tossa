@@ -30,6 +30,7 @@
     fetchSettings,
   } from './api';
   import BackupPanel from './BackupPanel.svelte';
+  import StatisticsPreviewPanel from './StatisticsPreviewPanel.svelte';
   import ModerationPanel from './ModerationPanel.svelte';
   import {
     parseCsv,
@@ -3387,6 +3388,9 @@
                     </div>
                   </div>
                 </div>
+                {#if user?.role === 'admin' && token}
+                  <StatisticsPreviewPanel {token} />
+                {/if}
               </div>
             {/if}
 
