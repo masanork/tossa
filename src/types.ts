@@ -20,7 +20,7 @@ export interface Bindings {
   EMAIL?: SendEmail;
 }
 
-export interface PushQueueMessage {
+export interface PushDeliveryMessage {
   subscription: {
     endpoint: string;
     p256dh: string;
@@ -29,7 +29,27 @@ export interface PushQueueMessage {
   payload: PushNotificationPayload;
 }
 
+export interface PushBroadcastOptions {
+  title: string;
+  body: string;
+  url?: string;
+  area?: string;
+  alertType?: 'emergency' | 'evacuation' | 'status' | 'messages';
+  excludeUserId?: string;
+}
+
+export type PushQueueMessage =
+  | PushDeliveryMessage
+  | {
+      type: 'broadcast_page';
+      options: PushBroadcastOptions;
+      payload: PushNotificationPayload;
+      afterId: string;
+      throughId: string;
+    };
+
 export type WriteQueueMessage =
+  | { type: 'refresh_public_feed'; force: boolean }
   | {
       type: 'create_post';
       post: {

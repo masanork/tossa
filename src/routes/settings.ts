@@ -13,7 +13,7 @@ import {
   buildCapacityReport,
   runCapacityMaintenance,
 } from '../services/capacity';
-import { refreshPublicFeedSnapshot } from '../services/feedSnapshot';
+import { requestPublicFeedRefresh } from '../services/feedSnapshot';
 import { getErrorAlertStatus } from '../services/alert';
 
 export const settingsRoute = new Hono<{ Bindings: Bindings }>();
@@ -277,18 +277,18 @@ settingsRoute.get('/capacity', async (c) => {
 settingsRoute.post('/capacity/refresh', async (c) => {
   const auth = await requireAdmin(c);
   if (!('userId' in auth)) return auth;
-  await refreshPublicFeedSnapshot(c.env, { force: true });
+  const { queued } = await requestPublicFeedRefresh(c.env, { force: true });
   const report = await buildCapacityReport(c.env);
-  return c.json({ success: true, report });
+  return c.json({ success: true, report, queued });
 });
 
 settingsRoute.post('/capacity/maintain', async (c) => {
   const auth = await requireAdmin(c);
   if (!('userId' in auth)) return auth;
   await runCapacityMaintenance(c.env);
-  await refreshPublicFeedSnapshot(c.env, { force: true });
+  const { queued } = await requestPublicFeedRefresh(c.env, { force: true });
   const report = await buildCapacityReport(c.env);
-  return c.json({ success: true, report });
+  return c.json({ success: true, report, queued });
 });
 
 // POST /api/settings/import-csv - Batch import posts from CSV (Admin & Moderator)

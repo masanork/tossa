@@ -266,7 +266,11 @@ describe('Web Push HTTP API Routes', () => {
     it('offloads notifications to PUSH_QUEUE when bound', async () => {
       const ctx = createTestContext();
       const sentBatches: any[] = [];
+      const jobs: any[] = [];
       const mockQueue: any = {
+        send: async (job: any) => {
+          jobs.push(job);
+        },
         sendBatch: async (messages: any[]) => {
           sentBatches.push(messages);
         },
@@ -297,7 +301,19 @@ describe('Web Push HTTP API Routes', () => {
       });
 
       expect(result.queued).toBe(true);
-      expect(result.sent).toBe(2);
+      expect(result.sent).toBe(0);
+      expect(jobs).toHaveLength(1);
+      expect(jobs[0].type).toBe('broadcast_page');
+      expect(sentBatches).toHaveLength(0);
+      const { processPushQueueBatch } = await import('../src/services/push');
+      const ack = vi.fn();
+      const retry = vi.fn();
+      await processPushQueueBatch(
+        { messages: [{ body: jobs[0], ack, retry }] } as any,
+        envWithQueue
+      );
+      expect(ack).toHaveBeenCalledOnce();
+      expect(retry).not.toHaveBeenCalled();
       expect(sentBatches.length).toBe(1);
       expect(sentBatches[0].length).toBe(2);
       expect(sentBatches[0][0].body.payload.title).toBe('避難指示発令');

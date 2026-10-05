@@ -296,11 +296,13 @@
   let isLoadingCapacity = $state(false);
   let isRefreshingCapacity = $state(false);
   let capacityError = $state<string | null>(null);
+  let capacityNotice = $state<string | null>(null);
 
   async function loadCapacity() {
     if (!token) return;
     isLoadingCapacity = true;
     capacityError = null;
+    capacityNotice = null;
     try {
       const res = await fetchCapacityApi(token);
       if (res.success && res.report) {
@@ -319,10 +321,14 @@
     if (!token) return;
     isRefreshingCapacity = true;
     capacityError = null;
+    capacityNotice = null;
     try {
       const res = await refreshCapacityApi(token);
       if (res.success && res.report) {
         capacityReport = res.report;
+        capacityNotice = res.queued
+          ? '更新を受け付けました。反映後に「規模」を開き直して鮮度を確認してください。'
+          : 'スナップショットを更新しました。';
       } else {
         capacityError = res.error || 'スナップショット更新に失敗しました';
       }
@@ -517,7 +523,9 @@
     if (res.success) {
       broadcastResult = {
         type: 'success',
-        text: `配信完了: 送信 ${res.result?.sent ?? 0} 件 (失敗: ${res.result?.failed ?? 0} 件)`,
+        text: res.result?.queued
+          ? '一斉通知を受け付けました。対象の確認と送信を順次行います。'
+          : `配信完了: 送信 ${res.result?.sent ?? 0} 件 (失敗: ${res.result?.failed ?? 0} 件)`,
       };
       broadcastTitle = '';
       broadcastBody = '';
@@ -3569,6 +3577,14 @@
               </div>
             {:else if activeTab === 'capacity'}
               <div class="flex flex-col gap-4">
+                {#if capacityNotice}
+                  <p
+                    role="status"
+                    class="text-xs text-slate-600 dark:text-slate-400"
+                  >
+                    {capacityNotice}
+                  </p>
+                {/if}
                 <div
                   class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-800/40"
                 >
@@ -3576,8 +3592,7 @@
                     class="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400"
                   >
                     D1 の件数と KV
-                    スナップショットの鮮度から、追加課金なしで今やるべきことを出します。Hyperdrive
-                    / PostgreSQL はまだ不要な段階では提案しません。
+                    スナップショットの鮮度を表示します。処理能力は集中アクセス時の遅延・エラー率・送信待ち時間を測定して判断します。
                   </p>
                   <button
                     type="button"

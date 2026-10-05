@@ -1376,9 +1376,12 @@ export async function fetchCapacityApi(
   }
 }
 
-export async function refreshCapacityApi(
-  token: string
-): Promise<{ success: boolean; report?: CapacityReport; error?: string }> {
+export async function refreshCapacityApi(token: string): Promise<{
+  success: boolean;
+  report?: CapacityReport;
+  error?: string;
+  queued?: boolean;
+}> {
   try {
     const res = await fetch(`${API_BASE}/settings/capacity/refresh`, {
       method: 'POST',

@@ -9,6 +9,7 @@ import type {
   PushNotificationPayload,
   PushSubscriptionRecord,
   PushQueueMessage,
+  PushBroadcastOptions,
 } from '../types';
 import { sendErrorAlert } from './alert';
 
@@ -270,20 +271,34 @@ export async function sendPushNotification(
  */
 export async function broadcastPushNotification(
   env: Bindings,
-  options: {
-    title: string;
-    body: string;
-    url?: string;
-    area?: string;
-    alertType?: 'emergency' | 'evacuation' | 'status' | 'messages';
-    excludeUserId?: string;
-  }
+  options: PushBroadcastOptions
 ): Promise<{
   sent: number;
   failed: number;
   cleaned: number;
   queued?: boolean;
 }> {
+  if (env.PUSH_QUEUE) {
+    const last = await env.DB.prepare(
+      'SELECT id FROM push_subscriptions ORDER BY id DESC LIMIT 1'
+    ).first<{ id: string }>();
+    if (!last) return { sent: 0, failed: 0, cleaned: 0, queued: true };
+    await env.PUSH_QUEUE.send({
+      type: 'broadcast_page',
+      options,
+      afterId: '',
+      throughId: last.id,
+      payload: {
+        title: options.title,
+        body: options.body,
+        url: options.url || '/',
+        // Replayed fanout pages and delivery attempts reuse the same tag.
+        tag: `tossa-${options.alertType || 'alert'}-${crypto.randomUUID()}`,
+        data: { url: options.url || '/', area: options.area },
+      },
+    });
+    return { sent: 0, failed: 0, cleaned: 0, queued: true };
+  }
   const vapid = await getOrCreateVapidKeys(env);
 
   // Query matching subscriptions
@@ -331,33 +346,6 @@ export async function broadcastPushNotification(
       area: options.area,
     },
   };
-
-  // If Cloudflare Queues is bound (production high-traffic mode), offload delivery
-  // to avoid HTTP request timeouts with 10k+ subscribers!
-  if (env.PUSH_QUEUE) {
-    const queueMessages: MessageSendRequest<PushQueueMessage>[] =
-      targetSubs.map((sub) => ({
-        body: {
-          subscription: {
-            endpoint: sub.endpoint,
-            p256dh: sub.p256dh,
-            auth: sub.auth,
-          },
-          payload,
-        },
-      }));
-
-    for (let i = 0; i < queueMessages.length; i += 100) {
-      await env.PUSH_QUEUE.sendBatch(queueMessages.slice(i, i + 100));
-    }
-
-    return {
-      sent: targetSubs.length,
-      failed: 0,
-      cleaned: 0,
-      queued: true,
-    };
-  }
 
   let sent = 0;
   let failed = 0;
@@ -411,6 +399,57 @@ export async function broadcastPushNotification(
   return { sent, failed, cleaned };
 }
 
+/** One queue job loads at most 100 matching subscriptions. A fixed upper ID
+ * bounds the traversal even while new subscriptions are being added. */
+async function processBroadcastPage(
+  env: Bindings,
+  job: Extract<PushQueueMessage, { type: 'broadcast_page' }>
+): Promise<void> {
+  if (!env.PUSH_QUEUE) throw new Error('Push queue is unavailable');
+  const conditions = ['id > ?', 'id <= ?'];
+  const params: string[] = [job.afterId, job.throughId];
+  if (job.options.excludeUserId) {
+    conditions.push('(user_id IS NULL OR user_id != ?)');
+    params.push(job.options.excludeUserId);
+  }
+  if (job.options.area) {
+    conditions.push("(area IS NULL OR area = '' OR area = ?)");
+    params.push(job.options.area);
+  }
+  if (job.options.alertType) {
+    conditions.push(`CASE WHEN json_valid(alert_types) THEN
+      CASE WHEN json_type(alert_types) = 'array' THEN
+        EXISTS (SELECT 1 FROM json_each(alert_types) WHERE value = ?)
+      ELSE 1 END ELSE 1 END`);
+    params.push(job.options.alertType);
+  }
+  const { results } = await env.DB.prepare(
+    `SELECT id, endpoint, p256dh, auth FROM push_subscriptions
+     WHERE ${conditions.join(' AND ')} ORDER BY id ASC LIMIT 100`
+  )
+    .bind(...params)
+    .all<Pick<PushSubscriptionRecord, 'id' | 'endpoint' | 'p256dh' | 'auth'>>();
+  const subs = results || [];
+  if (subs.length > 0)
+    await env.PUSH_QUEUE.sendBatch(
+      subs.map((sub) => ({
+        body: {
+          subscription: {
+            endpoint: sub.endpoint,
+            p256dh: sub.p256dh,
+            auth: sub.auth,
+          },
+          payload: job.payload,
+        },
+      }))
+    );
+  if (subs.length === 100)
+    await env.PUSH_QUEUE.send({ ...job, afterId: subs[99]!.id });
+  console.log(
+    JSON.stringify({ event: 'push_fanout_page', recipients: subs.length })
+  );
+}
+
 /**
  * Processes a batch of push notification messages from Cloudflare Queues.
  */
@@ -418,13 +457,21 @@ export async function processPushQueueBatch(
   batch: MessageBatch<PushQueueMessage>,
   env: Bindings
 ): Promise<void> {
-  const vapid = await getOrCreateVapidKeys(env);
+  const vapid = batch.messages.some((msg) => !('type' in msg.body))
+    ? await getOrCreateVapidKeys(env)
+    : null;
   const expiredEndpoints: string[] = [];
   let failedMessages = 0;
 
   await Promise.allSettled(
     batch.messages.map(async (msg) => {
       try {
+        if ('type' in msg.body) {
+          await processBroadcastPage(env, msg.body);
+          msg.ack();
+          return;
+        }
+        if (!vapid) throw new Error('Push delivery keys are unavailable');
         const res = await sendPushNotification(
           msg.body.subscription,
           msg.body.payload,

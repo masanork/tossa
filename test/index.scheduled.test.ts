@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import worker from '../src/index';
 import { runCapacityMaintenance } from '../src/services/capacity';
-import { refreshPublicFeedSnapshot } from '../src/services/feedSnapshot';
+import { requestPublicFeedRefresh } from '../src/services/feedSnapshot';
 import { performDatabaseBackup } from '../src/services/backup';
 import { sendErrorAlert } from '../src/services/alert';
 import type { Bindings } from '../src/types';
@@ -11,7 +11,7 @@ vi.mock('../src/services/capacity', () => ({
 }));
 
 vi.mock('../src/services/feedSnapshot', () => ({
-  refreshPublicFeedSnapshot: vi.fn(),
+  requestPublicFeedRefresh: vi.fn(),
 }));
 
 vi.mock('../src/services/backup', () => ({
@@ -49,7 +49,7 @@ describe('Worker Scheduled Handler', () => {
 
   it('runs maintenance on */10 * * * * successfully', async () => {
     vi.mocked(runCapacityMaintenance).mockResolvedValue();
-    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(requestPublicFeedRefresh).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({ success: true });
 
     await worker.scheduled!(
@@ -62,7 +62,7 @@ describe('Worker Scheduled Handler', () => {
     await Promise.all(waitUntilPromises);
 
     expect(runCapacityMaintenance).toHaveBeenCalledWith(env);
-    expect(refreshPublicFeedSnapshot).toHaveBeenCalledWith(env, {
+    expect(requestPublicFeedRefresh).toHaveBeenCalledWith(env, {
       force: true,
       strict: true,
     });
@@ -73,7 +73,7 @@ describe('Worker Scheduled Handler', () => {
   it('handles and logs on capacity maintenance failure during */10 * * * * cron', async () => {
     const error = new Error('Capacity error');
     vi.mocked(runCapacityMaintenance).mockRejectedValue(error);
-    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(requestPublicFeedRefresh).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({ success: true });
 
     await worker.scheduled!(
@@ -95,7 +95,7 @@ describe('Worker Scheduled Handler', () => {
   it('handles and alerts on snapshot failure', async () => {
     const error = new Error('Snapshot error');
     vi.mocked(runCapacityMaintenance).mockResolvedValue();
-    vi.mocked(refreshPublicFeedSnapshot).mockRejectedValue(error);
+    vi.mocked(requestPublicFeedRefresh).mockRejectedValue(error);
     vi.mocked(performDatabaseBackup).mockResolvedValue({ success: true });
 
     await worker.scheduled!(
@@ -107,7 +107,7 @@ describe('Worker Scheduled Handler', () => {
     // Wait for the IIFE to finish
     await Promise.all(waitUntilPromises);
 
-    expect(refreshPublicFeedSnapshot).toHaveBeenCalledWith(env, {
+    expect(requestPublicFeedRefresh).toHaveBeenCalledWith(env, {
       force: true,
       strict: true,
     });
@@ -119,7 +119,7 @@ describe('Worker Scheduled Handler', () => {
 
   it('handles and alerts on database backup failure (success = false)', async () => {
     vi.mocked(runCapacityMaintenance).mockResolvedValue();
-    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(requestPublicFeedRefresh).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({
       success: false,
       error: 'Backup failed',
@@ -146,7 +146,7 @@ describe('Worker Scheduled Handler', () => {
     env = {
       EMAIL: { send: vi.fn() },
     } as unknown as Bindings;
-    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(requestPublicFeedRefresh).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({
       success: false,
       error: 'Backup failed',
@@ -167,7 +167,7 @@ describe('Worker Scheduled Handler', () => {
   });
 
   it('records an overlapping manual backup as skipped without an operational failure alert', async () => {
-    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(requestPublicFeedRefresh).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockResolvedValue({
       success: false,
       busy: true,
@@ -197,7 +197,7 @@ describe('Worker Scheduled Handler', () => {
   it('handles and alerts on global scheduled block error', async () => {
     const error = new Error('Global backup error');
     vi.mocked(runCapacityMaintenance).mockResolvedValue();
-    vi.mocked(refreshPublicFeedSnapshot).mockResolvedValue();
+    vi.mocked(requestPublicFeedRefresh).mockResolvedValue();
     vi.mocked(performDatabaseBackup).mockRejectedValue(error);
 
     await worker.scheduled!(

@@ -66,6 +66,19 @@ jobs:
         timeout-minutes: 10
         run: npm run backup:drill
 
+      - name: Check Local Capacity Workloads
+        timeout-minutes: 3
+        run: npm run load:local -- --sizes=5000 --requests=30 --concurrency=4 --output=/tmp/tossa-local-load.json
+
+      - name: Preserve Local Capacity Measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-capacity-measurements
+          path: /tmp/tossa-local-load.json
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Install Playwright Chromium, WebKit & System Dependencies
         run: npx playwright install --with-deps chromium webkit
 

@@ -24,7 +24,7 @@ import { processPushQueueBatch } from './services/push';
 import { processWriteQueueBatch } from './services/writeBuffer';
 import { performDatabaseBackup } from './services/backup';
 import { runCapacityMaintenance } from './services/capacity';
-import { refreshPublicFeedSnapshot } from './services/feedSnapshot';
+import { requestPublicFeedRefresh } from './services/feedSnapshot';
 import { sendErrorAlert } from './services/alert';
 import { renderOgpSvg } from './ogp';
 import { getPostById } from './db/queries';
@@ -346,6 +346,17 @@ const worker = Object.assign(app, {
     env: Bindings,
     ctx: ExecutionContext
   ): Promise<void> {
+    if (event.cron === '* * * * *') {
+      ctx.waitUntil(
+        requestPublicFeedRefresh(env, { force: true, strict: true }).catch(
+          async (err) => {
+            console.error('[cron] feed refresh request failed:', err);
+            await sendErrorAlert(env, err, { source: 'feed_maintenance' });
+          }
+        )
+      );
+      return;
+    }
     // 10 minutes interval capacity maintenance
     if (event.cron === '*/10 * * * *') {
       ctx.waitUntil(
@@ -355,7 +366,7 @@ const worker = Object.assign(app, {
         })
       );
       ctx.waitUntil(
-        refreshPublicFeedSnapshot(env, { force: true, strict: true }).catch(
+        requestPublicFeedRefresh(env, { force: true, strict: true }).catch(
           async (err) => {
             console.error('[cron] feed maintenance failed:', err);
             await sendErrorAlert(env, err, { source: 'feed_maintenance' });
@@ -367,7 +378,7 @@ const worker = Object.assign(app, {
 
     ctx.waitUntil(
       (async () => {
-        await refreshPublicFeedSnapshot(env, {
+        await requestPublicFeedRefresh(env, {
           force: true,
           strict: true,
         }).catch(async (err) => {

@@ -8,6 +8,7 @@
         "src/types.ts",
         "src/routes/seo.ts",
         "scripts/backup-drill-worker.ts",
+        "scripts/load-local-worker.ts",
         "e2e/**/*.spec.ts",
         "test/**/*.test.ts",
         "test/fixtures/smoke-admin-fetch.mjs",

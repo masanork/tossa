@@ -1,7 +1,7 @@
 // src/services/capacity.ts: Operational snapshot + advice for the admin dashboard
 import type { Bindings } from '../types';
 import { getCapacityCounts, purgeOldAccessLogs } from '../db/queries';
-import { readPublicFeedSnapshot } from './feedSnapshot';
+import { FEED_MAX_AGE_MS, readPublicFeedSnapshot } from './feedSnapshot';
 
 export interface CapacityAdvice {
   level: 'ok' | 'watch' | 'act';
@@ -61,15 +61,15 @@ function buildAdvice(r: CapacityReport): CapacityAdvice[] {
     advice.push({
       level: 'act',
       title: '公開フィード用 KV が未接続',
-      body: 'FEED_KV を wrangler.toml に載せると、閲覧が D1 を踏まなくなります。Workers Paid の無料枠内です。',
+      body: '公開一覧の読み取りを減らすため FEED_KV を接続してください。検索・範囲指定・自分の投稿は D1 を使います。',
     });
   } else if (r.snapshotAgeSeconds === null) {
     advice.push({
       level: 'watch',
       title: 'KV スナップショットがまだ無い',
-      body: '投稿か状況更新が1件入ると自動で作られます。管理画面から「スナップショットを更新」もできます。',
+      body: '毎分の Cron と書き込み後に更新を要求します。Queue の滞留を確認し、管理画面から更新を要求できます。',
     });
-  } else if (r.snapshotAgeSeconds > 300) {
+  } else if (r.snapshotAgeSeconds > FEED_MAX_AGE_MS / 1000) {
     advice.push({
       level: 'act',
       title: `スナップショットが ${Math.round(r.snapshotAgeSeconds / 60)} 分古い`,
@@ -80,26 +80,26 @@ function buildAdvice(r: CapacityReport): CapacityAdvice[] {
   if (r.posts < 5000) {
     advice.push({
       level: 'ok',
-      title: `投稿 ${r.posts.toLocaleString()} 件 — 1自治体の生活情報板として余裕`,
-      body: 'イマココナビ規模（約4,000件）までは現行の D1 1本で足ります。',
+      title: `投稿 ${r.posts.toLocaleString()} 件 — 処理能力は別途測定`,
+      body: '件数だけでは同時アクセスの限界を判断できません。集中アクセス時の遅延・エラー率・Queue の滞留を確認してください。',
     });
   } else if (r.posts < 10000) {
     advice.push({
       level: 'watch',
-      title: `投稿 ${r.posts.toLocaleString()} 件 — タグ絞り込みが重くなり始める帯`,
-      body: '語彙フィルターが遅いと感じたら post_tags 交差テーブルを足してください。費用は増えません。',
+      title: `投稿 ${r.posts.toLocaleString()} 件 — 絞り込みの負荷を確認`,
+      body: 'タグ・文字検索・近傍検索を測定してください。行読みや遅延が増える場合は索引や検索用テーブルを検討します。',
     });
   } else if (r.posts < 20000) {
     advice.push({
-      level: 'act',
-      title: `投稿 ${r.posts.toLocaleString()} 件 — 単一 D1 の上限が見えてきた`,
-      body: '公開一覧は KV 任せのまま、書き込み D1 と読み取りを分けるか、自治体ごとに D1 を分割する段階です。',
+      level: 'watch',
+      title: `投稿 ${r.posts.toLocaleString()} 件 — 検索と保管の実測を確認`,
+      body: 'この件数は D1 の上限ではありません。検索・深いページ・バックアップの所要時間と容量を測定してください。',
     });
   } else {
     advice.push({
-      level: 'act',
-      title: `投稿 ${r.posts.toLocaleString()} 件 — バックエンド分割を検討`,
-      body: 'tossa.app は製品サイトに残し、実データは自治体ごとの D1、または Hyperdrive 経由の PostgreSQL へ。Hyperdrive は月額課金が発生します。',
+      level: 'watch',
+      title: `投稿 ${r.posts.toLocaleString()} 件 — バックアップ上限も確認`,
+      body: '全表合計200ページのバックアップ上限に近づく可能性があります。外部エクスポートを確保し、遅延・容量の測定結果から構成を判断してください。',
     });
   }
 
@@ -107,13 +107,13 @@ function buildAdvice(r: CapacityReport): CapacityAdvice[] {
     advice.push({
       level: 'act',
       title: `直近24時間の書き込みイベント ${r.writeEvents24h.toLocaleString()}`,
-      body: 'D1 が単スレッドで追いつかない兆候です。状況更新の間引きと、書き込み Queue の滞留を見てください。',
+      body: '24時間の総量だけでは過負荷を判断できません。ピーク時の遅延、D1 overload、Queue の滞留時間を確認してください。',
     });
   } else if (r.writeEvents24h > 5000) {
     advice.push({
       level: 'watch',
       title: `直近24時間の書き込みイベント ${r.writeEvents24h.toLocaleString()}`,
-      body: 'ピークとしては高いです。Queue lag と D1 overload が出ていないかダッシュボードを見てください。',
+      body: 'ピークの集中度は未測定です。Queue の滞留時間と D1 overload をダッシュボードで確認してください。',
     });
   }
 
@@ -128,8 +128,8 @@ function buildAdvice(r: CapacityReport): CapacityAdvice[] {
   if (advice.every((a) => a.level === 'ok') && r.kvBound) {
     advice.push({
       level: 'ok',
-      title: '追加の課金なしで、いまの構成を維持してよい',
-      body: 'KV・Queue・R2 は Workers Paid の枠内。PostgreSQL / Hyperdrive はまだ不要です。',
+      title: '現状の件数から移行の要否は判断しません',
+      body: '負荷試験と実際の使用量で判断します。Workers・D1・KV・Queue・R2 の利用枠と費用も確認してください。',
     });
   }
 

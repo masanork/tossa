@@ -64,9 +64,17 @@ export async function processWriteQueueBatch(
 ): Promise<void> {
   let wrote = false;
   let failedMessages = 0;
+  const feedMessages: Message<WriteQueueMessage>[] = [];
+  let forceFeed = false;
   for (const message of batch.messages) {
     try {
       const msg = message.body;
+
+      if (msg.type === 'refresh_public_feed') {
+        feedMessages.push(message);
+        forceFeed ||= msg.force;
+        continue;
+      }
 
       if (msg.type === 'create_post') {
         let imageMetaObj: Record<string, unknown> | undefined;
@@ -175,10 +183,30 @@ export async function processWriteQueueBatch(
     }
   }
 
-  if (wrote) {
-    await refreshPublicFeedSnapshot(env).catch((err) =>
-      console.error('[writeBuffer] feed snapshot refresh failed:', err)
-    );
+  if (wrote || feedMessages.length > 0) {
+    try {
+      await refreshPublicFeedSnapshot(env, {
+        force: forceFeed,
+        strict: true,
+      });
+      if (wrote && !forceFeed && env.WRITE_QUEUE)
+        await env.WRITE_QUEUE.send(
+          { type: 'refresh_public_feed', force: true },
+          { delaySeconds: 3 }
+        );
+      for (const message of feedMessages) message.ack();
+    } catch (err) {
+      console.error('[writeBuffer] feed snapshot refresh failed:', err);
+      for (const message of feedMessages) message.retry({ delaySeconds: 5 });
+      // Mutation messages are already committed and acknowledged. Preserve a
+      // separate refresh job when their derived snapshot cannot be published.
+      if (wrote && feedMessages.length === 0 && env.WRITE_QUEUE)
+        await env.WRITE_QUEUE.send(
+          { type: 'refresh_public_feed', force: true },
+          { delaySeconds: 5 }
+        );
+      failedMessages++;
+    }
   }
   if (failedMessages > 0) {
     await sendErrorAlert(

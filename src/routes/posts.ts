@@ -25,6 +25,7 @@ import {
   readPublicFeedSnapshot,
   scheduleFeedRefresh,
   executionCtxOf,
+  FEED_MAX_AGE_MS,
 } from '../services/feedSnapshot';
 import { renderOgpSvg } from '../ogp';
 
@@ -218,7 +219,8 @@ postsRoute.get('/', async (c) => {
     if (
       snapshot &&
       Number.isFinite(Date.parse(snapshot.generatedAt)) &&
-      Date.now() - Date.parse(snapshot.generatedAt) <= 60_000
+      Date.now() - Date.parse(snapshot.generatedAt) >= 0 &&
+      Date.now() - Date.parse(snapshot.generatedAt) <= FEED_MAX_AGE_MS
     ) {
       const capped = Math.min(Math.max(limit || 50, 1), 100);
       const payload = {
@@ -251,7 +253,10 @@ postsRoute.get('/', async (c) => {
         /* ignore */
       }
       const age = Date.now() - Date.parse(snapshot.generatedAt);
-      if (Number.isNaN(age) || age > 60_000) {
+      if (
+        age > 60_000 &&
+        (!c.env.WRITE_QUEUE || c.env.DISABLE_WRITE_BUFFER === 'true')
+      ) {
         scheduleFeedRefresh(c.env, c as any);
       }
       return response;
@@ -275,7 +280,12 @@ postsRoute.get('/', async (c) => {
 
   // Public lists omit is_owner so Cookie headers do not fragment the edge cache.
   // The client already treats localStorage ownership (isMyPost) as equivalent.
-  if (unfilteredPublic) {
+  // Production refreshes on writes and the minute cron. A cold read must not
+  // enqueue one refresh per viewer and crowd out actual mutations.
+  if (
+    unfilteredPublic &&
+    (!c.env.WRITE_QUEUE || c.env.DISABLE_WRITE_BUFFER === 'true')
+  ) {
     scheduleFeedRefresh(c.env, c as any);
   }
 
@@ -294,6 +304,7 @@ postsRoute.get('/', async (c) => {
 
   if (skipEdgeCache) {
     c.header('Cache-Control', isPrivateList ? 'private, no-store' : 'no-store');
+    c.header('X-Feed-Source', 'd1');
     return c.json({
       success: true,
       posts,
@@ -315,6 +326,7 @@ postsRoute.get('/', async (c) => {
       'Content-Type': 'application/json',
       'Cache-Control':
         'public, max-age=15, s-maxage=15, stale-while-revalidate=60',
+      'X-Feed-Source': 'd1',
     },
   });
 
@@ -549,7 +561,7 @@ postsRoute.post('/', async (c) => {
     }
   }
 
-  scheduleFeedRefresh(c.env, c as any);
+  if (!enqueued) scheduleFeedRefresh(c.env, c as any);
 
   return c.json(
     {
@@ -824,7 +836,7 @@ postsRoute.post('/:id/status', async (c) => {
     }
   }
 
-  scheduleFeedRefresh(c.env, c as any);
+  if (!enqueued) scheduleFeedRefresh(c.env, c as any);
 
   return c.json({
     success: true,

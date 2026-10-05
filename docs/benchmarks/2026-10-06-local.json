@@ -1,0 +1,381 @@
+{
+  "measuredAt": "2026-10-05T23:49:11.386Z",
+  "environment": "local workerd and SQLite; synthetic data; read-only HTTP load; no write/push workload",
+  "limitation": "These timings are not Cloudflare D1 latency, a production concurrency limit, or a mixed read/write capacity test.",
+  "node": "v26.10.0",
+  "wrangler": "4.147.0",
+  "datasets": [
+    {
+      "posts": 5000,
+      "measurements": [
+        {
+          "name": "warm_public",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "kv": 120
+          },
+          "durationMs": 116,
+          "throughputPerSecond": 1030.51,
+          "p50Ms": 10.92,
+          "p95Ms": 16.28,
+          "maxMs": 17.88
+        },
+        {
+          "name": "cold_d1",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 217,
+          "throughputPerSecond": 553.76,
+          "p50Ms": 18.89,
+          "p95Ms": 37.06,
+          "maxMs": 37.93
+        },
+        {
+          "name": "text_search",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 250,
+          "throughputPerSecond": 480.64,
+          "p50Ms": 24.75,
+          "p95Ms": 26.96,
+          "maxMs": 27.53
+        },
+        {
+          "name": "tag_filter",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 253,
+          "throughputPerSecond": 474.17,
+          "p50Ms": 25.62,
+          "p95Ms": 32.1,
+          "maxMs": 33.66
+        },
+        {
+          "name": "bbox",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 260,
+          "throughputPerSecond": 461.53,
+          "p50Ms": 25.61,
+          "p95Ms": 28.76,
+          "maxMs": 30.61
+        },
+        {
+          "name": "nearest",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 296,
+          "throughputPerSecond": 405.31,
+          "p50Ms": 29.47,
+          "p95Ms": 31.99,
+          "maxMs": 32.19
+        },
+        {
+          "name": "deep_page",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 448,
+          "throughputPerSecond": 268.14,
+          "p50Ms": 44.53,
+          "p95Ms": 49.69,
+          "maxMs": 50.77
+        }
+      ]
+    },
+    {
+      "posts": 20000,
+      "measurements": [
+        {
+          "name": "warm_public",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "kv": 120
+          },
+          "durationMs": 181,
+          "throughputPerSecond": 663.96,
+          "p50Ms": 16.56,
+          "p95Ms": 35.36,
+          "maxMs": 40.38
+        },
+        {
+          "name": "cold_d1",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 212,
+          "throughputPerSecond": 567.01,
+          "p50Ms": 20.67,
+          "p95Ms": 27.91,
+          "maxMs": 29.6
+        },
+        {
+          "name": "text_search",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 491,
+          "throughputPerSecond": 244.34,
+          "p50Ms": 48.89,
+          "p95Ms": 54.26,
+          "maxMs": 55.54
+        },
+        {
+          "name": "tag_filter",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 501,
+          "throughputPerSecond": 239.35,
+          "p50Ms": 49.66,
+          "p95Ms": 52.9,
+          "maxMs": 60
+        },
+        {
+          "name": "bbox",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 531,
+          "throughputPerSecond": 226.14,
+          "p50Ms": 53.42,
+          "p95Ms": 54.53,
+          "maxMs": 100.21
+        },
+        {
+          "name": "nearest",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 661,
+          "throughputPerSecond": 181.6,
+          "p50Ms": 65.59,
+          "p95Ms": 68.58,
+          "maxMs": 69.06
+        },
+        {
+          "name": "deep_page",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 1387,
+          "throughputPerSecond": 86.52,
+          "p50Ms": 137.64,
+          "p95Ms": 145.07,
+          "maxMs": 148.73
+        }
+      ]
+    },
+    {
+      "posts": 50000,
+      "measurements": [
+        {
+          "name": "warm_public",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "kv": 120
+          },
+          "durationMs": 158,
+          "throughputPerSecond": 759.36,
+          "p50Ms": 13.99,
+          "p95Ms": 26.27,
+          "maxMs": 26.9
+        },
+        {
+          "name": "cold_d1",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 205,
+          "throughputPerSecond": 584.77,
+          "p50Ms": 19.74,
+          "p95Ms": 27.3,
+          "maxMs": 37.43
+        },
+        {
+          "name": "text_search",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 955,
+          "throughputPerSecond": 125.66,
+          "p50Ms": 95.19,
+          "p95Ms": 97.49,
+          "maxMs": 181.9
+        },
+        {
+          "name": "tag_filter",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 987,
+          "throughputPerSecond": 121.53,
+          "p50Ms": 98.82,
+          "p95Ms": 101.04,
+          "maxMs": 101.98
+        },
+        {
+          "name": "bbox",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 1072,
+          "throughputPerSecond": 111.9,
+          "p50Ms": 106.93,
+          "p95Ms": 111.54,
+          "maxMs": 118.26
+        },
+        {
+          "name": "nearest",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 1393,
+          "throughputPerSecond": 86.14,
+          "p50Ms": 139.24,
+          "p95Ms": 143.55,
+          "maxMs": 256.15
+        },
+        {
+          "name": "deep_page",
+          "requests": 120,
+          "concurrency": 12,
+          "errors": 0,
+          "statuses": {
+            "200": 120
+          },
+          "sources": {
+            "d1": 120
+          },
+          "durationMs": 3160,
+          "throughputPerSecond": 37.98,
+          "p50Ms": 315.39,
+          "p95Ms": 320.93,
+          "maxMs": 604.55
+        }
+      ]
+    }
+  ]
+}

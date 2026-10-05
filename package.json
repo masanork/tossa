@@ -30,7 +30,8 @@
     "backup:restore": "node scripts/restore-backup.mjs",
     "backup:drill": "node scripts/backup-drill.mjs",
     "smoke:production": "node scripts/smoke-production.mjs",
-    "smoke:admin": "node scripts/smoke-admin.mjs"
+    "smoke:admin": "node scripts/smoke-admin.mjs",
+    "load:local": "node scripts/load-local.mjs"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",

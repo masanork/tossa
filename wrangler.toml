@@ -30,13 +30,13 @@ binding = "DB"
 database_name = "tossa-db"
 database_id = "5c2c9eea-b0f2-428c-843f-fbd5e2ecf0d0"
 
-# Public feed snapshot (Workers Paid KV allotment — no extra product)
+# Public feed snapshot (usage and cost depend on the account's KV allotment)
 [[kv_namespaces]]
 binding = "FEED_KV"
 id = "f22ffac4a48c4c2eb9bc117711e724dd"
 
 # Future: Postgres via Hyperdrive when a single D1 is no longer enough.
-# Uncomment and fill in after `wrangler hyperdrive create ...` (this *does* add cost).
+# Uncomment after workload measurements justify it and usage/cost are reviewed.
 # [[hyperdrive]]
 # binding = "HYPERDRIVE"
 # id = ""
@@ -83,12 +83,17 @@ queue = "tossa-write-queue"
 queue = "tossa-write-queue"
 max_batch_size = 50
 max_batch_timeout = 5
+max_concurrency = 1
 max_retries = 5
 dead_letter_queue = "tossa-write-deadletter"
 
 # Cron Triggers (Automated Daily D1 Database Backup & R2 Archival)
 [triggers]
-crons = ["*/10 * * * *", "0 3 * * *"] # Maintenance + daily backup at 12:00 JST
+crons = ["* * * * *", "*/10 * * * *", "0 3 * * *"] # Feed + maintenance + daily backup
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1
 
 # Transactional email (onboard tossa.app in Email Sending first)
 [[send_email]]
