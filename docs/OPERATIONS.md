@@ -180,7 +180,7 @@ IndexedDBへの初回移行ではService Workerが同じサイトの全画面へ
 OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
 ```
 
-このdry-runはメールを送らない。手動workflowまたはCLI出力の時刻、ヘルス、4Queue、通知設定状態を記録する。観測APIの値は近似なのでCloudflareの画面とD1で保存された操作を照合する。GitHub scheduleは遅延・欠落しうる。現在は単発異常を検出し、毎回通知対象となるため、継続性判定・通知の重複抑制・復旧通知は次の改善候補。
+このdry-runはメールを送らない。手動workflowまたはCLI出力の時刻、ヘルス、4Queue、通知設定状態を記録する。観測APIの値は近似なのでCloudflareの画面とD1で保存された操作を照合する。GitHub scheduleは遅延・欠落しうる。公開リポジトリでは60日間の活動停止でscheduleが無効になるため、運営時に有効状態を確認する（[GitHubのschedule仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)）。現在は単発異常を検出し、毎回通知対象となるため、継続性判定・通知の重複抑制・復旧通知は次の改善候補。
 
 ## 200ページ上限を超えるSQL退避
 
