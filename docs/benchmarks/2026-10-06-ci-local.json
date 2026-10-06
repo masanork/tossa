@@ -1,0 +1,133 @@
+{
+  "measuredAt": "2026-10-05T23:52:43.629Z",
+  "environment": "local workerd and SQLite; synthetic data; read-only HTTP load; no write/push workload",
+  "limitation": "These timings are not Cloudflare D1 latency, a production concurrency limit, or a mixed read/write capacity test.",
+  "node": "v22.23.3",
+  "wrangler": "4.147.0",
+  "datasets": [
+    {
+      "posts": 5000,
+      "measurements": [
+        {
+          "name": "warm_public",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "kv": 30
+          },
+          "durationMs": 162,
+          "throughputPerSecond": 185.02,
+          "p50Ms": 20.35,
+          "p95Ms": 39.09,
+          "maxMs": 39.72
+        },
+        {
+          "name": "cold_d1",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "d1": 30
+          },
+          "durationMs": 215,
+          "throughputPerSecond": 139.8,
+          "p50Ms": 27.65,
+          "p95Ms": 34.06,
+          "maxMs": 34.46
+        },
+        {
+          "name": "text_search",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "d1": 30
+          },
+          "durationMs": 248,
+          "throughputPerSecond": 121,
+          "p50Ms": 31.08,
+          "p95Ms": 35.31,
+          "maxMs": 36.4
+        },
+        {
+          "name": "tag_filter",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "d1": 30
+          },
+          "durationMs": 249,
+          "throughputPerSecond": 120.56,
+          "p50Ms": 32.53,
+          "p95Ms": 35.45,
+          "maxMs": 39.83
+        },
+        {
+          "name": "bbox",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "d1": 30
+          },
+          "durationMs": 240,
+          "throughputPerSecond": 125.13,
+          "p50Ms": 31.32,
+          "p95Ms": 35.21,
+          "maxMs": 37.45
+        },
+        {
+          "name": "nearest",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "d1": 30
+          },
+          "durationMs": 250,
+          "throughputPerSecond": 119.78,
+          "p50Ms": 32.79,
+          "p95Ms": 35.84,
+          "maxMs": 36.71
+        },
+        {
+          "name": "deep_page",
+          "requests": 30,
+          "concurrency": 4,
+          "errors": 0,
+          "statuses": {
+            "200": 30
+          },
+          "sources": {
+            "d1": 30
+          },
+          "durationMs": 341,
+          "throughputPerSecond": 88.1,
+          "p50Ms": 44.29,
+          "p95Ms": 49.61,
+          "maxMs": 51.57
+        }
+      ]
+    }
+  ]
+}
