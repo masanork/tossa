@@ -1,19 +1,19 @@
 # tossa codebase snapshot
 
-Commit `24d61c9` · 2026-10-05
+Commit `7ca55d4` · 2026-10-06
 
 | Area           | Files |      Lines |   Tests |
 | -------------- | ----: | ---------: | ------: |
-| Worker `src/`  |    31 |     14,490 |       0 |
-| UI `web/src/`  |    59 |     26,942 |       0 |
-| Unit `test/`   |    59 |     10,134 |     356 |
-| E2E `e2e/`     |     4 |      1,972 |      26 |
-| **Impl total** |    90 | **41,432** |         |
-| **Test total** |    63 | **12,106** | **382** |
+| Worker `src/`  |    31 |     14,658 |       0 |
+| UI `web/src/`  |    59 |     26,956 |       0 |
+| Unit `test/`   |    63 |     10,945 |     380 |
+| E2E `e2e/`     |     4 |      2,046 |      27 |
+| **Impl total** |    90 | **41,614** |         |
+| **Test total** |    67 | **12,991** | **407** |
 
-- Test / (impl + test) line ratio: **23%**
+- Test / (impl + test) line ratio: **24%**
 - npm packages (lockfile): **418**
-- Unit coverage (`src/`): **79% lines / 67% branches / 82% funcs**
+- Unit coverage (`src/`): **79% lines / 68% branches / 82% funcs**
 
 ## Large files (≥ 500 lines)
 
@@ -23,12 +23,12 @@ Commit `24d61c9` · 2026-10-05
 - `src/db/queries.ts` — 1,944 lines
 - `web/src/App.svelte` — 1,795 lines
 - `web/src/lib/CreatePostModal.svelte` — 1,716 lines
-- `web/src/lib/api.ts` — 1,542 lines
+- `web/src/lib/api.ts` — 1,556 lines
 - `web/src/lib/c2paVerifier.ts` — 1,276 lines
 - `web/src/lib/PostCard.svelte` — 1,266 lines
 - `src/routes/mcp.ts` — 1,106 lines
 - `web/src/lib/MessagesModal.svelte` — 1,035 lines
-- `src/routes/posts.ts` — 1,000 lines
+- `src/routes/posts.ts` — 1,031 lines
 - `web/src/lib/offlineQueue.ts` — 806 lines
 - `src/routes/seo.ts` — 734 lines
 - `web/src/lib/HelpModal.svelte` — 734 lines

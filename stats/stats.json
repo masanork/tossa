@@ -1,40 +1,40 @@
 {
-  "generatedAt": "2026-10-05T23:56:08.299Z",
+  "generatedAt": "2026-10-06T22:33:42.836Z",
   "git": {
-    "commit": "24d61c9"
+    "commit": "7ca55d4"
   },
   "src": {
     "name": "src (Worker)",
     "path": "src",
     "files": 31,
-    "lines": 14490,
+    "lines": 14658,
     "testFns": 0
   },
   "web": {
     "name": "web/src (UI)",
     "path": "web/src",
     "files": 59,
-    "lines": 26942,
+    "lines": 26956,
     "testFns": 0
   },
   "tests": {
     "name": "test (unit)",
     "path": "test",
-    "files": 59,
-    "lines": 10134,
-    "testFns": 356
+    "files": 63,
+    "lines": 10945,
+    "testFns": 380
   },
   "e2e": {
     "name": "e2e",
     "path": "e2e",
     "files": 4,
-    "lines": 1972,
-    "testFns": 26
+    "lines": 2046,
+    "testFns": 27
   },
   "health": {
-    "implLines": 41432,
-    "testLines": 12106,
-    "testRatio": 0.22611976540027645,
+    "implLines": 41614,
+    "testLines": 12991,
+    "testRatio": 0.23790861642706712,
     "depCount": 418,
     "largeFiles": [
       {
@@ -63,7 +63,7 @@
       },
       {
         "path": "web/src/lib/api.ts",
-        "lines": 1542
+        "lines": 1556
       },
       {
         "path": "web/src/lib/c2paVerifier.ts",
@@ -83,7 +83,7 @@
       },
       {
         "path": "src/routes/posts.ts",
-        "lines": 1000
+        "lines": 1031
       },
       {
         "path": "web/src/lib/offlineQueue.ts",
@@ -130,9 +130,9 @@
   "coverage": {
     "available": true,
     "linePct": 79,
-    "branchPct": 67,
+    "branchPct": 68,
     "funcPct": 82,
-    "lines": 3261,
-    "coveredLines": 2563
+    "lines": 3300,
+    "coveredLines": 2608
   }
 }
