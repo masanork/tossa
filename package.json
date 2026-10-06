@@ -31,7 +31,10 @@
     "backup:drill": "node scripts/backup-drill.mjs",
     "smoke:production": "node scripts/smoke-production.mjs",
     "smoke:admin": "node scripts/smoke-admin.mjs",
-    "load:local": "node scripts/load-local.mjs"
+    "load:local": "node scripts/load-local.mjs",
+    "load:cloudflare": "node scripts/load-cloudflare.mjs",
+    "monitor:operations": "node scripts/monitor-operations.mjs",
+    "backup:export": "node scripts/d1-export-archive.mjs"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^2.0.0",

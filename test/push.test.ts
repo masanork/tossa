@@ -246,6 +246,64 @@ describe('Web Push HTTP API Routes', () => {
       });
       expect(res.status).toBe(400);
     });
+
+    it('rate-rejects push mutations before device-session, subscription, or send work', async () => {
+      const ctx = createTestContext();
+      const otherLimiter = vi.fn(async () => ({ success: false }));
+      const ipLimiter = vi.fn(async () => ({ success: true }));
+      const queueSend = vi.fn(async () => undefined);
+      ctx.env.OTHER_WRITE_LIMITER = { limit: otherLimiter } as any;
+      ctx.env.WRITE_IP_LIMITER = { limit: ipLimiter } as any;
+      ctx.env.PUSH_QUEUE = { send: queueSend } as any;
+      ctx.env.WRITE_QUEUE = { send: queueSend } as any;
+
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('{}', { status: 200 }));
+      try {
+        const subscribe = await ctx.request('/api/push/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Cookie: `${DEVICE_COOKIE}=limited-push-device-123`,
+          },
+          body: JSON.stringify({
+            subscription: {
+              endpoint:
+                'https://updates.push.services.mozilla.com/wpush/v2/limited',
+              keys: { p256dh: 'p256dh', auth: 'auth' },
+            },
+          }),
+        });
+        expect(subscribe.status).toBe(429);
+
+        const testPush = await ctx.request('/api/push/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/test',
+            p256dh: 'p256dh',
+            auth: 'auth',
+          }),
+        });
+        expect(testPush.status).toBe(429);
+        expect(fetchSpy).not.toHaveBeenCalled();
+      } finally {
+        fetchSpy.mockRestore();
+      }
+
+      expect(otherLimiter).toHaveBeenCalledTimes(2);
+      expect(ipLimiter).not.toHaveBeenCalled();
+      expect(queueSend).not.toHaveBeenCalled();
+      const sessions = await ctx.db
+        .prepare('SELECT id FROM device_sessions')
+        .all();
+      const subscriptions = await ctx.db
+        .prepare('SELECT endpoint FROM push_subscriptions')
+        .all();
+      expect(sessions.results).toHaveLength(0);
+      expect(subscriptions.results).toHaveLength(0);
+    });
   });
 
   describe('POST /api/push/broadcast permission checks', () => {

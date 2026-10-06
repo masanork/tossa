@@ -9,7 +9,19 @@ interface RateLimitConfig {
   message?: string;
   skip?: (req: Request) => boolean;
   keyGenerator?: (c: any) => string;
+  binding?: RateLimitBindingName;
+  ipBinding?: 'WRITE_IP_LIMITER';
 }
+
+type RateLimitBindingName =
+  | 'POST_CREATE_LIMITER'
+  | 'POST_UPDATE_LIMITER'
+  | 'THREAD_CREATE_LIMITER'
+  | 'THREAD_UPDATE_LIMITER'
+  | 'AUTH_LIMITER'
+  | 'FEDERATION_LIMITER'
+  | 'MCP_LIMITER'
+  | 'OTHER_WRITE_LIMITER';
 
 interface WindowRecord {
   count: number;
@@ -24,6 +36,17 @@ interface WindowRecord {
 export function rateLimiter(config: RateLimitConfig) {
   const clientWindows = new Map<string, WindowRecord>();
   let lastCleanup = Date.now();
+
+  function allowInMemory(key: string, now: number): boolean {
+    let record = clientWindows.get(key);
+    if (!record || now > record.resetAt) {
+      record = { count: 1, resetAt: now + config.windowMs };
+      clientWindows.set(key, record);
+    } else {
+      record.count += 1;
+    }
+    return record.count <= config.maxRequests;
+  }
 
   function cleanup() {
     const now = Date.now();
@@ -52,27 +75,66 @@ export function rateLimiter(config: RateLimitConfig) {
         ? `dev_${deviceId}`
         : `ip_${ip}`;
 
-    let record = clientWindows.get(clientKey);
+    const windowSec = Math.ceil(config.windowMs / 1000);
+    c.header('X-RateLimit-Limit', String(config.maxRequests));
 
-    if (!record || now > record.resetAt) {
-      record = {
-        count: 1,
-        resetAt: now + config.windowMs,
-      };
-      clientWindows.set(clientKey, record);
+    const limiter = config.binding ? c.env[config.binding] : undefined;
+    let allowed: boolean;
+    if (limiter) {
+      try {
+        const outcome = await limiter.limit({ key: `tossa:${clientKey}` });
+        allowed = outcome.success;
+      } catch (error) {
+        console.error(
+          '[rateLimit] configured rate limiter unavailable:',
+          error
+        );
+        c.header('Cache-Control', 'no-store');
+        c.header('Retry-After', '30');
+        return c.json(
+          {
+            success: false,
+            retryable: true,
+            error:
+              '受付制御を確認できません。30秒ほど待ってから再試行してください。',
+          },
+          503
+        );
+      }
     } else {
-      record.count += 1;
+      allowed = allowInMemory(clientKey, now);
     }
 
-    const remaining = Math.max(0, config.maxRequests - record.count);
-    const resetSec = Math.ceil((record.resetAt - now) / 1000);
+    if (allowed && config.ipBinding) {
+      const ip = getClientIp(c.req.raw);
+      const ipLimiter = c.env[config.ipBinding];
+      // Cloudflare supplies this trusted header in production. Do not aggregate
+      // local/dev requests with a missing address into one shared "unknown" key.
+      if (ipLimiter && ip !== 'unknown') {
+        try {
+          allowed = (await ipLimiter.limit({ key: `tossa:ip:${ip}` })).success;
+        } catch (error) {
+          console.error(
+            '[rateLimit] configured IP limiter unavailable:',
+            error
+          );
+          c.header('Cache-Control', 'no-store');
+          c.header('Retry-After', '30');
+          return c.json(
+            {
+              success: false,
+              retryable: true,
+              error:
+                '受付制御を確認できません。30秒ほど待ってから再試行してください。',
+            },
+            503
+          );
+        }
+      }
+    }
 
-    c.header('X-RateLimit-Limit', String(config.maxRequests));
-    c.header('X-RateLimit-Remaining', String(remaining));
-    c.header('X-RateLimit-Reset', String(resetSec));
-
-    if (record.count > config.maxRequests) {
-      c.header('Retry-After', String(resetSec));
+    if (!allowed) {
+      c.header('Retry-After', String(windowSec));
       return c.json(
         {
           success: false,

@@ -18,7 +18,10 @@ import { seoRoute } from './routes/seo';
 import { imagesRoute } from './routes/images';
 import { opendataRoute } from './routes/opendata';
 import { disastersRoute } from './routes/disasters';
-import { deviceCookieMiddleware } from './middleware/deviceCookie';
+import {
+  deviceCookieMiddleware,
+  persistDeviceSessionMiddleware,
+} from './middleware/deviceCookie';
 import { rateLimiter } from './middleware/rateLimit';
 import { processPushQueueBatch } from './services/push';
 import { processWriteQueueBatch } from './services/writeBuffer';
@@ -178,7 +181,7 @@ app.use(
   })
 );
 
-// 4. Automatic device cookie issuance (applied to all /api/* routes, before rate limiting)
+// 4. Identify the device without touching D1; rate limiting runs first.
 app.use('/api/*', deviceCookieMiddleware);
 
 // 5. Rate Limiting Protection (per-device or per-IP to avoid shelter NAT blocking)
@@ -186,6 +189,8 @@ app.use('/api/*', deviceCookieMiddleware);
 app.use(
   '/api/posts',
   rateLimiter({
+    binding: 'POST_CREATE_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 30,
     skip: (req) => req.method === 'GET',
@@ -196,6 +201,8 @@ app.use(
 app.use(
   '/api/posts/*',
   rateLimiter({
+    binding: 'POST_UPDATE_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 45,
     skip: (req) => req.method === 'GET',
@@ -207,6 +214,8 @@ app.use(
 app.use(
   '/api/threads',
   rateLimiter({
+    binding: 'THREAD_CREATE_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 30,
     skip: (req) => req.method === 'GET',
@@ -217,6 +226,8 @@ app.use(
 app.use(
   '/api/threads/*',
   rateLimiter({
+    binding: 'THREAD_UPDATE_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 45,
     skip: (req) => req.method === 'GET',
@@ -228,25 +239,30 @@ app.use(
 app.use(
   '/api/auth/*',
   rateLimiter({
+    binding: 'AUTH_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 20,
     skip: (req) => req.method === 'GET',
     message: '認証試行回数が多すぎます。1分ほど待ってから再試行してください。',
   })
 );
-// Federation import rate limit
-app.use(
-  '/api/federation/import',
-  rateLimiter({
-    windowMs: 60_000,
-    maxRequests: 10,
-    message: '外部データ同期の頻度が高すぎます。',
-  })
-);
+// Federation import aliases share the same limit and local fallback counter.
+const federationLimiter = rateLimiter({
+  binding: 'FEDERATION_LIMITER',
+  ipBinding: 'WRITE_IP_LIMITER',
+  windowMs: 60_000,
+  maxRequests: 10,
+  message: '外部データ同期の頻度が高すぎます。',
+});
+app.use('/api/federation/import', federationLimiter);
+app.use('/api/import', federationLimiter);
 // MCP Agent Rate Limiting (up to 120 calls per minute per client)
 app.use(
   '/mcp',
   rateLimiter({
+    binding: 'MCP_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 120,
     message: 'MCP API rate limit exceeded (120 requests/minute).',
@@ -255,11 +271,45 @@ app.use(
 app.use(
   '/api/mcp',
   rateLimiter({
+    binding: 'MCP_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
     windowMs: 60_000,
     maxRequests: 120,
     message: 'MCP API rate limit exceeded (120 requests/minute).',
   })
 );
+
+function hasDedicatedRateLimit(pathname: string): boolean {
+  const isUnder = (prefix: string) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`);
+  return (
+    isUnder('/api/posts') ||
+    isUnder('/api/threads') ||
+    pathname.startsWith('/api/auth/') ||
+    pathname === '/api/mcp' ||
+    pathname === '/api/federation/import' ||
+    pathname === '/api/import'
+  );
+}
+
+// Bound all other API mutations (including push subscription/test endpoints)
+// without counting requests already covered by the more specific policies.
+app.use(
+  '/api/*',
+  rateLimiter({
+    binding: 'OTHER_WRITE_LIMITER',
+    ipBinding: 'WRITE_IP_LIMITER',
+    windowMs: 60_000,
+    maxRequests: 60,
+    skip: (req) =>
+      ['GET', 'HEAD', 'OPTIONS'].includes(req.method) ||
+      hasDedicatedRateLimit(new URL(req.url).pathname),
+    message: '操作の頻度が高すぎます。しばらく待ってから再試行してください。',
+  })
+);
+
+// Persist only requests that passed the rate limits.
+app.use('/api/*', persistDeviceSessionMiddleware);
 
 // API Routes
 app.route('/api/categories', categoriesRoute);
@@ -324,7 +374,8 @@ const worker = Object.assign(app, {
       if (
         (batch as any).queue === 'tossa-write-queue' ||
         firstMsg?.type === 'create_post' ||
-        firstMsg?.type === 'update_status'
+        firstMsg?.type === 'update_status' ||
+        firstMsg?.type === 'refresh_public_feed'
       ) {
         await processWriteQueueBatch(batch, env);
       } else {

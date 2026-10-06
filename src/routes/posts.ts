@@ -522,7 +522,7 @@ postsRoute.post('/', async (c) => {
     : undefined;
 
   // Try async write buffer via Cloudflare Queues
-  const enqueued = await enqueuePostCreation(c.env, {
+  const enqueueResult = await enqueuePostCreation(c.env, {
     type: 'create_post',
     post: {
       ...postData,
@@ -536,6 +536,21 @@ postsRoute.post('/', async (c) => {
     accessLog,
     pushBroadcast,
   });
+
+  if (enqueueResult === 'unavailable') {
+    c.header('Cache-Control', 'no-store');
+    c.header('Retry-After', '30');
+    return c.json(
+      {
+        success: false,
+        retryable: true,
+        error:
+          '現在、投稿を安全に受け付けられません。入力内容を端末に保存し、30秒ほど待ってから再送してください。',
+      },
+      503
+    );
+  }
+  const enqueued = enqueueResult === 'queued';
 
   if (!enqueued) {
     // Synchronous write fallback (local/dev/testing)
@@ -796,18 +811,34 @@ postsRoute.post('/:id/status', async (c) => {
         }
       : undefined;
 
-  const enqueued =
-    body.expectedUpdatedAt === undefined &&
-    (await enqueueStatusUpdate(c.env, {
-      type: 'update_status',
-      postId,
-      status,
-      statusLabel,
-      note,
-      ipHash,
-      pushBroadcast,
-      ...options,
-    }));
+  const enqueueResult =
+    body.expectedUpdatedAt === undefined
+      ? await enqueueStatusUpdate(c.env, {
+          type: 'update_status',
+          postId,
+          status,
+          statusLabel,
+          note,
+          ipHash,
+          pushBroadcast,
+          ...options,
+        })
+      : 'sync';
+
+  if (enqueueResult === 'unavailable') {
+    c.header('Cache-Control', 'no-store');
+    c.header('Retry-After', '30');
+    return c.json(
+      {
+        success: false,
+        retryable: true,
+        error:
+          '現在、更新を安全に受け付けられません。入力内容を端末に保存し、30秒ほど待ってから再送してください。',
+      },
+      503
+    );
+  }
+  const enqueued = enqueueResult === 'queued';
 
   if (!enqueued) {
     const result = await updatePostStatus(

@@ -99,3 +99,54 @@ head_sampling_rate = 0.1
 [[send_email]]
 name = "EMAIL"
 allowed_sender_addresses = ["noreply@tossa.app"]
+
+# Best-effort counters shared within each Cloudflare location, not global quotas.
+
+[[ratelimits]]
+name = "POST_CREATE_LIMITER"
+namespace_id = "714901001"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "POST_UPDATE_LIMITER"
+namespace_id = "714901002"
+simple = { limit = 45, period = 60 }
+
+[[ratelimits]]
+name = "THREAD_CREATE_LIMITER"
+namespace_id = "714901003"
+simple = { limit = 30, period = 60 }
+
+[[ratelimits]]
+name = "THREAD_UPDATE_LIMITER"
+namespace_id = "714901004"
+simple = { limit = 45, period = 60 }
+
+[[ratelimits]]
+name = "AUTH_LIMITER"
+namespace_id = "714901005"
+simple = { limit = 20, period = 60 }
+
+[[ratelimits]]
+name = "FEDERATION_LIMITER"
+namespace_id = "714901006"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "MCP_LIMITER"
+namespace_id = "714901007"
+simple = { limit = 120, period = 60 }
+
+[[ratelimits]]
+name = "WRITE_IP_LIMITER"
+namespace_id = "714901008"
+simple = { limit = 6000, period = 60 }
+
+[[ratelimits]]
+name = "OTHER_WRITE_LIMITER"
+namespace_id = "714901009"
+simple = { limit = 60, period = 60 }
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.01

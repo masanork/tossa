@@ -120,6 +120,27 @@ describe('bounded push fanout', () => {
 });
 
 describe('serialized public feed publication', () => {
+  it('dispatches a feed-only batch from an isolated write queue to the feed publisher', async () => {
+    const { env } = createTestContext();
+    const message = {
+      body: { type: 'refresh_public_feed', force: true },
+      ack: vi.fn(),
+      retry: vi.fn(),
+    };
+    const put = vi.spyOn(env.FEED_KV!, 'put');
+    await worker.queue(
+      { queue: 'tossa-load-test-write', messages: [message] } as any,
+      env
+    );
+    expect(message.ack).toHaveBeenCalledOnce();
+    expect(message.retry).not.toHaveBeenCalled();
+    expect(put).toHaveBeenCalledWith(
+      FEED_SNAPSHOT_KEY,
+      expect.any(String),
+      expect.objectContaining({ expirationTtl: 86400 })
+    );
+  });
+
   it('enqueues refreshes without publishing and propagates enqueue failures without racing a direct KV writer', async () => {
     const { env } = createTestContext();
     const send = vi.fn().mockResolvedValue(undefined);

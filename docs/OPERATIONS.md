@@ -1,6 +1,6 @@
 # 運用・移行・復元手順
 
-2026-10-05。本書は実行手順であり、本番作業の完了記録ではない。実行者、日時、対象環境、結果を作業記録に残す。
+2026-10-07。本書は実行手順であり、本番作業の完了記録ではない。実行者、日時、対象環境、結果を作業記録に残す。
 
 ## 今回の本番移行
 
@@ -54,7 +54,7 @@ npm run deploy
 
 一斉Pushは対象確認を100件ずつQueueで行い、別の配信ジョブへ渡す。受付は端末への到着証明ではない。ページ再配送・配信再試行では送信が重複しうる。APIの送信件数0と`queued: true`は受付状態を表す。[負荷測定と次の手順](capacity.md)を参照。
 
-Workersログは10%サンプリング。全処理の証跡として使わず、指標・管理画面・保存記録と照合する。書込Queueは直列のため最古の待ち時間とDLQを特に確認する。継続的な滞留・DLQの外部自動通知は今後追加する。
+Workersログは10%サンプリング。全処理の証跡として使わず、指標・管理画面・保存記録と照合する。書込Queueは直列のため最古の待ち時間とDLQを特に確認する。外部ヘルス・滞留・DLQ検査は追加した。外部メール通知の権限と宛先設定、実着信確認は残る。
 
 ## Queue障害
 
@@ -167,3 +167,35 @@ PWAの画面キャッシュはビルド内容ごとに版を生成する。新�
 Mobile Safari相当の通信断テストは、[Playwright WebKitのオフライン切替の既知不具合](https://github.com/microsoft/playwright/issues/42775)を避け、テスト専用の中継サーバーで接続を切る。実際にネットワーク取得が失敗する状態でService Workerのキャッシュと再送を検証する。Safariの生体認証は物理端末で別途確認する。
 
 IndexedDBへの初回移行ではService Workerが同じサイトの全画面へ保存方式の対応を照会する。旧版や応答できない画面があれば移行・変更・再送を止め、全画面を閉じるよう案内する。移行確定前にはlocalStorage原本を除かない。移行後に旧原本が変更された場合も自動再取り込みはせず、書き出しと明示復旧を経る。サイトデータの消去で更新しない。
+
+## 外部のヘルス・Queue監視
+
+[operations.yml](../.github/workflows/operations.yml)は5分間隔と手動実行に対応し、Worker経由ではなくCloudflare Queue REST指標を読み取る。両通常Queueの最古待ち時間が300秒以上、DLQが1件以上、ヘルスの非200・非JSON・内容不一致・タイムアウト、Queue観測失敗を異常とする。未知の最古時刻を正常な0秒へ置き換えない。Queue APIが失敗してもヘルスを検査する。read/pull/ack/purgeでメッセージを変更しない。
+
+通常のCloudflare account/token Secretsは既存CIと共通。メール送信にはproduction環境へ `CLOUDFLARE_EMAIL_API_TOKEN`（対象accountのEmail Sending送信権限）と `OPERATIONAL_ALERT_RECIPIENTS`（現在管理者に設定され、検証済みのメールアドレス。複数はカンマ区切り）を設定する。送信元は既存の `noreply@tossa.app`。宛先はBCCで送信し、アドレス・token・API応答本文を標準出力へ出さない。管理者の追加・降格・削除・メール変更時には、この外部監視用の宛先Secretも更新する。外部監視の宛先はWorker内のDB照会による自動選択とは別で、DB障害時にも使える運営設定である。
+
+2026-10-07の読み取り確認はヘルス200、4Queueの滞留0。メール用Secretは未設定で、出力は `notificationsConfigured:false` / `notification:unconfigured`。正常時の監視は成功し、異常検出時に通知できなければ失敗する。既存のWorker内の管理者メール通知を置き換えない。外部の実メール通知は未稼働として記録する。
+
+```sh
+OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
+```
+
+このdry-runはメールを送らない。手動workflowまたはCLI出力の時刻、ヘルス、4Queue、通知設定状態を記録する。観測APIの値は近似なのでCloudflareの画面とD1で保存された操作を照合する。GitHub scheduleは遅延・欠落しうる。現在は単発異常を検出し、毎回通知対象となるため、継続性判定・通知の重複抑制・復旧通知は次の改善候補。
+
+## 200ページ上限を超えるSQL退避
+
+`npm run backup:export -- --local-drill --rows=30000` は一時ディレクトリのlocal D1だけで3万投稿をexportし、別のlocal D1へ復元する。30,000投稿とユーザー・端末各1、計30,002件、全17表の件数、実FK参照、外部キー・quick_checkを検査した。SQLは17,728,583バイト。投稿表だけで128行/ページなら235ページとなり、日次JSONの200ページ上限を超える行数を扱った。これはlocal SQL経路の検証で、本番の処理時間・R2保存成功の証明ではない。
+
+remote modeは対象account・DB名・UUID・非公開bucketと、その全値の完全一致確認文字列を必須にする。実行例の各値を管理者が現在の資源と照合する。
+
+```sh
+npm run backup:export -- --remote-export \
+  --account-id=<account-id> --database-name=tossa-db --database-id=<uuid> \
+  --private-bucket=tossa-backups \
+  --confirm-target=<account-id>/tossa-db/<uuid>/tossa-backups \
+  --archive-dir=<非公開ディレクトリ>
+```
+
+この経路は最大100MiBの17表SQLを0700ディレクトリ・0600ファイルへ出力し、FK親先行の順序で別のlocal D1へ復元、件数・外部キー・quick_checkを検査する。R2公開URL無効とカスタムドメインなしを確認し、新しい保存キーへupload後、読み戻しSHA-256を照合する。既存世代は置き換えない。R2保存に失敗した場合も復元検証済みのlocal SQLは残し、R2保存状態をmanifestで区別する。出力やログにはtoken、署名URL、データ本文を含めない。
+
+SQLはv2 JSON形式ではないため `backup:restore` のJSON変換へ渡さない。実際のremote exportとR2保管は未実施。日次JSONの200ページ上限は維持する。並行した書き込み中のクロステーブル一貫性はこのツールでは保証せず、運営上の書込停止・取得時点と変更の扱いを決めてから本番の退避/復元を検証する。100MiBを超える場合のストリーム保管と定期化も残る。

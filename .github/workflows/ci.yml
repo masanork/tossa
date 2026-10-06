@@ -66,6 +66,10 @@ jobs:
         timeout-minutes: 10
         run: npm run backup:drill
 
+      - name: Verify Large SQL Export and Isolated Recovery
+        timeout-minutes: 10
+        run: npm run backup:export -- --local-drill --rows=30000
+
       - name: Check Local Capacity Workloads
         timeout-minutes: 3
         run: npm run load:local -- --sizes=5000 --requests=30 --concurrency=4 --output=/tmp/tossa-local-load.json

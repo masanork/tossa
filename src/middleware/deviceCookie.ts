@@ -81,8 +81,7 @@ export async function ensureDeviceSession(
 /**
  * Device Cookie Middleware
  * - Issues new cookie if none exists (zero-DB-write on read traffic)
- * - State-mutating requests (POST/PUT/DELETE) ensure DB session existence to satisfy foreign keys
- * - Makes deviceSessionId available to all handlers via c.get('deviceSessionId')
+ * - Makes deviceSessionId available to rate limiters and handlers
  */
 export const deviceCookieMiddleware = createMiddleware<{
   Bindings: Bindings;
@@ -110,16 +109,28 @@ export const deviceCookieMiddleware = createMiddleware<{
     });
   }
 
+  c.set('deviceSessionId', deviceId);
+  await next();
+});
+
+/**
+ * Persist the device session only after request rate limits have passed.
+ * Mount after the rate-limit middleware and before API routes so rejected
+ * requests never create D1 writes.
+ */
+export const persistDeviceSessionMiddleware = createMiddleware<{
+  Bindings: Bindings;
+  Variables: { deviceSessionId: string };
+}>(async (c, next) => {
   // Zero-DB-write optimization for read traffic (GET/HEAD/OPTIONS).
   // Under disaster traffic spikes, millions of view requests must NEVER write to D1.
   // We only persist device sessions on state-mutating write requests.
   const isStateMutating = !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method);
-  if (isStateMutating) {
+  const deviceId = c.get('deviceSessionId');
+  if (isStateMutating && deviceId) {
     const ip = getClientIp(c.req.raw);
     const ua = c.req.header('User-Agent') || '';
     await ensureDeviceSession(c.env.DB, deviceId, ip, ua);
   }
-
-  c.set('deviceSessionId', deviceId);
   await next();
 });

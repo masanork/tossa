@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "environment": "isolated local Wrangler D1 / Miniflare SQLite only",
+  "productionDataAccessed": false,
+  "includedTables": [
+    "categories",
+    "disasters",
+    "posts",
+    "status_updates",
+    "post_verifications",
+    "users",
+    "credentials",
+    "system_settings",
+    "threads",
+    "thread_members",
+    "messages",
+    "device_sessions",
+    "access_logs",
+    "device_user_links",
+    "push_subscriptions",
+    "mutation_receipts",
+    "post_reports"
+  ],
+  "excludedRuntimeTables": [
+    "tossa_backup_control",
+    "tossa_alert_control",
+    "tossa_backup_snapshot_*"
+  ],
+  "fixtureRows": 30000,
+  "linkedForeignKeyFixture": {
+    "users": 1,
+    "deviceSessions": 1,
+    "postsWithAuthor": 1
+  },
+  "pagesAt128Rows": 235,
+  "exceedsFormer200PageCeiling": true,
+  "exportSizeBytes": 17728583,
+  "tableCounts": {
+    "categories": 0,
+    "disasters": 0,
+    "posts": 30000,
+    "status_updates": 0,
+    "post_verifications": 0,
+    "users": 1,
+    "credentials": 0,
+    "system_settings": 0,
+    "threads": 0,
+    "thread_members": 0,
+    "messages": 0,
+    "device_sessions": 1,
+    "access_logs": 0,
+    "device_user_links": 0,
+    "push_subscriptions": 0,
+    "mutation_receipts": 0,
+    "post_reports": 0
+  },
+  "totalRecords": 30002,
+  "foreignKeyCheck": "ok",
+  "quickCheck": "ok",
+  "sha256": "206ab89e9c9c0bbf65d964cb8da6cecaa3c15d9ac79d28199dc8dd569d836d3f"
+}

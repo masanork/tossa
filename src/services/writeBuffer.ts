@@ -6,51 +6,55 @@ import { broadcastPushNotification } from './push';
 import { refreshPublicFeedSnapshot } from './feedSnapshot';
 import { sendErrorAlert } from './alert';
 
+export type WriteQueueEnqueueResult = 'queued' | 'sync' | 'unavailable';
+
 /**
  * Attempts to enqueue a post creation task to Cloudflare Queues for smoothing high-traffic write spikes.
- * Returns true if enqueued into WRITE_QUEUE, false if WRITE_QUEUE is not available (caller should fall back to sync write).
+ * A configured queue rejection must not fall back to synchronous D1 writes:
+ * doing so removes the smoothing protection exactly when the queue is unhealthy.
  */
 export async function enqueuePostCreation(
   env: Bindings,
   message: Extract<WriteQueueMessage, { type: 'create_post' }>
-): Promise<boolean> {
+): Promise<WriteQueueEnqueueResult> {
   if (!env.WRITE_QUEUE || env.DISABLE_WRITE_BUFFER === 'true') {
-    return false;
+    return 'sync';
   }
 
   try {
     await env.WRITE_QUEUE.send(message);
-    return true;
+    return 'queued';
   } catch (err) {
     console.warn(
-      '[writeBuffer] Failed to enqueue create_post, falling back to sync write:',
+      '[writeBuffer] Failed to enqueue create_post; refusing synchronous D1 fallback:',
       err
     );
-    return false;
+    return 'unavailable';
   }
 }
 
 /**
  * Attempts to enqueue a status update task to Cloudflare Queues.
- * Returns true if enqueued into WRITE_QUEUE, false if WRITE_QUEUE is not available.
+ * Returns `unavailable` on a configured queue failure so callers can preserve
+ * the request for retry without sending an unbuffered D1 write.
  */
 export async function enqueueStatusUpdate(
   env: Bindings,
   message: Extract<WriteQueueMessage, { type: 'update_status' }>
-): Promise<boolean> {
+): Promise<WriteQueueEnqueueResult> {
   if (!env.WRITE_QUEUE || env.DISABLE_WRITE_BUFFER === 'true') {
-    return false;
+    return 'sync';
   }
 
   try {
     await env.WRITE_QUEUE.send(message);
-    return true;
+    return 'queued';
   } catch (err) {
     console.warn(
-      '[writeBuffer] Failed to enqueue update_status, falling back to sync write:',
+      '[writeBuffer] Failed to enqueue update_status; refusing synchronous D1 fallback:',
       err
     );
-    return false;
+    return 'unavailable';
   }
 }
 

@@ -212,6 +212,80 @@ test('offline cold reload can open uncached dialogs and keeps a post until recon
   expect(posts).toHaveLength(1);
 });
 
+test('Queue rejection keeps a post in the outbox with its request ID until recovery', async ({
+  page,
+  network,
+}) => {
+  await waitForOfflineShell(page, network.origin);
+  await page.evaluate(() => {
+    const original = window.fetch.bind(window);
+    (window as any).__queueUnavailable = true;
+    (window as any).__postAttempts = [];
+    window.fetch = async (input, init) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (
+        new URL(url, location.href).pathname === '/api/posts' &&
+        init?.method === 'POST'
+      ) {
+        (window as any).__postAttempts.push(JSON.parse(String(init.body)));
+        if ((window as any).__queueUnavailable)
+          return new Response(
+            JSON.stringify({
+              success: false,
+              retryable: true,
+              error: 'Queue unavailable',
+            }),
+            {
+              status: 503,
+              headers: {
+                'Content-Type': 'application/json',
+                'Retry-After': '30',
+              },
+            }
+          );
+      }
+      return original(input, init);
+    };
+  });
+  const title = `Queue recovery ${crypto.randomUUID()}`;
+  await page.locator('header button:has-text("＋")').click();
+  await page.fill('#post-title', title);
+  await page.locator('form button[type="submit"]').click();
+  await expect
+    .poll(() => readOutbox(page).then((items) => items.length))
+    .toBe(1);
+  const [saved] = await readOutbox(page);
+  expect(saved.data.title).toBe(title);
+  const requestId = saved.data.requestId;
+  expect(requestId).toBeTruthy();
+  await page.evaluate(() => {
+    (window as any).__queueUnavailable = false;
+    window.dispatchEvent(new Event('online'));
+  });
+  await expect
+    .poll(() => readOutbox(page).then((items) => items.length), {
+      timeout: 15000,
+    })
+    .toBe(0);
+  const attempts = await page.evaluate(() => (window as any).__postAttempts);
+  expect(attempts.length).toBeGreaterThanOrEqual(2);
+  expect(attempts.every((item: any) => item.requestId === requestId)).toBe(
+    true
+  );
+  const posts = await page.evaluate(
+    async (title) =>
+      (await (await fetch('/api/posts?q=' + encodeURIComponent(title))).json())
+        .posts,
+    title
+  );
+  expect(posts).toHaveLength(1);
+});
+
 test('storage exhaustion leaves the draft open with an explicit error', async ({
   page,
   network,

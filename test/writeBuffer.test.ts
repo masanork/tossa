@@ -47,6 +47,61 @@ describe('Write Buffer & High-Traffic Smoothing Queue', () => {
     expect(queued.post.area).toBe('熊本市中央区');
   });
 
+  it('returns retryable 503 and never falls back to D1 when the configured write queue rejects a post', async () => {
+    const { request, db, env } = createTestContext();
+    let queueUnavailable = true;
+    const sentMessages: any[] = [];
+    const send = vi.fn(async (message: any) => {
+      sentMessages.push(message);
+      if (queueUnavailable) throw new Error('queue unavailable');
+    });
+    env.WRITE_QUEUE = { send } as any;
+    const body = {
+      requestId: 'stable-request-123',
+      title: '受付再試行の訓練投稿',
+      area: '熊本市中央区',
+      currentStatus: 'available',
+      statusLabel: '受付中',
+    };
+    const init = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: 'tossa_device=stabledeviceid1234567890',
+      },
+      body: JSON.stringify(body),
+    };
+
+    const res = await request('/api/posts', init);
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Retry-After')).toBe('30');
+    expect(((await res.json()) as any).retryable).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(sentMessages).toHaveLength(1);
+    const posts = await db
+      .prepare('SELECT id FROM posts WHERE title = ?')
+      .bind(body.title)
+      .all();
+    expect(posts.results).toHaveLength(0);
+
+    // The same operation ID remains safe to retry and is queued once the
+    // queue accepts it, still without a synchronous D1 post write.
+    queueUnavailable = false;
+    const retry = await request('/api/posts', init);
+    expect(retry.status).toBe(201);
+    expect(((await retry.json()) as any).buffered).toBe(true);
+    expect(sentMessages).toHaveLength(2);
+    expect(sentMessages[1].post.id).toBe(sentMessages[0].post.id);
+    expect(sentMessages[1].post.operation).toEqual(
+      sentMessages[0].post.operation
+    );
+    const retryPosts = await db
+      .prepare('SELECT id FROM posts WHERE title = ?')
+      .bind(body.title)
+      .all();
+    expect(retryPosts.results).toHaveLength(0);
+  });
+
   it('falls back to synchronous D1 write when DISABLE_WRITE_BUFFER is true even if WRITE_QUEUE is bound', async () => {
     const { request, db, env } = createTestContext();
     const mockQueue = createMockQueue();
@@ -147,6 +202,48 @@ describe('Write Buffer & High-Traffic Smoothing Queue', () => {
     expect(queued.postId).toBe('post_target');
     expect(queued.status).toBe('closed');
     expect(queued.note).toBe('本日の配給は完了しました');
+  });
+
+  it('keeps status unchanged and returns retryable 503 when the configured queue rejects an update', async () => {
+    const { request, db, env } = createTestContext();
+    env.WRITE_QUEUE = {
+      send: vi.fn(async () => {
+        throw new Error('queue unavailable');
+      }),
+    } as any;
+    await db
+      .prepare(
+        'INSERT INTO posts (id, title, area, current_status, status_label) VALUES (?, ?, ?, ?, ?)'
+      )
+      .bind(
+        'post_queue_failure',
+        'queue故障確認',
+        '熊本市',
+        'available',
+        '受付中'
+      )
+      .run();
+
+    const res = await request('/api/posts/post_queue_failure/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: 'status-retry-123',
+        status: 'closed',
+        statusLabel: '受付終了',
+      }),
+    });
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Retry-After')).toBe('30');
+    expect(((await res.json()) as any).retryable).toBe(true);
+    const post = await db
+      .prepare('SELECT current_status, status_label FROM posts WHERE id = ?')
+      .bind('post_queue_failure')
+      .first<any>();
+    expect(post).toMatchObject({
+      current_status: 'available',
+      status_label: '受付中',
+    });
   });
 
   it('drains create_post batch safely to D1 and acks messages', async () => {

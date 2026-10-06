@@ -1,0 +1,53 @@
+name: Isolated Cloud Capacity Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      posts:
+        description: Synthetic fixture posts (100 to 50000)
+        default: '5000'
+        required: true
+      requests:
+        description: Requests per concurrency level (20 to 1000)
+        default: '120'
+        required: true
+      concurrency:
+        description: Up to four concurrency levels (1 to 50)
+        default: '4,12,24'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-cloud-capacity
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Measure isolated synthetic mixed workload and clean up resources
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          LOAD_POSTS: ${{ inputs.posts }}
+          LOAD_REQUESTS: ${{ inputs.requests }}
+          LOAD_CONCURRENCY: ${{ inputs.concurrency }}
+        run: node scripts/load-cloudflare.mjs --posts="$LOAD_POSTS" --requests="$LOAD_REQUESTS" --concurrency="$LOAD_CONCURRENCY" --output=/tmp/tossa-cloud-capacity.json
+      - name: Preserve measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-cloud-capacity
+          path: /tmp/tossa-cloud-capacity.json
+          if-no-files-found: ignore
+          retention-days: 14

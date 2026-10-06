@@ -18,6 +18,15 @@ export interface Bindings {
   ALERT_WEBHOOK_URL?: string;
   DISABLE_WRITE_BUFFER?: string;
   EMAIL?: SendEmail;
+  POST_CREATE_LIMITER?: RateLimit;
+  POST_UPDATE_LIMITER?: RateLimit;
+  THREAD_CREATE_LIMITER?: RateLimit;
+  THREAD_UPDATE_LIMITER?: RateLimit;
+  AUTH_LIMITER?: RateLimit;
+  FEDERATION_LIMITER?: RateLimit;
+  MCP_LIMITER?: RateLimit;
+  WRITE_IP_LIMITER?: RateLimit;
+  OTHER_WRITE_LIMITER?: RateLimit;
 }
 
 export interface PushDeliveryMessage {

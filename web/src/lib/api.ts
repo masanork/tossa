@@ -260,7 +260,14 @@ export async function createPost(
     headers,
     body: JSON.stringify(postData),
   });
-  return await res.json();
+  const result = await res.json();
+  if (res.status === 503)
+    throw new Error(
+      typeof result?.error === 'string'
+        ? result.error
+        : '投稿を受け付けられません。入力を端末に保存して再試行してください。'
+    );
+  return result;
 }
 
 export async function updatePost(
@@ -330,7 +337,14 @@ export async function updatePostStatus(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, statusLabel, note, ...options }),
   });
-  return await res.json();
+  const result = await res.json();
+  if (res.status === 503)
+    throw new Error(
+      typeof result?.error === 'string'
+        ? result.error
+        : '更新を受け付けられません。入力を端末に保存して再試行してください。'
+    );
+  return result;
 }
 
 export async function confirmOfficialPost(
