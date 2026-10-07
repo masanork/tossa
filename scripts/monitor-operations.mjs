@@ -1,3 +1,7 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
+import { chmod, lstat, mkdir, open, rename, rm } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
@@ -8,6 +12,9 @@ const QUEUE_NAMES = [
   'tossa-push-deadletter',
 ];
 const QUEUE_LAG_THRESHOLD_SECONDS = 300;
+const INCIDENT_REPEAT_INTERVAL_MS = 30 * 60 * 1000;
+const STATE_MAX_BYTES = 16 * 1024;
+const STATE_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 function safeError(message) {
   return new Error(message);
@@ -185,15 +192,173 @@ function metricSummary(queue, nowMs) {
 }
 
 function evaluateQueue(summary) {
+  const findings = [];
   if (summary.name.endsWith('-deadletter') && summary.backlogCount > 0)
-    return `${summary.name} contains ${summary.backlogCount} dead-letter message(s)`;
+    findings.push({
+      code: `queue:${summary.name}:deadletter`,
+      message: `${summary.name} contains ${summary.backlogCount} dead-letter message(s)`,
+    });
   if (
     summary.backlogCount > 0 &&
     summary.oldestMessageAgeSeconds !== null &&
     summary.oldestMessageAgeSeconds >= QUEUE_LAG_THRESHOLD_SECONDS
   )
-    return `${summary.name} oldest message is ${summary.oldestMessageAgeSeconds}s old`;
-  return null;
+    findings.push({
+      code: `queue:${summary.name}:lag`,
+      message: `${summary.name} oldest message is ${summary.oldestMessageAgeSeconds}s old`,
+    });
+  return findings;
+}
+
+function incidentFingerprint(codes) {
+  const normalized = [...new Set(codes)].sort();
+  if (normalized.length === 0) return null;
+  return createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
+}
+
+function validateMonitorState(value, nowMs) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.keys(value).sort().join(',') !== 'active,version' ||
+    value.version !== 1
+  )
+    throw safeError('Monitor state is invalid');
+  if (value.active === null) return { version: 1, active: null };
+  const active = value.active;
+  if (
+    !active ||
+    typeof active !== 'object' ||
+    Array.isArray(active) ||
+    Object.keys(active).sort().join(',') !== 'acceptedAt,fingerprint' ||
+    typeof active.fingerprint !== 'string' ||
+    !/^[a-f0-9]{64}$/u.test(active.fingerprint) ||
+    typeof active.acceptedAt !== 'string'
+  )
+    throw safeError('Monitor state is invalid');
+  const acceptedAt = Date.parse(active.acceptedAt);
+  if (
+    !Number.isFinite(acceptedAt) ||
+    new Date(acceptedAt).toISOString() !== active.acceptedAt ||
+    acceptedAt > nowMs + STATE_CLOCK_SKEW_MS
+  )
+    throw safeError('Monitor state is invalid');
+  return {
+    version: 1,
+    active: { fingerprint: active.fingerprint, acceptedAt: active.acceptedAt },
+  };
+}
+
+async function readMonitorState(rawPath, nowMs) {
+  if (!rawPath?.trim())
+    return {
+      configured: false,
+      exists: false,
+      state: { version: 1, active: null },
+    };
+  if (!isAbsolute(rawPath)) throw safeError('Monitor state is invalid');
+  const path = resolve(rawPath);
+  const parent = dirname(path);
+  try {
+    const directory = await lstat(parent);
+    if (
+      !directory.isDirectory() ||
+      directory.isSymbolicLink() ||
+      (directory.mode & 0o077) !== 0
+    )
+      throw safeError('Monitor state is invalid');
+  } catch (error) {
+    if (error?.code === 'ENOENT')
+      return {
+        configured: true,
+        exists: false,
+        path,
+        state: { version: 1, active: null },
+      };
+    throw safeError('Monitor state is invalid');
+  }
+
+  let metadata;
+  try {
+    metadata = await lstat(path);
+  } catch (error) {
+    if (error?.code === 'ENOENT')
+      return {
+        configured: true,
+        exists: false,
+        path,
+        state: { version: 1, active: null },
+      };
+    throw safeError('Monitor state is invalid');
+  }
+  if (
+    !metadata.isFile() ||
+    metadata.isSymbolicLink() ||
+    (metadata.mode & 0o077) !== 0 ||
+    metadata.size > STATE_MAX_BYTES
+  )
+    throw safeError('Monitor state is invalid');
+
+  let handle;
+  try {
+    const noFollow = fsConstants.O_NOFOLLOW || 0;
+    handle = await open(path, fsConstants.O_RDONLY | noFollow);
+    const opened = await handle.stat();
+    if (
+      !opened.isFile() ||
+      opened.size > STATE_MAX_BYTES ||
+      (opened.mode & 0o077) !== 0
+    )
+      throw safeError('Monitor state is invalid');
+    const raw = await handle.readFile('utf8');
+    return {
+      configured: true,
+      exists: true,
+      path,
+      state: validateMonitorState(JSON.parse(raw), nowMs),
+    };
+  } catch {
+    throw safeError('Monitor state is invalid');
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+async function ensurePrivateDirectory(path) {
+  await mkdir(path, { recursive: true, mode: 0o700 });
+  const info = await lstat(path);
+  if (!info.isDirectory() || info.isSymbolicLink() || (info.mode & 0o077) !== 0)
+    throw safeError('Monitor state is invalid');
+}
+
+async function writeMonitorState(stateInfo, state) {
+  if (!stateInfo.configured || !stateInfo.path) return false;
+  const path = stateInfo.path;
+  const directory = dirname(path);
+  await ensurePrivateDirectory(directory);
+  try {
+    const existing = await lstat(path);
+    if (!existing.isFile() || existing.isSymbolicLink())
+      throw safeError('Monitor state is invalid');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw safeError('Monitor state is invalid');
+  }
+  const temporary = join(directory, `.${basename(path)}.${randomUUID()}.tmp`);
+  let handle;
+  try {
+    handle = await open(temporary, 'wx', 0o600);
+    await handle.writeFile(`${JSON.stringify(state)}\n`, 'utf8');
+    await handle.sync();
+    await handle.close();
+    handle = undefined;
+    await chmod(temporary, 0o600);
+    await rename(temporary, path);
+    return true;
+  } finally {
+    await handle?.close().catch(() => {});
+    await rm(temporary, { force: true }).catch(() => {});
+  }
 }
 
 async function checkHealth(fetchImpl, origin) {
@@ -245,17 +410,22 @@ async function checkHealth(fetchImpl, origin) {
   };
 }
 
-async function sendAlert(fetchImpl, config, report) {
+async function sendAlert(fetchImpl, config, report, kind = 'incident') {
   if (config.dryRun) return 'dry-run';
+  const isRecovery = kind === 'recovery';
   const body = {
     // Keep the admin recipient list private, matching the Worker's BCC alerts.
     bcc: config.recipients,
     from: config.sender,
-    subject: '[tossa] Queue / health monitor alert',
+    subject: isRecovery
+      ? '[tossa] External operations monitor recovered'
+      : '[tossa] Queue / health monitor alert',
     text: [
-      'tossa の外部運用監視で確認が必要です。',
+      isRecovery
+        ? 'tossa の外部運用監視で正常復帰を確認しました。'
+        : 'tossa の外部運用監視で確認が必要です。',
       `確認時刻 (UTC): ${report.checkedAt}`,
-      ...report.alerts.map((alert) => `- ${alert}`),
+      ...(isRecovery ? [] : report.alerts.map((alert) => `- ${alert}`)),
       `ヘルスチェック: ${report.health.ok ? '正常' : report.health.reason}`,
     ].join('\n'),
   };
@@ -315,6 +485,7 @@ export async function monitorOperations(
 
   const alerts = [];
   const summaries = [];
+  const incidentCodes = [];
   let observationFailed = false;
   try {
     const queues = await listQueues(
@@ -343,53 +514,156 @@ export async function monitorOperations(
           nowMs
         );
         summaries.push(summary);
-        const alert = evaluateQueue(summary);
-        if (alert) alerts.push(alert);
+        for (const finding of evaluateQueue(summary)) {
+          incidentCodes.push(finding.code);
+          alerts.push(finding.message);
+        }
       } catch (error) {
         observationFailed = true;
+        incidentCodes.push(`queue:${name}:observation-failed`);
         alerts.push(safeFailureMessage(error, `Metrics for ${name} failed`));
       }
     }
   } catch (error) {
     observationFailed = true;
+    incidentCodes.push('queue-list:observation-failed');
     alerts.push(
       safeFailureMessage(error, 'Cloudflare queue list request failed')
     );
   }
 
   const health = await checkHealth(fetchImpl, base.origin);
-  if (!health.ok) alerts.push(`Health endpoint is ${health.reason}`);
+  if (!health.ok) {
+    incidentCodes.push(`health:${health.reason}`);
+    alerts.push(`Health endpoint is ${health.reason}`);
+  }
+
+  let stateInfo;
+  let stateInvalid = false;
+  try {
+    stateInfo = await readMonitorState(
+      env.OPERATIONAL_MONITOR_STATE_FILE,
+      nowMs
+    );
+  } catch {
+    stateInvalid = true;
+    incidentCodes.push('monitor-state-invalid');
+    alerts.push(
+      'Monitor notification state is invalid; suppression is disabled'
+    );
+  }
+  const fingerprint = incidentFingerprint(incidentCodes);
   const report = {
-    status: observationFailed
-      ? 'error'
-      : alerts.length > 0
-        ? 'alert'
-        : 'healthy',
+    status:
+      observationFailed || stateInvalid
+        ? 'error'
+        : incidentCodes.length > 0
+          ? 'alert'
+          : 'healthy',
     checkedAt: new Date(nowMs).toISOString(),
     health,
     queues: summaries,
     alerts,
+    stateChanged: false,
     notificationsConfigured: config.notificationsConfigured,
-    notification:
-      alerts.length === 0
-        ? config.notificationsConfigured
-          ? 'not-needed'
-          : 'unconfigured'
-        : config.notificationsConfigured
-          ? 'not-sent'
-          : 'unavailable',
+    notification: 'not-needed',
   };
-  if (alerts.length > 0 && config.notificationsConfigured) {
+
+  if (!stateInvalid) {
+    const active = stateInfo.state.active;
+    if (fingerprint) {
+      const cooldownActive =
+        active?.fingerprint === fingerprint &&
+        nowMs - Date.parse(active.acceptedAt) < INCIDENT_REPEAT_INTERVAL_MS;
+      if (cooldownActive) {
+        report.notification = config.notificationsConfigured
+          ? 'suppressed'
+          : 'unconfigured';
+        if (!config.notificationsConfigured) report.status = 'error';
+        return report;
+      }
+
+      if (!config.notificationsConfigured) {
+        report.notification = 'unavailable';
+        report.status = 'error';
+        return report;
+      }
+      try {
+        report.notification = await sendAlert(fetchImpl, config, report);
+      } catch {
+        report.notification = 'unavailable';
+        report.status = 'error';
+        report.alerts.push('Operational alert email could not be accepted');
+        return report;
+      }
+      if (report.notification === 'sent' && stateInfo.configured) {
+        try {
+          report.stateChanged = await writeMonitorState(stateInfo, {
+            version: 1,
+            active: { fingerprint, acceptedAt: report.checkedAt },
+          });
+        } catch {
+          report.status = 'error';
+          report.alerts.push(
+            'Operational notification state could not be saved'
+          );
+        }
+      }
+      return report;
+    }
+
+    if (active) {
+      if (!config.notificationsConfigured) {
+        report.notification = 'unconfigured';
+        return report;
+      }
+      try {
+        report.notification = await sendAlert(
+          fetchImpl,
+          config,
+          report,
+          'recovery'
+        );
+      } catch {
+        report.notification = 'unavailable';
+        report.status = 'error';
+        report.alerts.push('Operational recovery email could not be accepted');
+        return report;
+      }
+      if (report.notification === 'sent') {
+        try {
+          report.stateChanged = await writeMonitorState(stateInfo, {
+            version: 1,
+            active: null,
+          });
+        } catch {
+          report.status = 'error';
+          report.alerts.push(
+            'Operational notification state could not be saved'
+          );
+        }
+      }
+      return report;
+    }
+
+    report.notification = config.notificationsConfigured
+      ? 'not-needed'
+      : 'unconfigured';
+  } else {
+    // Corrupt state cannot safely suppress or acknowledge anything. Keep the
+    // monitor failure visible, try a bounded generic notification, and leave
+    // the original file untouched for operator inspection.
+    if (!config.notificationsConfigured) {
+      report.notification = 'unavailable';
+      return report;
+    }
     try {
       report.notification = await sendAlert(fetchImpl, config, report);
     } catch {
       report.notification = 'unavailable';
-      report.status = 'error';
       report.alerts.push('Operational alert email could not be accepted');
     }
   }
-  if (alerts.length > 0 && !config.notificationsConfigured)
-    report.status = 'error';
   return report;
 }
 

@@ -102,11 +102,14 @@ function help() {
     --database-name=tossa-db --database-id=<uuid> --account-id=<32-hex-id> \\
     --private-bucket=tossa-backups \\
     --confirm-target=<account-id>/<database-name>/<database-id>/<bucket> \\
+    --allow-query-outage \\
     [--archive-dir=<private-directory>] [--max-bytes=<up-to-104857600>]
 
 Remote mode exports only the 17 application tables. Runtime control tables and
 backup snapshot shadows are excluded. The verified local SQL file is retained
 with mode 0600; R2 upload happens only after an isolated local restore passes.
+Cloudflare's D1 export endpoint temporarily makes the source database unavailable
+to serve queries; remote mode requires --allow-query-outage to acknowledge this.
 The SQL export is not the v2 JSON backup format and does not guarantee a
 cross-table point-in-time snapshot while writes continue.`);
 }
@@ -128,15 +131,38 @@ function safeIdentifier(value) {
   return typeof value === 'string' && /^[a-z][a-z0-9_-]{0,62}$/u.test(value);
 }
 
-function readOnlyEnv(logPath) {
+export function buildWranglerEnv(
+  sourceEnv,
+  logPath,
+  { remoteAuth = false } = {}
+) {
   const env = Object.fromEntries(
-    Object.entries(process.env).filter(
+    Object.entries(sourceEnv).filter(
       ([key]) => !/^(CLOUDFLARE_|CF_)/iu.test(key)
     )
   );
+  if (remoteAuth) {
+    const token = sourceEnv.CLOUDFLARE_API_TOKEN;
+    if (typeof token !== 'string' || !token.trim())
+      throw new Error(
+        'Remote export requires CLOUDFLARE_API_TOKEN in the parent environment.'
+      );
+    env.CLOUDFLARE_API_TOKEN = token;
+  }
   env.WRANGLER_SEND_METRICS = 'false';
   env.WRANGLER_LOG_PATH = logPath;
   return env;
+}
+
+export function requireQueryOutageAcknowledgement(value) {
+  if (value !== true)
+    throw new Error(
+      'Remote mode requires --allow-query-outage because D1 export temporarily prevents the database from serving queries.'
+    );
+}
+
+function readOnlyEnv(logPath, options) {
+  return buildWranglerEnv(process.env, logPath, options);
 }
 
 function commandError(label) {
@@ -478,6 +504,14 @@ function validateRemoteArgs(args) {
     if (typeof args[key] !== 'string' || !args[key])
       throw new Error(`Remote mode requires --${key}.`);
   }
+  requireQueryOutageAcknowledgement(args['allow-query-outage']);
+  if (
+    typeof process.env.CLOUDFLARE_API_TOKEN !== 'string' ||
+    !process.env.CLOUDFLARE_API_TOKEN.trim()
+  )
+    throw new Error(
+      'Remote mode requires CLOUDFLARE_API_TOKEN in the parent environment.'
+    );
   if (!safeIdentifier(args['database-name']))
     throw new Error('--database-name is invalid.');
   if (!uuid(args['database-id']))
@@ -553,7 +587,7 @@ async function runRemoteExport(args) {
   const stageDir = await mkdtemp(join(archiveDir, '.tossa-d1-export-'));
   await chmod(stageDir, 0o700);
   const logPath = join(stageDir, 'wrangler.log');
-  const env = readOnlyEnv(logPath);
+  const env = readOnlyEnv(logPath, { remoteAuth: true });
   const target = getTargetIds(args);
   const configPath = join(stageDir, 'remote.wrangler.toml');
   const localConfigPath = join(stageDir, 'restore.wrangler.toml');
@@ -568,6 +602,11 @@ async function runRemoteExport(args) {
   let localVerified = false;
   let localOnlyDirName;
   let r2Key;
+  let manifest;
+  let report;
+  let timingMetrics;
+  let r2StartedAt;
+  const totalStartedAt = performance.now();
   try {
     await buildConfig(configPath, {
       name: 'tossa-private-d1-export',
@@ -632,6 +671,7 @@ async function runRemoteExport(args) {
       configPath,
     ];
     for (const table of BACKUP_TABLES) exportArgs.push('--table', table);
+    const exportStartedAt = performance.now();
     await runExport(
       exportArgs,
       outputPath,
@@ -639,6 +679,7 @@ async function runRemoteExport(args) {
       signalController.signal,
       maxBytes
     );
+    const exportDurationMs = Math.round(performance.now() - exportStartedAt);
     const rawExportInfo = await stat(outputPath);
     if (rawExportInfo.size === 0 || rawExportInfo.size > maxBytes)
       throw new Error(
@@ -646,6 +687,7 @@ async function runRemoteExport(args) {
       );
     await chmod(outputPath, 0o600);
     const restorePath = join(stageDir, 'restore.partial.sql');
+    const reorderStartedAt = performance.now();
     await writeFile(
       restorePath,
       reorderD1Dump(await readFile(outputPath, 'utf8')),
@@ -661,10 +703,15 @@ async function runRemoteExport(args) {
       throw new Error(
         'Ordered D1 export is empty or exceeded the configured file-size limit.'
       );
+    const canonicalizeDurationMs = Math.round(
+      performance.now() - reorderStartedAt
+    );
 
     // Restore into a fresh local D1 database with separate persistence.
     const persistPath = join(stageDir, 'restore-state');
     await mkdir(persistPath, { mode: 0o700 });
+    const localEnv = readOnlyEnv(logPath);
+    const restoreStartedAt = performance.now();
     const restore = spawnSync(
       process.execPath,
       [
@@ -681,22 +728,32 @@ async function runRemoteExport(args) {
         '--file',
         outputPath,
       ],
-      { cwd: ROOT, env, stdio: 'ignore', timeout: 30 * 60 * 1000 }
+      { cwd: ROOT, env: localEnv, stdio: 'ignore', timeout: 30 * 60 * 1000 }
     );
     if (restore.error || restore.status !== 0)
       throw commandError('isolated local D1 restore');
     const counts = await readLocalVerification(
       databaseName,
       localConfigPath,
-      env,
+      localEnv,
       persistPath
+    );
+    const restoreValidationDurationMs = Math.round(
+      performance.now() - restoreStartedAt
     );
     const hash = await sha256(outputPath);
     const createdAt = new Date().toISOString();
     const basename = `tossa_d1_export_${createdAt.replace(/[:.]/gu, '-')}_${randomUUID().replaceAll('-', '')}`;
     const finalDir = join(archiveDir, basename);
     localOnlyDirName = `.local-only-${basename}`;
-    const manifest = {
+    timingMetrics = {
+      exportMs: exportDurationMs,
+      canonicalizeMs: canonicalizeDurationMs,
+      restoreValidationMs: restoreValidationDurationMs,
+      r2UploadReadbackMs: null,
+      totalMs: null,
+    };
+    manifest = {
       format: 'tossa-d1-sql-export-v1',
       createdAt,
       accountId: target.accountId,
@@ -710,6 +767,7 @@ async function runRemoteExport(args) {
       ],
       sizeBytes: exportInfo.size,
       sha256: hash,
+      timingsMs: timingMetrics,
       restoreValidation: {
         method: 'isolated local Wrangler D1 import',
         tableCounts: counts,
@@ -729,11 +787,33 @@ async function runRemoteExport(args) {
       }
     );
     await chmod(join(stageDir, 'manifest.json'), 0o600);
+    report = {
+      format: 'tossa-d1-export-report-v1',
+      createdAt,
+      accountId: target.accountId,
+      databaseId: target.databaseId,
+      sizeBytes: exportInfo.size,
+      sha256: hash,
+      tableCounts: counts,
+      totalRecords: Object.values(counts).reduce(
+        (sum, value) => sum + value,
+        0
+      ),
+      checks: {
+        restored: 'ok',
+        foreignKeyCheck: 'ok',
+        quickCheck: 'ok',
+        r2ReadbackSha256: 'pending',
+      },
+      timingsMs: timingMetrics,
+      r2UploadStatus: 'pending',
+    };
     localVerified = true;
 
     // Upload only after local restore checks. The key is unique and never replaces
     // a previous generation. This is capped at 100 MiB pending large-file MPU work.
     r2Key = `d1-exports/${basename}.sql`;
+    r2StartedAt = performance.now();
     const put = spawnSync(
       process.execPath,
       [
@@ -774,12 +854,23 @@ async function runRemoteExport(args) {
     );
     if (get.error || get.status !== 0 || (await sha256(downloadPath)) !== hash)
       throw commandError('R2 archive read-back verification');
+    timingMetrics.r2UploadReadbackMs = Math.round(
+      performance.now() - r2StartedAt
+    );
+    timingMetrics.totalMs = Math.round(performance.now() - totalStartedAt);
     await rm(downloadPath, { force: true });
     manifest.r2UploadStatus = 'verified';
+    report.r2UploadStatus = 'verified';
+    report.checks.r2ReadbackSha256 = 'ok';
     await writeFile(
       join(stageDir, 'manifest.json'),
       JSON.stringify(manifest, null, 2) + '\n',
       { mode: 0o600 }
+    );
+    await writeFile(
+      join(stageDir, 'report.json'),
+      JSON.stringify(report, null, 2) + '\n',
+      { flag: 'wx', mode: 0o600 }
     );
     await rm(join(stageDir, 'wrangler.log'), { force: true });
     await chmod(stageDir, 0o700);
@@ -790,6 +881,7 @@ async function runRemoteExport(args) {
         success: true,
         localArchive: join(finalDir, 'database.partial.sql'),
         manifest: join(finalDir, 'manifest.json'),
+        report: join(finalDir, 'report.json'),
         r2Object: `${target.bucket}/${r2Key}`,
         sizeBytes: exportInfo.size,
         sha256: hash,
@@ -798,6 +890,7 @@ async function runRemoteExport(args) {
           (sum, value) => sum + value,
           0
         ),
+        timingsMs: timingMetrics,
       })
     );
   } finally {
@@ -805,16 +898,33 @@ async function runRemoteExport(args) {
     process.removeListener('SIGTERM', stop);
     if (!exported) {
       if (localVerified && localOnlyDirName) {
+        if (r2StartedAt !== undefined) {
+          timingMetrics.r2UploadReadbackMs = Math.round(
+            performance.now() - r2StartedAt
+          );
+        }
+        timingMetrics.totalMs = Math.round(performance.now() - totalStartedAt);
         const manifestPath = join(stageDir, 'manifest.json');
         const incompleteManifest = JSON.parse(
           await readFile(manifestPath, 'utf8')
         );
         incompleteManifest.r2UploadStatus = 'unverified';
+        incompleteManifest.timingsMs = timingMetrics;
         await writeFile(
           manifestPath,
           JSON.stringify(incompleteManifest, null, 2) + '\n',
           { mode: 0o600 }
         );
+        if (report) {
+          report.r2UploadStatus = 'unverified';
+          report.checks.r2ReadbackSha256 = 'unverified';
+          report.timingsMs = timingMetrics;
+          await writeFile(
+            join(stageDir, 'report.json'),
+            JSON.stringify(report, null, 2) + '\n',
+            { mode: 0o600 }
+          );
+        }
         await rm(join(stageDir, 'r2-verify.sql'), { force: true });
         await rm(join(stageDir, 'wrangler.log'), { force: true });
         await rename(stageDir, join(archiveDir, localOnlyDirName));

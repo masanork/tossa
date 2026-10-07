@@ -16,7 +16,7 @@ npx wrangler queues create tossa-write-deadletter
 `tossa-backups` は公開アクセス、r2.dev、カスタムドメインを有効にしない。権限を運営担当者だけに限定する。設定は [R2公開アクセスの公式説明](https://developers.cloudflare.com/r2/buckets/public-buckets/)を参照する。
 
 3. 一時的に書込を止め、既存のwrite queueが処理し終わったことを確認する。管理画面だけで全書込を停止できる機能はないので、必要ならCloudflare側でPOST/PUT/DELETEのメンテナンス応答を設定する。読み取りは維持する。
-4. 現行D1を安全な端末の非公開フォルダーへエクスポートする。下の出力先は例で、Gitや共有フォルダーに置かない。
+4. 現行D1を安全な端末の非公開フォルダーへエクスポートする。D1 export中はDBへの問い合わせも停止しうるため、読み取り停止を含むメンテナンス時間帯を確保する（[D1 exportの制約](https://developers.cloudflare.com/api/resources/d1/subresources/database/methods/export/)）。下の出力先は例で、Gitや共有フォルダーに置かない。
 
 ```bash
 npx wrangler d1 export tossa-db --remote --output /private/tmp/tossa-before-reliability.sql
@@ -174,15 +174,36 @@ IndexedDBへの初回移行ではService Workerが同じサイトの全画面へ
 
 通常のCloudflare account/token Secretsは既存CIと共通。メール送信にはproduction環境へ `CLOUDFLARE_EMAIL_API_TOKEN`（対象accountのEmail Sending送信権限）と `OPERATIONAL_ALERT_RECIPIENTS`（現在管理者に設定され、検証済みのメールアドレス。複数はカンマ区切り）を設定する。送信元は既存の `noreply@tossa.app`。宛先はBCCで送信し、アドレス・token・API応答本文を標準出力へ出さない。管理者の追加・降格・削除・メール変更時には、この外部監視用の宛先Secretも更新する。外部監視の宛先はWorker内のDB照会による自動選択とは別で、DB障害時にも使える運営設定である。
 
-2026-10-07の読み取り確認はヘルス200、4Queueの滞留0。メール用Secretは未設定で、出力は `notificationsConfigured:false` / `notification:unconfigured`。正常時の監視は成功し、異常検出時に通知できなければ失敗する。既存のWorker内の管理者メール通知を置き換えない。外部の実メール通知は未稼働として記録する。
+2026-10-07に確認済み管理者1人の宛先をproductionの `OPERATIONAL_ALERT_RECIPIENTS` に登録した。送信tokenは未設定で、外部の実メール通知は未稼働。最小権限は対象accountの `Email Sending: Edit`。送信ドメインのオンボード状態と初回実着信を確認する。ドメイン未オンボード時はCloudflare側でも宛先検証が必要で、tossa内のメール確認だけでは代用できない（[Email Service設定](https://developers.cloudflare.com/email-service/get-started/send-emails/)）。正常時の監視は成功し、異常検出時に通知できなければ失敗する。既存Worker内通知を置き換えない。
+
+`OPERATIONAL_MONITOR_STATE_FILE` を設定すると、全宛先がAPIに受理された障害のfingerprintと時刻だけを保存する。同じ異常条件の通知は30分間抑制し、新しい条件と30分後の継続は再通知する。数値や待ち時間の変化だけでは別障害にしない。通知済み障害が解消した場合は復旧を一度通知し、受理後に状態を解除する。メール失敗、未設定、dry-runでは受理済み状態を更新しない。`sent` はAPI受理であり受信箱への配達証明ではない。
+
+workflowは秘密や宛先を含まない状態JSONだけをActions cacheへ保存し、直列実行で引き継ぐ。キャッシュ消失時は通知が重複しうるので厳密な一度限りの保証ではない（[GitHub cacheの仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)）。壊れたJSON、不正な権限・symlinkは上書きせず、監視を継続して汎用エラー通知を試みる。この場合30分抑制は適用せず、5分cronで最大12回/時となる。運営者が原因を確認して該当キャッシュを削除・修正する。状態ファイル未指定のCLIは毎回通知する従来動作。
 
 ```sh
 OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
 ```
 
-このdry-runはメールを送らない。手動workflowまたはCLI出力の時刻、ヘルス、4Queue、通知設定状態を記録する。観測APIの値は近似なのでCloudflareの画面とD1で保存された操作を照合する。GitHub scheduleは遅延・欠落しうる。公開リポジトリでは60日間の活動停止でscheduleが無効になるため、運営時に有効状態を確認する（[GitHubのschedule仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)）。現在は単発異常を検出し、毎回通知対象となるため、継続性判定・通知の重複抑制・復旧通知は次の改善候補。
+このdry-runはメールを送らない。手動workflowまたはCLI出力の時刻、ヘルス、4Queue、通知設定状態を記録する。観測APIの値は近似なのでCloudflareの画面とD1で保存された操作を照合する。GitHub scheduleは遅延・欠落しうる。公開リポジトリでは60日間の活動停止でscheduleが無効になるため、運営時に有効状態を確認する（[GitHubのschedule仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)）。現在は単発の異常条件で通知し、複数回の継続性判定は行わない。
 
 ## 200ページ上限を超えるSQL退避
+
+### 保存済み実データの読み取り復元検証
+
+`backup:production-drill` は非公開の `tossa-backups` にあるv2 JSONを明示指定して読み取り、一時的なlocal D1へ復元する。API tokenと対象accountを環境変数に設定する。キーは管理者画面またはR2の一覧で確認する。
+
+```sh
+npm run backup:production-drill -- \
+  --key=backups/<最新のtossa_backup_日時_UUID.json> \
+  --confirm-target=<account-id>/tossa-backups/backups/<同じファイル名> \
+  --report=<非機密レポートの新規ファイル>
+```
+
+r2.dev無効・カスタムドメインなし、26時間以内・100MiB以下・全17表のv2アーカイブであることを確認する。本番D1に問い合わせ・export・復元は行わず、R2にも書き込まない。local D1への復元後、各表の件数、外部キー、quick_check、全行の値を元JSONと照合する。比較出力の一表32MiB上限を超えた場合は検証を失敗とする。これは100MiB以内の全アーカイブで復元検証できるという容量保証ではない。
+
+元JSON・SQL・local DBは0700の一時ディレクトリに保存し終了時に削除する。レポートは件数、容量、ハッシュ、時刻、所要時間、検証結果だけを含み、メールや認証情報・行の値を含めない。2026-10-07の実データ124件・17表・35,472バイトで全値一致、件数、外部キー、quick_checkが成功した。[検証記録](benchmarks/2026-10-07-production-recovery.json)。全体40.783秒はこの小規模データの端末上の実測で、復旧時間の保証値ではない。
+
+### 外部SQL退避
 
 `npm run backup:export -- --local-drill --rows=30000` は一時ディレクトリのlocal D1だけで3万投稿をexportし、別のlocal D1へ復元する。30,000投稿とユーザー・端末各1、計30,002件、全17表の件数、実FK参照、外部キー・quick_checkを検査した。SQLは17,728,583バイト。投稿表だけで128行/ページなら235ページとなり、日次JSONの200ページ上限を超える行数を扱った。これはlocal SQL経路の検証で、本番の処理時間・R2保存成功の証明ではない。
 
@@ -190,12 +211,13 @@ remote modeは対象account・DB名・UUID・非公開bucketと、その全値�
 
 ```sh
 npm run backup:export -- --remote-export \
+  --allow-query-outage \
   --account-id=<account-id> --database-name=tossa-db --database-id=<uuid> \
   --private-bucket=tossa-backups \
   --confirm-target=<account-id>/tossa-db/<uuid>/tossa-backups \
   --archive-dir=<非公開ディレクトリ>
 ```
 
-この経路は最大100MiBの17表SQLを0700ディレクトリ・0600ファイルへ出力し、FK親先行の順序で別のlocal D1へ復元、件数・外部キー・quick_checkを検査する。R2公開URL無効とカスタムドメインなしを確認し、新しい保存キーへupload後、読み戻しSHA-256を照合する。既存世代は置き換えない。R2保存に失敗した場合も復元検証済みのlocal SQLは残し、R2保存状態をmanifestで区別する。出力やログにはtoken、署名URL、データ本文を含めない。
+この経路は最大100MiBの17表SQLを0700ディレクトリ・0600ファイルへ出力し、FK親先行の順序で別のlocal D1へ復元、件数・外部キー・quick_checkを検査する。remote処理だけに明示的な `CLOUDFLARE_API_TOKEN` を渡し、local復元・照合ではCloudflare認証を除く。R2公開URL無効とカスタムドメインなしを確認し、新しい保存キーへupload後、読み戻しSHA-256を照合する。既存世代は置き換えない。R2保存に失敗した場合も復元検証済みのlocal SQLは残し、R2保存状態をmanifestで区別する。manifestと非機密 `report.json` に各段階と全体の実測時間を残す。出力やログにはtoken、署名URL、データ本文を含めない。
 
-SQLはv2 JSON形式ではないため `backup:restore` のJSON変換へ渡さない。実際のremote exportとR2保管は未実施。日次JSONの200ページ上限は維持する。並行した書き込み中のクロステーブル一貫性はこのツールでは保証せず、運営上の書込停止・取得時点と変更の扱いを決めてから本番の退避/復元を検証する。100MiBを超える場合のストリーム保管と定期化も残る。
+SQLはv2 JSON形式ではないため `backup:restore` のJSON変換へ渡さない。実際のremote exportとR2保管は未実施。日次JSONの200ページ上限は維持する。D1 exportはクエリ受付を止めうるため `--allow-query-outage` が必須で、メンテナンス時間帯以外に実行しない。並行した書き込み中のクロステーブル一貫性はこのツールでは保証せず、運営上の書込停止・取得時点と変更の扱いを決めてから本番の退避/復元を検証する。100MiBを超える場合のストリーム保管と定期化も残る。

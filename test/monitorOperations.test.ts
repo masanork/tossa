@@ -1,4 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
+import {
+  chmod,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { monitorOperations } from '../scripts/monitor-operations.mjs';
 
 const now = Date.parse('2026-10-07T03:00:00.000Z');
@@ -86,6 +97,23 @@ function mockCloudflareFetch(options: {
     }
   );
   return { fetchImpl, requests };
+}
+
+async function withStateFile(
+  run: (statePath: string, directory: string) => Promise<void>
+) {
+  const directory = await mkdtemp(join(tmpdir(), 'tossa-monitor-test-'));
+  try {
+    await run(join(directory, 'state.json'), directory);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+function emailRequestCount(requests: Array<{ url: URL; init: RequestInit }>) {
+  return requests.filter(({ url }) =>
+    url.pathname.endsWith('/email/sending/send')
+  ).length;
 }
 
 describe('external operations monitor', () => {
@@ -180,6 +208,391 @@ describe('external operations monitor', () => {
     expect(payload.bcc).toEqual(['admin1@example.test', 'admin2@example.test']);
     expect(payload.to).toBeUndefined();
     expect(JSON.stringify(report)).not.toContain('example.test');
+  });
+
+  it('suppresses the same queue-lag incident despite changing counts and age', async () => {
+    await withStateFile(async (statePath, directory) => {
+      const firstFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-write-queue': {
+            backlog_count: 3,
+            backlog_bytes: 900,
+            oldest_message_timestamp_ms: now - 420_000,
+          },
+        },
+      });
+      const first = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        firstFetch.fetchImpl,
+        now
+      );
+      expect(first).toMatchObject({
+        status: 'alert',
+        notification: 'sent',
+        stateChanged: true,
+      });
+      expect((await stat(statePath)).mode & 0o777).toBe(0o600);
+      expect(await readdir(directory)).toEqual(['state.json']);
+
+      const secondFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-write-queue': {
+            backlog_count: 12,
+            backlog_bytes: 3600,
+            oldest_message_timestamp_ms: now + 5 * 60_000 - 590_000,
+          },
+        },
+      });
+      const repeated = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        secondFetch.fetchImpl,
+        now + 5 * 60_000
+      );
+      expect(repeated).toMatchObject({
+        status: 'alert',
+        notification: 'suppressed',
+        stateChanged: false,
+      });
+      expect(repeated.alerts).toContain(
+        'tossa-write-queue oldest message is 590s old'
+      );
+      expect(emailRequestCount(secondFetch.requests)).toBe(0);
+
+      const reminderFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-write-queue': {
+            backlog_count: 25,
+            backlog_bytes: 7500,
+            oldest_message_timestamp_ms: now + 31 * 60_000 - 650_000,
+          },
+        },
+      });
+      const reminder = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        reminderFetch.fetchImpl,
+        now + 31 * 60_000
+      );
+      expect(reminder).toMatchObject({
+        status: 'alert',
+        notification: 'sent',
+        stateChanged: true,
+      });
+      expect(emailRequestCount(reminderFetch.requests)).toBe(1);
+    });
+  });
+
+  it('sends a changed incident immediately and updates the accepted fingerprint', async () => {
+    await withStateFile(async (statePath) => {
+      const firstFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-push-deadletter': {
+            backlog_count: 1,
+            backlog_bytes: 100,
+            oldest_message_timestamp_ms: now - 30_000,
+          },
+        },
+      });
+      await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        firstFetch.fetchImpl,
+        now
+      );
+
+      const changedFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-write-deadletter': {
+            backlog_count: 2,
+            backlog_bytes: 200,
+            oldest_message_timestamp_ms: now - 30_000,
+          },
+        },
+      });
+      const changed = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        changedFetch.fetchImpl,
+        now + 60_000
+      );
+      expect(changed).toMatchObject({
+        notification: 'sent',
+        stateChanged: true,
+      });
+      expect(emailRequestCount(changedFetch.requests)).toBe(1);
+      const state = JSON.parse(await readFile(statePath, 'utf8'));
+      expect(state.active.acceptedAt).toBe(
+        new Date(now + 60_000).toISOString()
+      );
+    });
+  });
+
+  it('sends recovery once only for an accepted alert', async () => {
+    await withStateFile(async (statePath) => {
+      const alertFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-push-deadletter': {
+            backlog_count: 1,
+            backlog_bytes: 100,
+            oldest_message_timestamp_ms: now - 30_000,
+          },
+        },
+      });
+      const alert = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        alertFetch.fetchImpl,
+        now
+      );
+      expect(alert.notification).toBe('sent');
+
+      const recoveryFetch = mockCloudflareFetch({});
+      const recovery = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        recoveryFetch.fetchImpl,
+        now + 5 * 60_000
+      );
+      expect(recovery).toMatchObject({
+        status: 'healthy',
+        notification: 'sent',
+        stateChanged: true,
+      });
+      expect(
+        JSON.parse(String(recoveryFetch.requests.at(-1)?.init.body)).subject
+      ).toContain('recovered');
+      expect(JSON.parse(await readFile(statePath, 'utf8')).active).toBeNull();
+
+      const healthyFetch = mockCloudflareFetch({});
+      const healthy = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        healthyFetch.fetchImpl,
+        now + 10 * 60_000
+      );
+      expect(healthy.notification).toBe('not-needed');
+      expect(emailRequestCount(healthyFetch.requests)).toBe(0);
+    });
+  });
+
+  it('does not acknowledge a dry-run incident and lets a later real check send it', async () => {
+    await withStateFile(async (statePath) => {
+      const metrics = {
+        'tossa-push-deadletter': {
+          backlog_count: 1,
+          backlog_bytes: 100,
+          oldest_message_timestamp_ms: now - 30_000,
+        },
+      };
+      const dryFetch = mockCloudflareFetch({ metrics });
+      const dry = await monitorOperations(
+        configuredEnv({ OPERATIONAL_MONITOR_STATE_FILE: statePath }),
+        dryFetch.fetchImpl,
+        now
+      );
+      expect(dry).toMatchObject({
+        status: 'alert',
+        notification: 'dry-run',
+        stateChanged: false,
+      });
+      await expect(readFile(statePath, 'utf8')).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+
+      const realFetch = mockCloudflareFetch({ metrics });
+      const real = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        realFetch.fetchImpl,
+        now + 60_000
+      );
+      expect(real).toMatchObject({
+        notification: 'sent',
+        stateChanged: true,
+      });
+      expect(emailRequestCount(realFetch.requests)).toBe(1);
+    });
+  });
+
+  it('does not clear accepted incident state for unconfigured or dry-run recovery checks', async () => {
+    await withStateFile(async (statePath) => {
+      const alertFetch = mockCloudflareFetch({
+        metrics: {
+          'tossa-push-deadletter': {
+            backlog_count: 1,
+            backlog_bytes: 100,
+            oldest_message_timestamp_ms: now - 30_000,
+          },
+        },
+      });
+      await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        alertFetch.fetchImpl,
+        now
+      );
+      const acceptedState = await readFile(statePath, 'utf8');
+
+      const unconfiguredFetch = mockCloudflareFetch({});
+      const unconfigured = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+          CLOUDFLARE_EMAIL_API_TOKEN: '',
+          OPERATIONAL_ALERT_RECIPIENTS: '',
+        }),
+        unconfiguredFetch.fetchImpl,
+        now + 60_000
+      );
+      expect(unconfigured).toMatchObject({
+        status: 'healthy',
+        notification: 'unconfigured',
+        stateChanged: false,
+      });
+      expect(await readFile(statePath, 'utf8')).toBe(acceptedState);
+
+      const dryFetch = mockCloudflareFetch({});
+      const dry = await monitorOperations(
+        configuredEnv({ OPERATIONAL_MONITOR_STATE_FILE: statePath }),
+        dryFetch.fetchImpl,
+        now + 120_000
+      );
+      expect(dry).toMatchObject({
+        status: 'healthy',
+        notification: 'dry-run',
+        stateChanged: false,
+      });
+      expect(await readFile(statePath, 'utf8')).toBe(acceptedState);
+
+      const realFetch = mockCloudflareFetch({});
+      const real = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        realFetch.fetchImpl,
+        now + 180_000
+      );
+      expect(real.notification).toBe('sent');
+      expect(
+        JSON.parse(String(realFetch.requests.at(-1)?.init.body)).subject
+      ).toContain('recovered');
+      expect(JSON.parse(await readFile(statePath, 'utf8')).active).toBeNull();
+    });
+  });
+
+  it('keeps the state unchanged after an email failure so the next check retries', async () => {
+    await withStateFile(async (statePath) => {
+      const metrics = {
+        'tossa-write-queue': {
+          backlog_count: 1,
+          backlog_bytes: 300,
+          oldest_message_timestamp_ms: now - 420_000,
+        },
+      };
+      const firstFetch = mockCloudflareFetch({ metrics });
+      await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        firstFetch.fetchImpl,
+        now
+      );
+      const acceptedState = await readFile(statePath, 'utf8');
+      const retryAt = now + 31 * 60_000;
+
+      const failedFetch = mockCloudflareFetch({
+        metrics,
+        emailResponse: jsonResponse({ success: false, errors: [] }, 503),
+      });
+      const failed = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        failedFetch.fetchImpl,
+        retryAt
+      );
+      expect(failed).toMatchObject({
+        status: 'error',
+        notification: 'unavailable',
+        stateChanged: false,
+      });
+      expect(await readFile(statePath, 'utf8')).toBe(acceptedState);
+
+      const retryFetch = mockCloudflareFetch({ metrics });
+      const retried = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        retryFetch.fetchImpl,
+        retryAt + 60_000
+      );
+      expect(retried).toMatchObject({
+        notification: 'sent',
+        stateChanged: true,
+      });
+      expect(emailRequestCount(retryFetch.requests)).toBe(1);
+    });
+  });
+
+  it('reports corrupt state but still checks and sends a generic alert without replacing the file', async () => {
+    await withStateFile(async (statePath, directory) => {
+      const corrupt = '{malformed private monitor state';
+      await writeFile(statePath, corrupt, { mode: 0o600 });
+      await chmod(directory, 0o700);
+      const { fetchImpl, requests } = mockCloudflareFetch({});
+      const report = await monitorOperations(
+        configuredEnv({
+          OPERATIONAL_ALERT_DRY_RUN: 'false',
+          OPERATIONAL_MONITOR_STATE_FILE: statePath,
+        }),
+        fetchImpl,
+        now
+      );
+
+      expect(report).toMatchObject({
+        status: 'error',
+        notification: 'sent',
+        stateChanged: false,
+      });
+      expect(report.alerts).toContain(
+        'Monitor notification state is invalid; suppression is disabled'
+      );
+      expect(
+        requests.some(({ url }) => url.origin === 'https://tossa.example.test')
+      ).toBe(true);
+      expect(await readFile(statePath, 'utf8')).toBe(corrupt);
+      expect(JSON.stringify(report)).not.toContain(directory);
+      expect(JSON.stringify(report)).not.toContain(corrupt);
+      const email = JSON.parse(String(requests.at(-1)?.init.body));
+      expect(email.text).not.toContain(directory);
+      expect(email.text).not.toContain(corrupt);
+      expect((await stat(statePath)).mode & 0o777).toBe(0o600);
+    });
   });
 
   it('keeps a healthy monitor green while reporting missing notification config', async () => {

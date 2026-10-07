@@ -1,0 +1,47 @@
+{
+  "format": "tossa-production-recovery-report-v1",
+  "createdAt": "2026-10-07T06:30:59.750Z",
+  "accountId": "4b749427a0c80c547e726a42aff4b6fc",
+  "archiveKeySha256": "a167f332fa124be19e1adff161a0d6aa07709b5c619db8931e750670754d2906",
+  "archiveSha256": "607a29dc1d5e303d5b90bc82df0543787ca27ba91a230bc5c5ce062956819c47",
+  "archiveBytes": 35472,
+  "archiveTimestamp": "2026-10-07T03:00:15.900Z",
+  "archiveAgeMs": 12611862,
+  "tableCounts": {
+    "categories": 0,
+    "disasters": 0,
+    "posts": 1,
+    "status_updates": 1,
+    "post_verifications": 0,
+    "users": 1,
+    "credentials": 2,
+    "system_settings": 3,
+    "threads": 0,
+    "thread_members": 0,
+    "messages": 0,
+    "device_sessions": 101,
+    "access_logs": 7,
+    "device_user_links": 4,
+    "push_subscriptions": 2,
+    "mutation_receipts": 2,
+    "post_reports": 0
+  },
+  "totalRecords": 124,
+  "restoreSqlBytes": 86782,
+  "valueComparison": "full",
+  "checks": {
+    "v2Archive": "ok",
+    "freshness": "ok",
+    "restoreBackupValidation": "ok",
+    "localTableCounts": "ok",
+    "foreignKeyCheck": "ok",
+    "quickCheck": "ok"
+  },
+  "timingsMs": {
+    "r2Download": 1848,
+    "restoreAndVerify": 31985,
+    "total": 40783
+  },
+  "remoteD1Accessed": false,
+  "remoteR2Written": false
+}
