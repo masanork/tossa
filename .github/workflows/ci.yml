@@ -175,3 +175,55 @@ jobs:
 
       - name: Smoke test production
         run: node scripts/smoke-production.mjs
+
+  deploy-monitor:
+    name: Deploy independent operations monitor
+    needs: test-and-lint
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    concurrency:
+      group: production-monitor-deploy
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Deploy the monitor with its own bindings and Cron
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: npm
+          wranglerVersion: '4.147.0'
+          command: deploy --config operations-monitor.wrangler.jsonc
+      - name: Synchronize monitor secrets from the production environment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OPERATIONAL_ALERT_RECIPIENTS: ${{ secrets.OPERATIONAL_ALERT_RECIPIENTS }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          const token = process.env.CLOUDFLARE_API_TOKEN;
+          const recipients = process.env.OPERATIONAL_ALERT_RECIPIENTS?.trim();
+          if (!token || !recipients) throw Error('Monitor production secrets are missing');
+          const emails = recipients.split(',').map(value => value.trim());
+          if (emails.length > 50 || emails.some(value => value.length > 254 || !/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(value)))
+            throw Error('Monitor recipient configuration is invalid');
+          const result = spawnSync(process.execPath, [
+            'node_modules/wrangler/bin/wrangler.js', 'secret', 'bulk',
+            '--config', 'operations-monitor.wrangler.jsonc'
+          ], {
+            input: JSON.stringify({ MONITOR_QUEUE_API_TOKEN: token, OPERATIONAL_ALERT_RECIPIENTS: recipients }),
+            stdio: ['pipe', 'ignore', 'ignore'], timeout: 120000
+          });
+          if (result.error || result.status !== 0) throw Error('Monitor secrets could not be synchronized');
+          console.log(JSON.stringify({ monitorSecretsConfigured: true, recipients: emails.length }));
+          NODE

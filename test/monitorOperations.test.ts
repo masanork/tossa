@@ -45,6 +45,7 @@ function mockCloudflareFetch(options: {
   queueNames?: string[];
   health?: Response;
   emailResponse?: Response;
+  heartbeat?: Response;
 }) {
   const requests: Array<{ url: URL; init: RequestInit }> = [];
   const metrics = options.metrics || {};
@@ -55,6 +56,8 @@ function mockCloudflareFetch(options: {
         input instanceof Request ? input.url : input.toString()
       );
       requests.push({ url, init });
+      if (url.pathname.endsWith('/values/heartbeat'))
+        return options.heartbeat || jsonResponse(null, 404);
       if (url.origin === 'https://tossa.example.test')
         return options.health || jsonResponse({ status: 'ok', app: 'tossa' });
       if (url.pathname.endsWith('/email/sending/send'))
@@ -117,6 +120,77 @@ function emailRequestCount(requests: Array<{ url: URL; init: RequestInit }>) {
 }
 
 describe('external operations monitor', () => {
+  const heartbeatEnv = {
+    OPERATIONAL_MONITOR_NAMESPACE_ID: '1234567890abcdef1234567890abcdef',
+  };
+  function heartbeat(completedAt: string | null, status = 'healthy') {
+    return {
+      version: 1,
+      lastAttemptAt: new Date(now).toISOString(),
+      lastCompletedAt: completedAt,
+      status,
+    };
+  }
+
+  it('checks the independent monitor heartbeat without exporting its other fields', async () => {
+    const { fetchImpl, requests } = mockCloudflareFetch({
+      heartbeat: jsonResponse({
+        ...heartbeat(new Date(now - 60_000).toISOString()),
+        unrelated: 'must-not-be-reported',
+      }),
+    });
+    const report = await monitorOperations(
+      configuredEnv(heartbeatEnv),
+      fetchImpl,
+      now
+    );
+    expect(report.status).toBe('healthy');
+    expect(report.monitor).toMatchObject({ ok: true, ageSeconds: 60 });
+    expect(JSON.stringify(report)).not.toContain('must-not-be-reported');
+    expect(requests).toHaveLength(7);
+    expect(requests.every(({ init }) => init.method === 'GET')).toBe(true);
+  });
+
+  it.each([
+    ['missing', () => jsonResponse(null, 404)],
+    ['never-completed', () => jsonResponse(heartbeat(null))],
+    [
+      'stale',
+      () =>
+        jsonResponse(
+          heartbeat(new Date(now - 15 * 60_000).toISOString(), 'running')
+        ),
+    ],
+    [
+      'checks-failed',
+      () =>
+        jsonResponse(heartbeat(new Date(now - 60_000).toISOString(), 'error')),
+    ],
+    [
+      'invalid-response',
+      () => jsonResponse(heartbeat(new Date(now + 6 * 60_000).toISOString())),
+    ],
+    [
+      'invalid-response',
+      () =>
+        jsonResponse({
+          ...heartbeat(new Date(now).toISOString()),
+          padding: 'x'.repeat(16 * 1024),
+        }),
+    ],
+  ])('does not treat a %s heartbeat as healthy', async (reason, response) => {
+    const { fetchImpl } = mockCloudflareFetch({ heartbeat: response() });
+    const report = await monitorOperations(
+      configuredEnv(heartbeatEnv),
+      fetchImpl,
+      now
+    );
+    expect(report.status).not.toBe('healthy');
+    expect(report.monitor).toMatchObject({ ok: false, reason });
+    expect(report.health.ok).toBe(true);
+    expect(report.queues).toHaveLength(4);
+    expect(report.notification).toBe('dry-run');
+  });
   it('reads all four queue metrics and health without logging credentials or sending email when healthy', async () => {
     const { fetchImpl, requests } = mockCloudflareFetch({});
     const report = await monitorOperations(configuredEnv(), fetchImpl, now);

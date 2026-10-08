@@ -15,6 +15,7 @@ const QUEUE_LAG_THRESHOLD_SECONDS = 300;
 const INCIDENT_REPEAT_INTERVAL_MS = 30 * 60 * 1000;
 const STATE_MAX_BYTES = 16 * 1024;
 const STATE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const HEARTBEAT_MAX_AGE_MS = 15 * 60 * 1000;
 
 function safeError(message) {
   return new Error(message);
@@ -410,6 +411,95 @@ async function checkHealth(fetchImpl, origin) {
   };
 }
 
+async function checkMonitorHeartbeat(fetchImpl, config, namespaceId, nowMs) {
+  if (!namespaceId) return null;
+  const failed = (reason) => ({
+    ok: false,
+    reason,
+    lastCompletedAt: null,
+    ageSeconds: null,
+    status: null,
+  });
+  if (!/^[a-f0-9]{32}$/i.test(namespaceId)) return failed('invalid-config');
+  let response;
+  try {
+    response = await fetchImpl(
+      `${CLOUDFLARE_API}/accounts/${encodeURIComponent(config.accountId)}/storage/kv/namespaces/${namespaceId}/values/heartbeat`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${config.queueToken}` },
+        cache: 'no-store',
+        redirect: 'error',
+        signal: AbortSignal.timeout(15_000),
+      }
+    );
+  } catch {
+    return failed('request-failed');
+  }
+  if (response.status === 404) return failed('missing');
+  if (!response.ok) return failed('observation-failed');
+  let heartbeat;
+  try {
+    if (!response.body) return failed('invalid-response');
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (bytes > STATE_MAX_BYTES) return failed('invalid-response');
+        chunks.push(value);
+      }
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
+    const buffer = new Uint8Array(bytes);
+    let offset = 0;
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    heartbeat = JSON.parse(new TextDecoder().decode(buffer));
+  } catch {
+    return failed('invalid-response');
+  }
+  const isTimestamp = (value) =>
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
+    Number.isFinite(Date.parse(value)) &&
+    new Date(value).toISOString() === value;
+  if (
+    heartbeat?.version !== 1 ||
+    !isTimestamp(heartbeat.lastAttemptAt) ||
+    !['healthy', 'alert', 'error', 'running'].includes(heartbeat.status)
+  )
+    return failed('invalid-response');
+  if (heartbeat.lastCompletedAt === null) return failed('never-completed');
+  if (!isTimestamp(heartbeat.lastCompletedAt))
+    return failed('invalid-response');
+  const ageMs = nowMs - Date.parse(heartbeat.lastCompletedAt);
+  if (
+    ageMs < -STATE_CLOCK_SKEW_MS ||
+    Date.parse(heartbeat.lastAttemptAt) > nowMs + STATE_CLOCK_SKEW_MS
+  )
+    return failed('invalid-response');
+  const reason =
+    ageMs >= HEARTBEAT_MAX_AGE_MS
+      ? 'stale'
+      : ['alert', 'error'].includes(heartbeat.status)
+        ? 'checks-failed'
+        : null;
+  return {
+    ok: reason === null,
+    reason,
+    lastCompletedAt: heartbeat.lastCompletedAt,
+    ageSeconds: Math.max(0, Math.floor(ageMs / 1000)),
+    status: heartbeat.status,
+  };
+}
+
 async function sendAlert(fetchImpl, config, report, kind = 'incident') {
   if (config.dryRun) return 'dry-run';
   const isRecovery = kind === 'recovery';
@@ -538,6 +628,18 @@ export async function monitorOperations(
     alerts.push(`Health endpoint is ${health.reason}`);
   }
 
+  const monitor = await checkMonitorHeartbeat(
+    fetchImpl,
+    config,
+    env.OPERATIONAL_MONITOR_NAMESPACE_ID?.trim(),
+    nowMs
+  );
+  if (monitor && !monitor.ok) {
+    incidentCodes.push(`monitor-worker:${monitor.reason}`);
+    alerts.push(`Independent monitor heartbeat is ${monitor.reason}`);
+    if (monitor.reason !== 'checks-failed') observationFailed = true;
+  }
+
   let stateInfo;
   let stateInvalid = false;
   try {
@@ -562,6 +664,7 @@ export async function monitorOperations(
           : 'healthy',
     checkedAt: new Date(nowMs).toISOString(),
     health,
+    monitor,
     queues: summaries,
     alerts,
     stateChanged: false,

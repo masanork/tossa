@@ -10,6 +10,7 @@
         "scripts/backup-drill-worker.ts",
         "scripts/load-local-worker.ts",
         "scripts/load-cloudflare-worker.ts",
+        "scripts/operations-monitor-worker.ts",
         "e2e/**/*.spec.ts",
         "test/**/*.test.ts",
         "test/fixtures/smoke-admin-fetch.mjs",

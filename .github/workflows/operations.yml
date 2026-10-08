@@ -2,7 +2,7 @@ name: External Operations Monitor
 
 on:
   schedule:
-    - cron: '3-58/5 * * * *'
+    - cron: '23 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +40,7 @@ jobs:
           OPERATIONAL_ALERT_RECIPIENTS: ${{ secrets.OPERATIONAL_ALERT_RECIPIENTS }}
           OPERATIONAL_ALERT_FROM: noreply@tossa.app
           OPERATIONAL_MONITOR_STATE_FILE: ${{ runner.temp }}/tossa-monitor/state.json
+          OPERATIONAL_MONITOR_NAMESPACE_ID: d9686e3cb9f5427ca0d0cc69eab905a6
         run: |
           node --input-type=module <<'NODE'
           import { appendFile } from 'node:fs/promises';

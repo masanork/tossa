@@ -1,0 +1,47 @@
+{
+  "format": "tossa-recovery-proof-v1",
+  "status": "success",
+  "checkedAt": "2026-10-07T23:26:28.293Z",
+  "archiveKeySha256": "a167f332fa124be19e1adff161a0d6aa07709b5c619db8931e750670754d2906",
+  "archiveSha256": "607a29dc1d5e303d5b90bc82df0543787ca27ba91a230bc5c5ce062956819c47",
+  "archiveBytes": 35472,
+  "archiveTimestamp": "2026-10-07T03:00:15.900Z",
+  "totalRecords": 124,
+  "tableCounts": {
+    "categories": 0,
+    "disasters": 0,
+    "posts": 1,
+    "status_updates": 1,
+    "post_verifications": 0,
+    "users": 1,
+    "credentials": 2,
+    "system_settings": 3,
+    "threads": 0,
+    "thread_members": 0,
+    "messages": 0,
+    "device_sessions": 101,
+    "access_logs": 7,
+    "device_user_links": 4,
+    "push_subscriptions": 2,
+    "mutation_receipts": 2,
+    "post_reports": 0
+  },
+  "valueComparison": "full",
+  "checks": {
+    "v2Archive": "ok",
+    "freshness": "ok",
+    "localTableCounts": "ok",
+    "foreignKeyCheck": "ok",
+    "quickCheck": "ok"
+  },
+  "timingsMs": {
+    "r2Download": 2646,
+    "restoreAndVerify": 110996,
+    "total": 124741
+  },
+  "diagnostics": {
+    "r2ListedObjectCount": 5
+  },
+  "proofKeySha256": "eb823c51f6481bae094be67201360a3f06dc47c4c94d542812a09c13d4d09918",
+  "proofSha256": "93938cdef2419507013e0b8cd112eb9dea717267dfe7f6ae1c915925431b66cd"
+}

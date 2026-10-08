@@ -1,6 +1,6 @@
 # tossa.app の規模と負荷測定
 
-2026-10-07更新。現行は Cloudflare Workers Paid、D1 1本、KV、R2、Queues。**本番の同時利用者数や毎秒書き込みの限界は未測定**。以前の「同時数千〜数万」「秒間10〜20件」などの数字には負荷試験の裏付けがなく、容量の根拠として使わない。投稿件数だけでDB移行や費用を判断しない。
+2026-10-08更新。現行は Cloudflare Workers Paid、D1 1本、KV、R2、Queues。**本番の同時利用者数や毎秒書き込みの限界は未測定**。以前の「同時数千〜数万」「秒間10〜20件」などの数字には負荷試験の裏付けがなく、容量の根拠として使わない。投稿件数だけでDB移行や費用を判断しない。
 
 [D1の制約](https://developers.cloudflare.com/d1/platform/limits/)ではPaidのDB容量は10GB、1つのprimaryはクエリを直列に処理する。処理能力は件数よりSQLの時間・行読み・読み書きの混在に左右される。1万投稿をD1の上限とは扱わない。
 
@@ -61,13 +61,13 @@ npm run load:cloudflare -- --posts=5000 --requests=120 --concurrency=4,12,24 --o
 
 [Rate Limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/)はCloudflareの地点単位の結果整合で、厳密な全世界総量制限ではない。共有回線の実運用でしきい値を評価する。設定済みbindingの例外は503とし、ローカルのみ従来のMapを使う。設定済み書込Queueが受付に失敗した場合も503とし、同期D1投稿へ切り替えない。端末は同じ操作IDで未送信データを保持する。
 
-[外部監視workflow](../.github/workflows/operations.yml)は5分間隔でヘルス、両Queueの5分以上の滞留、両DLQを読み取る。API観測失敗は正常として扱わず、ヘルス検査は継続する。Queueのメッセージを取得・ack・削除しない。GitHub scheduleは遅延・欠落しうるため、検出時間の保証ではない。通知はアプリを経由せずEmail Sending RESTを使う設計だが、Email API tokenと管理者宛先のGitHub Secretsは未設定。現状の通知は未設定として明記し、異常時はworkflowを失敗させる。既存のWorker内の管理者メール通知は別途継続する。外部メールの設定と実着信は残課題。ログ10%に加えtraceを1%サンプリングする。
+別の[監視Worker](../operations-monitor.wrangler.jsonc)が5分間隔でヘルス、両Queueの5分以上の滞留、両DLQ、バックアップ26時間・復元検査8日の鮮度を確認する。D1に依存せず、確認済み管理者の宛先Secretとnative EMAIL bindingで通知する。API観測失敗は正常として扱わず、他の検査は継続する。Queueのメッセージを取得・ack・削除しない。[GitHub補助監視](../.github/workflows/operations.yml)は毎時と手動で実行し、完了から15分超のheartbeatを異常とする。15分は検出期限ではなく、GitHubの実行遅延もある。Cloudflare全体・アカウント障害ではEmailも影響を受けうる。GitHubの送信専用tokenは未設定で、失敗runが別経路の記録になる。送信ドメイン・実着信・token権限分離は残課題。[運用手順](OPERATIONS.md#外部のヘルスqueue監視)を参照。アプリログ10%・trace1%を維持する。
 
 ## 次に実施する順序
 
 1. **隔離したCloudflare環境で混合負荷を測る**。公開キャッシュが温かい場合と冷えた場合、検索・近傍検索、オフラインからの集中再送を組み合わせる。段階的に負荷を上げ、APIのp95/p99、5xx、D1行読み・SQL時間、Queue最古待ち時間、受付から反映まで、DLQを記録する。本番へ合成書き込みを送る試験はしない。想定人数・目標の反映時間が決まったら合否条件にする。
 2. **重い読み取りを測定結果から改善**。タグは`post_tags`の索引、文字検索は全文検索、深いOFFSETはカーソル方式、近傍検索は範囲での候補削減を検討する。意味や表示順を保って比較する。読み取りがprimaryを圧迫する場合は[D1 read replicationとSessions API](https://developers.cloudflare.com/d1/best-practices/read-replication/)を検討する。有効化だけでは既存APIが自動でreplicaへ移らない。権限確認や書き込み直後の読み取りの整合性を先に設計する。
-3. **入力制御と運用監視を広域化**。地点内のRate Limiting binding、制限後の端末記録、Queue受付失敗時の入力保全、外部ヘルス・滞留・DLQ検査は追加した。共有回線と広域のしきい値評価、外部通知用の権限・宛先設定と実着信を続ける。
+3. **入力制御と運用監視を広域化**。地点内のRate Limiting binding、制限後の端末記録、Queue受付失敗時の入力保全、別Workerの監視と週次復元検査は追加した。共有回線と広域のしきい値評価、送信ドメイン・実着信・専用tokenの権限分離を続ける。
 4. **増量前にバックアップと復元を実測**。下記の200ページ上限、コピー時間、一時コピー込みのD1容量、復元時間を確認する。APIが5万投稿を読めても、その件数を現行の日次バックアップで保存できる証明にはならない。外部エクスポートと保管方式の拡張を先に用意する。
 5. **必要になった段階でDB分割・移行を判断**。地域別の運用境界、DB容量、持続的な書き込み遅延などを根拠にする。投稿数や「複数自治体」という名前だけでPostgreSQL移行を決めない。画像のR2直接配信も利用量とアクセス制御を確認して判断する。
 

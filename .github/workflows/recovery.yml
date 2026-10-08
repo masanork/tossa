@@ -1,0 +1,43 @@
+name: Private Backup Recovery Drill
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-backup-recovery-drill
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Restore the latest private backup and verify every row
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          RECOVERY_REPORT: ${{ runner.temp }}/tossa-recovery-report.json
+        run: >-
+          node scripts/backup-scheduled-drill.mjs
+          --confirm-target="$CLOUDFLARE_ACCOUNT_ID/tossa-backups"
+          --report="$RECOVERY_REPORT"
+      - name: Preserve sanitized recovery results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanitized-recovery-report
+          path: ${{ runner.temp }}/tossa-recovery-report.json
+          if-no-files-found: warn
+          retention-days: 30

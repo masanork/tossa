@@ -1,6 +1,6 @@
 # 運用・移行・復元手順
 
-2026-10-07。本書は実行手順であり、本番作業の完了記録ではない。実行者、日時、対象環境、結果を作業記録に残す。
+2026-10-08。本書は実行手順であり、本番作業の完了記録ではない。実行者、日時、対象環境、結果を作業記録に残す。
 
 ## 今回の本番移行
 
@@ -54,7 +54,7 @@ npm run deploy
 
 一斉Pushは対象確認を100件ずつQueueで行い、別の配信ジョブへ渡す。受付は端末への到着証明ではない。ページ再配送・配信再試行では送信が重複しうる。APIの送信件数0と`queued: true`は受付状態を表す。[負荷測定と次の手順](capacity.md)を参照。
 
-Workersログは10%サンプリング。全処理の証跡として使わず、指標・管理画面・保存記録と照合する。書込Queueは直列のため最古の待ち時間とDLQを特に確認する。外部ヘルス・滞留・DLQ検査は追加した。外部メール通知の権限と宛先設定、実着信確認は残る。
+アプリWorkersログは10%サンプリング。全処理の証跡として使わず、指標・管理画面・保存記録と照合する。書込Queueは直列のため最古の待ち時間とDLQを特に確認する。別Workerがヘルス・滞留・DLQ・保存と復元検査の鮮度を監視する。実着信確認は別途行う。
 
 ## Queue障害
 
@@ -75,7 +75,7 @@ Workersログは10%サンプリング。全処理の証跡として使わず、�
 
 管理画面のバックアップ欄で、メール送信機能と確認済み管理者メールの件数を確認する。設定済み表示は受信の保証ではない。状態の照会が失敗した場合は不明と表示し、取得できたR2の保存実績は引き続き表示する。2026-10-05の読み取り検査では確認済み管理者メールは1件、Webhookは未設定だった。送信ドメインの一覧照会は手元のCloudflare API tokenの権限不足で確認できなかった。受信箱への実配送確認は運営担当者が行う。
 
-D1自体が停止すると、現在の管理者と送信抑制を確認できないためメールは送れない。アプリ全体の停止もこの内部通知では検出できない。当面はCloudflareの稼働状況と本番スモークを併用し、独立した監視は今後の運用要件に合わせて追加する。
+D1自体が停止すると、現在の管理者と送信抑制を確認できないため、このアプリ内部のメールは送れない。別Workerの監視は管理者宛先をSecretに保持し、実行時にD1を使わない。Cloudflare全体・アカウント障害には双方が影響を受けるため、GitHubの補助検査とCloudflareの稼働状況も併用する。
 
 ### 管理者・代替担当者の読み取り検査
 
@@ -170,21 +170,45 @@ IndexedDBへの初回移行ではService Workerが同じサイトの全画面へ
 
 ## 外部のヘルス・Queue監視
 
-[operations.yml](../.github/workflows/operations.yml)は5分間隔と手動実行に対応し、Worker経由ではなくCloudflare Queue REST指標を読み取る。両通常Queueの最古待ち時間が300秒以上、DLQが1件以上、ヘルスの非200・非JSON・内容不一致・タイムアウト、Queue観測失敗を異常とする。未知の最古時刻を正常な0秒へ置き換えない。Queue APIが失敗してもヘルスを検査する。read/pull/ack/purgeでメッセージを変更しない。
+[監視Worker設定](../operations-monitor.wrangler.jsonc)の `tossa-operations-monitor` はUTCの毎時2分から57分まで5分間隔のCronで実行する。アプリとは別に配置し、D1をbindせず、公開HTTP経路を持たない。ヘルスHTTP、4QueueのREST指標、非公開R2のバックアップmetadataと復元検査証跡をそれぞれ観測する。両通常Queueの最古待ち時間が300秒以上、DLQが1件以上、ヘルスの非200・非JSON・内容不一致・タイムアウト、Queue観測失敗を異常とする。未知の最古時刻を正常な0秒へ置き換えない。観測元の一つが失敗しても他を検査し、Queueメッセージを取得・ack・削除しない。
+
+バックアップはv2 metadataと取得時刻を検査し、26時間超、未来時刻、不正metadata・容量、一覧取得失敗を通知条件とする。元JSON本文は監視時に読み取らない。復元検査は `recovery-checks/` の16KiB以下の証跡だけを検査し、最新結果の失敗・欠損・不正・未来・8日超を異常とする。古い成功で直近の失敗を隠さない。監視実行の開始時刻はログへ、完了時刻・その実行の開始時刻・各観測状態は専用KVの `heartbeat` へ完了時に一回保存する。KVの同一キー1秒1書込制限を避け、中断時は古い完了時刻またはheartbeat欠損で検知する。ログは秘密・宛先・原文・実バックアップキーを含まない。
+
+Workerの `MONITOR_QUEUE_API_TOKEN` はQueue指標の読み取り用、`OPERATIONAL_ALERT_RECIPIENTS` は現在の確認済み管理者のアドレスを保管するSecret。`EMAIL` bindingの送信元は `noreply@tossa.app`、宛先はBCCとする。管理者の追加・降格・削除・メール変更時はWorkerとGitHub双方の宛先Secretを更新する。実行時のDB照会を避けるため自動更新はしない。`OPERATIONAL_ALERT_DRY_RUN=true` で初回の検査を確認してから `false` に切り替える。bindingの設定やAPI受理は受信箱への配達証明ではなく、送信ドメインと実着信の確認が必要（[Email Service設定](https://developers.cloudflare.com/email-service/get-started/send-emails/)）。
+
+Workerは全宛先のAPI受理後に専用KVへ障害fingerprintと時刻を保存し、同じ条件を30分抑制する。新しい条件・30分継続・正常復帰を通知する。失敗・dry-runでは受理済み状態を更新せず次のCronで再試行する。KVは結果整合のため、重複通知を完全には防がない。状態保存失敗も検知対象となる。アプリ内部のD1による通知抑制とは別の状態である。
+
+[operations.yml](../.github/workflows/operations.yml)は毎時23分と手動実行の補助検査。ヘルス・4Queueに加え `OPERATIONAL_MONITOR_NAMESPACE_ID` のKV heartbeatを読み取り、完了から15分超・未完了・取得失敗・監視の異常状態を失敗として扱う。開始時刻だけが新しくても完了が古ければ検出する。15分は判定の閾値であり検出期限ではない。毎時実行までの最大約60分にGitHub schedule遅延とジョブ所要時間が加わる。以前の5分scheduleには約5時間の実行間隔があり、原因は未確定。独立Workerへ移したことでGitHubの実行間隔に一次監視が依存しなくなるが、Cronの実行保証を意味しない（[Cloudflare Cron](https://developers.cloudflare.com/workers/configuration/cron-triggers/)）。
 
 通常のCloudflare account/token Secretsは既存CIと共通。メール送信にはproduction環境へ `CLOUDFLARE_EMAIL_API_TOKEN`（対象accountのEmail Sending送信権限）と `OPERATIONAL_ALERT_RECIPIENTS`（現在管理者に設定され、検証済みのメールアドレス。複数はカンマ区切り）を設定する。送信元は既存の `noreply@tossa.app`。宛先はBCCで送信し、アドレス・token・API応答本文を標準出力へ出さない。管理者の追加・降格・削除・メール変更時には、この外部監視用の宛先Secretも更新する。外部監視の宛先はWorker内のDB照会による自動選択とは別で、DB障害時にも使える運営設定である。
 
-2026-10-07に確認済み管理者1人の宛先をproductionの `OPERATIONAL_ALERT_RECIPIENTS` に登録した。送信tokenは未設定で、外部の実メール通知は未稼働。最小権限は対象accountの `Email Sending: Edit`。送信ドメインのオンボード状態と初回実着信を確認する。ドメイン未オンボード時はCloudflare側でも宛先検証が必要で、tossa内のメール確認だけでは代用できない（[Email Service設定](https://developers.cloudflare.com/email-service/get-started/send-emails/)）。正常時の監視は成功し、異常検出時に通知できなければ失敗する。既存Worker内通知を置き換えない。
+2026-10-07に確認済み管理者1人の宛先をGitHub production Secretへ登録した。GitHub側の送信tokenは未設定で、異常時はworkflowを失敗させる。Workerのnative `EMAIL` bindingとは設定が別である。Cloudflare全体の障害ではQueue/KV観測とCloudflare Emailも使えない可能性がある。GitHubの失敗run・ログは別経路で確認できるが、独立したメール基盤による通知はまだない。
+
+常時監視に必要なREST権限は対象accountのQueues ReadとWorkers KV Storage Read、復元ジョブにはR2読み書き権限が必要。現状は既存のCloudflare CI tokenを共用するため、必要権限だけの専用tokenへの分離は運用上の残課題。token・宛先を引数、ログ、レポート、cacheへ出さない。
 
 `OPERATIONAL_MONITOR_STATE_FILE` を設定すると、全宛先がAPIに受理された障害のfingerprintと時刻だけを保存する。同じ異常条件の通知は30分間抑制し、新しい条件と30分後の継続は再通知する。数値や待ち時間の変化だけでは別障害にしない。通知済み障害が解消した場合は復旧を一度通知し、受理後に状態を解除する。メール失敗、未設定、dry-runでは受理済み状態を更新しない。`sent` はAPI受理であり受信箱への配達証明ではない。
 
-workflowは秘密や宛先を含まない状態JSONだけをActions cacheへ保存し、直列実行で引き継ぐ。キャッシュ消失時は通知が重複しうるので厳密な一度限りの保証ではない（[GitHub cacheの仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)）。壊れたJSON、不正な権限・symlinkは上書きせず、監視を継続して汎用エラー通知を試みる。この場合30分抑制は適用せず、5分cronで最大12回/時となる。運営者が原因を確認して該当キャッシュを削除・修正する。状態ファイル未指定のCLIは毎回通知する従来動作。
+workflowは秘密や宛先を含まない状態JSONだけをActions cacheへ保存し、直列実行で引き継ぐ。キャッシュ消失時は通知が重複しうるので厳密な一度限りの保証ではない（[GitHub cacheの仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)）。壊れたJSON、不正な権限・symlinkは上書きせず、監視を継続して汎用エラー通知を試みる。この場合30分抑制は適用しない。運営者が原因を確認して該当キャッシュを削除・修正する。状態ファイル未指定のCLIは毎回通知する従来動作。
 
 ```sh
 OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
 ```
 
 このdry-runはメールを送らない。手動workflowまたはCLI出力の時刻、ヘルス、4Queue、通知設定状態を記録する。観測APIの値は近似なのでCloudflareの画面とD1で保存された操作を照合する。GitHub scheduleは遅延・欠落しうる。公開リポジトリでは60日間の活動停止でscheduleが無効になるため、運営時に有効状態を確認する（[GitHubのschedule仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)）。現在は単発の異常条件で通知し、複数回の継続性判定は行わない。
+
+## 最新バックアップの週次復元検査
+
+[recovery.yml](../.github/workflows/recovery.yml)を毎週月曜13:17 JST（04:17 UTC）と手動で実行する。最新の非公開v2 JSONを自動選択し、隔離local D1へ復元、全17表の件数・全行の値・外部キー・quick_checkを照合する。本番D1の問い合わせ・export・復元はしない。
+
+```sh
+npm run backup:scheduled-drill -- \
+  --confirm-target="$CLOUDFLARE_ACCOUNT_ID/tossa-backups" \
+  --report=/private/tmp/tossa-recovery-report.json
+```
+
+対象account/tokenを環境変数に設定し、r2.dev無効・カスタムドメインなしを検査する。取得26時間以内・最大100MiB、R2一覧最大20ページの上限を設ける。全値比較は一表32MiBまでで、超過は成功扱いにしない。local subprocessからCloudflare認証を外す。元JSON・SQL・local DBは0700の一時領域に置き、終了時に削除する。強制終了時に残った一時データも一般公開・Actions cache保存しない。
+
+検査の成功・失敗は非公開R2の `recovery-checks/` に新しい一意キーで保存し、読み戻してバイト数とSHA-256を照合する。既存アーカイブ・証跡を上書き・削除しない。証跡は許可した件数・容量・ハッシュ・時刻・所要時間・検査結果または静的失敗コードだけを含み、未知項目を拒否する共通validatorをWorkerでも使う。失敗証跡の公開も失敗した場合はGitHub runを失敗させる。GitHub artifactに保存するのはこの非機密レポートだけ（30日）で、元データや署名URLを含めない。証跡は日次バックアップの30世代整理とは別で蓄積するため、保持方針は運用状況に合わせて決める。
 
 ## 200ページ上限を超えるSQL退避
 

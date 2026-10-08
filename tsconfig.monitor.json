@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": true, "checkJs": false },
+  "include": [
+    "scripts/operations-monitor-worker.ts",
+    "scripts/operations-monitor-env.d.ts",
+    "scripts/recovery-proof.mjs"
+  ]
+}
