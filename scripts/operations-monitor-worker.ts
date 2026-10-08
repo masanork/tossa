@@ -254,6 +254,7 @@ function apiSuccess(payload: unknown): payload is Record<string, unknown> {
     isRecord(payload) &&
     payload.success === true &&
     (payload.errors === undefined ||
+      payload.errors === null ||
       (Array.isArray(payload.errors) && payload.errors.length === 0))
   );
 }

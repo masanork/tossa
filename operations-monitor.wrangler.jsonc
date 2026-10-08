@@ -10,7 +10,7 @@
     "CLOUDFLARE_ACCOUNT_ID": "4b749427a0c80c547e726a42aff4b6fc",
     "HEALTH_URL": "https://tossa.app/api/health",
     "OPERATIONAL_ALERT_FROM": "noreply@tossa.app",
-    "OPERATIONAL_ALERT_DRY_RUN": "true",
+    "OPERATIONAL_ALERT_DRY_RUN": "false",
   },
   "r2_buckets": [
     { "binding": "BACKUPS_BUCKET", "bucket_name": "tossa-backups" },

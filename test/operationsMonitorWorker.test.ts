@@ -217,15 +217,15 @@ function makeFetch(
         if (options.queueMalformedJson) return new Response('{');
         if (options.queueApiRejected)
           return Response.json({
-            success: false,
-            errors: [{ message: 'synthetic secret API detail' }],
+            success: true,
+            errors: [{ code: 7003, message: 'synthetic secret API detail' }],
             result: [],
           });
         if (options.failQueueList)
           return new Response('unavailable', { status: 503 });
         return Response.json({
           success: true,
-          errors: [],
+          errors: null,
           result:
             options.queueRecords ??
             (options.queueNames ?? queueNames).map((queue_name) => ({
@@ -246,7 +246,7 @@ function makeFetch(
           return Response.json({ success: false, errors: ['unknown'] });
         return Response.json({
           success: true,
-          errors: [],
+          errors: null,
           result: {
             backlog_count: 0,
             backlog_bytes: 0,
