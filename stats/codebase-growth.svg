@@ -30,23 +30,23 @@
 <text x="46.0" y="47.4" text-anchor="end" dominant-baseline="middle" fill="#94a3b8" font-size="10.5">60k</text>
 <line x1="52.0" y1="32.0" x2="532.0" y2="32.0" stroke="#e2e8f0" stroke-width="1"/>
 <text x="46.0" y="32.0" text-anchor="end" dominant-baseline="middle" fill="#94a3b8" font-size="10.5">65k</text>
-<path d="M52.0,197.0 L108.5,194.0 L193.2,194.0 L475.5,189.9 L503.8,187.4 L532.0,186.9 L532.0,232.0 L503.8,232.0 L475.5,232.0 L193.2,232.0 L108.5,232.0 L52.0,232.0 Z" fill="rgba(37,99,235,0.18)"/>
-<path d="M52.0,131.8 L108.5,119.7 L193.2,119.3 L475.5,109.2 L503.8,104.5 L532.0,104.0 L532.0,186.9 L503.8,187.4 L475.5,189.9 L193.2,194.0 L108.5,194.0 L52.0,197.0 Z" fill="rgba(124,58,237,0.16)"/>
-<path d="M52.0,110.8 L108.5,94.7 L193.2,94.4 L475.5,75.0 L503.8,67.3 L532.0,64.0 L532.0,104.0 L503.8,104.5 L475.5,109.2 L193.2,119.3 L108.5,119.7 L52.0,131.8 Z" fill="rgba(5,150,105,0.16)"/>
-<path d="M52.0,197.0 L108.5,194.0 L193.2,194.0 L475.5,189.9 L503.8,187.4 L532.0,186.9" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M52.0,131.8 L108.5,119.7 L193.2,119.3 L475.5,109.2 L503.8,104.5 L532.0,104.0" fill="none" stroke="#7c3aed" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M52.0,110.8 L108.5,94.7 L193.2,94.4 L475.5,75.0 L503.8,67.3 L532.0,64.0" fill="none" stroke="#059669" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M52.0,197.0 L102.5,194.0 L178.3,194.0 L430.9,189.9 L456.2,187.4 L481.5,186.9 L532.0,186.9 L532.0,232.0 L481.5,232.0 L456.2,232.0 L430.9,232.0 L178.3,232.0 L102.5,232.0 L52.0,232.0 Z" fill="rgba(37,99,235,0.18)"/>
+<path d="M52.0,131.8 L102.5,119.7 L178.3,119.3 L430.9,109.2 L456.2,104.5 L481.5,104.0 L532.0,104.0 L532.0,186.9 L481.5,186.9 L456.2,187.4 L430.9,189.9 L178.3,194.0 L102.5,194.0 L52.0,197.0 Z" fill="rgba(124,58,237,0.16)"/>
+<path d="M52.0,110.8 L102.5,94.7 L178.3,94.4 L430.9,75.0 L456.2,67.3 L481.5,64.0 L532.0,58.8 L532.0,104.0 L481.5,104.0 L456.2,104.5 L430.9,109.2 L178.3,119.3 L102.5,119.7 L52.0,131.8 Z" fill="rgba(5,150,105,0.16)"/>
+<path d="M52.0,197.0 L102.5,194.0 L178.3,194.0 L430.9,189.9 L456.2,187.4 L481.5,186.9 L532.0,186.9" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M52.0,131.8 L102.5,119.7 L178.3,119.3 L430.9,109.2 L456.2,104.5 L481.5,104.0 L532.0,104.0" fill="none" stroke="#7c3aed" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M52.0,110.8 L102.5,94.7 L178.3,94.4 L430.9,75.0 L456.2,67.3 L481.5,64.0 L532.0,58.8" fill="none" stroke="#059669" stroke-width="1.6" stroke-linejoin="round"/>
 <line x1="52.0" y1="32.0" x2="52.0" y2="232.0" stroke="#cbd5e1" stroke-width="1"/>
 <line x1="52.0" y1="232.0" x2="532.0" y2="232.0" stroke="#cbd5e1" stroke-width="1"/>
 <line x1="52.0" y1="232.0" x2="52.0" y2="236.0" stroke="#cbd5e1" stroke-width="1"/>
 <text x="52.0" y="248.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">9/19</text>
-<line x1="475.5" y1="232.0" x2="475.5" y2="236.0" stroke="#cbd5e1" stroke-width="1"/>
-<text x="475.5" y="248.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/4</text>
+<line x1="430.9" y1="232.0" x2="430.9" y2="236.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="430.9" y="248.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/4</text>
 <line x1="532.0" y1="232.0" x2="532.0" y2="236.0" stroke="#cbd5e1" stroke-width="1"/>
-<text x="532.0" y="248.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/6</text>
+<text x="532.0" y="248.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/8</text>
 <text x="540.0" y="186.9" text-anchor="start" dominant-baseline="middle" fill="#2563eb" font-size="10" font-weight="600">14,658 src</text>
 <text x="540.0" y="104.0" text-anchor="start" dominant-baseline="middle" fill="#7c3aed" font-size="10" font-weight="600">26,956 web</text>
-<text x="540.0" y="64.0" text-anchor="start" dominant-baseline="middle" fill="#059669" font-size="10" font-weight="600">12,991 tests</text>
+<text x="540.0" y="58.8" text-anchor="start" dominant-baseline="middle" fill="#059669" font-size="10" font-weight="600">14,689 tests</text>
 <rect x="52" y="258" width="11" height="8" rx="1.5" fill="#2563eb" opacity="0.8"/>
 <text x="67.0" y="266.0" text-anchor="start" dominant-baseline="auto" fill="#475569" font-size="10">Worker src/</text>
 <rect x="138.4" y="258" width="11" height="8" rx="1.5" fill="#7c3aed" opacity="0.8"/>

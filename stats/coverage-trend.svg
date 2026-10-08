@@ -14,14 +14,14 @@
 <text x="46.0" y="32.0" text-anchor="end" dominant-baseline="middle" fill="#94a3b8" font-size="10.5">100%</text>
 <line x1="52.0" y1="32.0" x2="52.0" y2="180.0" stroke="#cbd5e1" stroke-width="1"/>
 <line x1="52.0" y1="180.0" x2="568.0" y2="180.0" stroke="#cbd5e1" stroke-width="1"/>
-<path d="M52.0,73.4 L112.7,69.0 L203.8,69.0 L507.3,66.0 L537.6,63.1 L568.0,63.1 L568.0,180.0 L52.0,180.0 Z" fill="rgba(217,119,6,0.14)"/>
-<path d="M52.0,73.4 L112.7,69.0 L203.8,69.0 L507.3,66.0 L537.6,63.1 L568.0,63.1" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M52.0,73.4 L106.3,69.0 L187.8,69.0 L459.4,66.0 L486.5,63.1 L513.7,63.1 L568.0,63.1 L568.0,180.0 L52.0,180.0 Z" fill="rgba(217,119,6,0.14)"/>
+<path d="M52.0,73.4 L106.3,69.0 L187.8,69.0 L459.4,66.0 L486.5,63.1 L513.7,63.1 L568.0,63.1" fill="none" stroke="#d97706" stroke-width="1.8" stroke-linejoin="round"/>
 <circle cx="568.0" cy="63.1" r="3.2" fill="#d97706"/>
 <text x="576.0" y="63.1" text-anchor="start" dominant-baseline="middle" fill="#d97706" font-size="11" font-weight="600">79%</text>
 <line x1="52.0" y1="180.0" x2="52.0" y2="184.0" stroke="#cbd5e1" stroke-width="1"/>
 <text x="52.0" y="196.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">9/19</text>
-<line x1="507.3" y1="180.0" x2="507.3" y2="184.0" stroke="#cbd5e1" stroke-width="1"/>
-<text x="507.3" y="196.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/4</text>
+<line x1="459.4" y1="180.0" x2="459.4" y2="184.0" stroke="#cbd5e1" stroke-width="1"/>
+<text x="459.4" y="196.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/4</text>
 <line x1="568.0" y1="180.0" x2="568.0" y2="184.0" stroke="#cbd5e1" stroke-width="1"/>
-<text x="568.0" y="196.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/6</text>
+<text x="568.0" y="196.0" text-anchor="middle" dominant-baseline="auto" fill="#94a3b8" font-size="10.5">10/8</text>
 </svg>
