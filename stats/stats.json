@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-10-08T01:44:41.141Z",
+  "generatedAt": "2026-11-08T01:58:28.439Z",
   "git": {
-    "commit": "25ab3ad"
+    "commit": "7f2c9b4"
   },
   "src": {
     "name": "src (Worker)",
@@ -14,7 +14,7 @@
     "name": "web/src (UI)",
     "path": "web/src",
     "files": 59,
-    "lines": 26956,
+    "lines": 26955,
     "testFns": 0
   },
   "tests": {
@@ -32,10 +32,10 @@
     "testFns": 27
   },
   "health": {
-    "implLines": 41614,
+    "implLines": 41613,
     "testLines": 14689,
-    "testRatio": 0.2608919595758663,
-    "depCount": 418,
+    "testRatio": 0.26089659337146104,
+    "depCount": 412,
     "largeFiles": [
       {
         "path": "web/src/lib/AdminModal.svelte",
@@ -71,7 +71,7 @@
       },
       {
         "path": "web/src/lib/PostCard.svelte",
-        "lines": 1266
+        "lines": 1265
       },
       {
         "path": "src/routes/mcp.ts",
@@ -132,7 +132,7 @@
     "linePct": 79,
     "branchPct": 68,
     "funcPct": 82,
-    "lines": 3300,
-    "coveredLines": 2608
+    "lines": 3304,
+    "coveredLines": 2611
   }
 }
