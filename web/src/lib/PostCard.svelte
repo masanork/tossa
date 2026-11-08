@@ -971,7 +971,6 @@
         onclick={() => onOpenQrShare?.(post)}
         class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
         title={m.qr_share_title()}
-        aria-label={m.qr_share_title()}
       >
         <QrCode class="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
         <span>{m.qr_share_btn()}</span>

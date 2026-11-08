@@ -170,7 +170,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           packageManager: npm
-          wranglerVersion: '4.147.0'
+          wranglerVersion: '4.158.0'
           command: deploy
 
       - name: Smoke test production
@@ -201,7 +201,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           packageManager: npm
-          wranglerVersion: '4.147.0'
+          wranglerVersion: '4.158.0'
           command: deploy --config operations-monitor.wrangler.jsonc
       - name: Synchronize monitor secrets from the production environment
         env:
