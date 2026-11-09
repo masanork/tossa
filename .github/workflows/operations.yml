@@ -47,6 +47,9 @@ jobs:
           import { monitorOperations } from './scripts/monitor-operations.mjs';
           const report = await monitorOperations();
           console.log(JSON.stringify(report));
+          if (!report.notificationsConfigured) {
+            console.log('::warning title=Alert email unavailable::External monitor email is not configured; a healthy check does not verify alert delivery.');
+          }
           await appendFile(process.env.GITHUB_OUTPUT, `state_changed=${report.stateChanged === true}\n`);
           if (report.status === 'error' || report.status === 'alert') process.exitCode = 1;
           NODE
