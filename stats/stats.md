@@ -1,15 +1,15 @@
 # tossa codebase snapshot
 
-Commit `d7d56ed` · 2026-11-09
+Commit `ab945c7` · 2026-11-09
 
 | Area           | Files |      Lines |   Tests |
 | -------------- | ----: | ---------: | ------: |
 | Worker `src/`  |    31 |     14,658 |       0 |
 | UI `web/src/`  |    59 |     26,955 |       0 |
-| Unit `test/`   |    66 |     12,704 |     421 |
+| Unit `test/`   |    66 |     12,777 |     423 |
 | E2E `e2e/`     |     4 |      2,046 |      27 |
 | **Impl total** |    90 | **41,613** |         |
-| **Test total** |    70 | **14,750** | **448** |
+| **Test total** |    70 | **14,823** | **450** |
 
 - Test / (impl + test) line ratio: **26%**
 - npm packages (lockfile): **412**
