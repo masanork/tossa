@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-08T01:58:28.439Z",
+  "generatedAt": "2026-11-09T01:32:59.024Z",
   "git": {
-    "commit": "7f2c9b4"
+    "commit": "d7d56ed"
   },
   "src": {
     "name": "src (Worker)",
@@ -21,8 +21,8 @@
     "name": "test (unit)",
     "path": "test",
     "files": 66,
-    "lines": 12643,
-    "testFns": 418
+    "lines": 12704,
+    "testFns": 421
   },
   "e2e": {
     "name": "e2e",
@@ -33,8 +33,8 @@
   },
   "health": {
     "implLines": 41613,
-    "testLines": 14689,
-    "testRatio": 0.26089659337146104,
+    "testLines": 14750,
+    "testRatio": 0.26169650302503417,
     "depCount": 412,
     "largeFiles": [
       {
