@@ -190,6 +190,10 @@ Workerは全宛先のAPI受理後に専用KVへ障害fingerprintと時刻を保�
 
 workflowは秘密や宛先を含まない状態JSONだけをActions cacheへ保存し、直列実行で引き継ぐ。キャッシュ消失時は通知が重複しうるので厳密な一度限りの保証ではない（[GitHub cacheの仕様](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)）。壊れたJSON、不正な権限・symlinkは上書きせず、監視を継続して汎用エラー通知を試みる。この場合30分抑制は適用しない。運営者が原因を確認して該当キャッシュを削除・修正する。状態ファイル未指定のCLIは毎回通知する従来動作。
 
+2026-11-07 22:47 UTCの補助監視では書込Queueに滞留があり最古時刻を判定できず、観測エラーとなった。ログではゼロ時刻と未来時刻を区別できず、原因は未確定。同runのGitHub側メール通知は未設定で利用できなかった。その後の監視成功は、その時の実着信や原因解決の証明ではない。独立WorkerとGitHub補助監視それぞれの通知経路、実着信、Cloudflare全体障害時の連絡経路を別途確認する。
+
+Queueの最古時刻が不明な場合は観測失敗とし、DLQに件数があれば時刻不明とDLQ滞留を両方報告する。
+
 ```sh
 OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
 ```

@@ -735,6 +735,26 @@ describe('external operations monitor', () => {
     ).toBe(true);
   });
 
+  it('reports both dead letters and unknown age when the oldest timestamp is unavailable', async () => {
+    const { fetchImpl } = mockCloudflareFetch({
+      metrics: {
+        'tossa-write-deadletter': {
+          backlog_count: 1,
+          backlog_bytes: 100,
+          oldest_message_timestamp_ms: 0,
+        },
+      },
+    });
+    const report = await monitorOperations(configuredEnv(), fetchImpl, now);
+    expect(report.status).toBe('error');
+    expect(report.alerts).toContain(
+      'Queue age is unknown for tossa-write-deadletter'
+    );
+    expect(report.alerts).toContain(
+      'tossa-write-deadletter contains 1 dead-letter message(s)'
+    );
+  });
+
   it('reports a missing expected queue as an observation error and still checks health', async () => {
     const { fetchImpl, requests } = mockCloudflareFetch({
       queueNames: names.slice(0, 3),
