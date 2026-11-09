@@ -458,6 +458,47 @@ describe('standalone operations monitor Worker', () => {
     );
   });
 
+  it('reports dead letters even when their oldest timestamp is unknown', async () => {
+    const { env } = makeEnv();
+    const server = makeFetch({
+      metrics: {
+        'tossa-write-deadletter': {
+          backlog_count: 1,
+          backlog_bytes: 100,
+          oldest_message_timestamp_ms: 0,
+        },
+      },
+    });
+    vi.stubGlobal('fetch', server.fetchMock);
+    const result = await executeAt(env);
+    expect(result.status).toBe('error');
+    expect(result.codes).toContain('queue:tossa-write-deadletter:age-unknown');
+    expect(result.codes).toContain('queue:tossa-write-deadletter:deadletter');
+  });
+
+  it.each([0, nowMs + 10 * 60_000])(
+    'marks queue observation failed when the oldest timestamp is %s',
+    async (oldest) => {
+      const { env } = makeEnv();
+      vi.stubGlobal(
+        'fetch',
+        makeFetch({
+          metrics: {
+            'tossa-write-queue': {
+              backlog_count: 1,
+              backlog_bytes: 100,
+              oldest_message_timestamp_ms: oldest,
+            },
+          },
+        }).fetchMock
+      );
+      const result = await executeAt(env);
+      expect(result.status).toBe('error');
+      expect(result.sources.queues).toBe('failed');
+      expect(result.codes).toContain('queue:tossa-write-queue:age-unknown');
+    }
+  );
+
   it('sends one recovery notification after a previously accepted incident', async () => {
     const { env, values, emailSend } = makeEnv();
     const incidentServer = makeFetch({

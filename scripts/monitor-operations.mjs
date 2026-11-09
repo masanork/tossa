@@ -177,9 +177,11 @@ function metricSummary(queue, nowMs) {
   let oldestMessageAgeSeconds = null;
   if (metrics.backlog_count > 0) {
     const oldest = metrics.oldest_message_timestamp_ms;
-    if (oldest === 0 || oldest > nowMs + 120_000)
-      throw safeError(`Queue age is unknown for ${queue.name}`);
-    oldestMessageAgeSeconds = Math.max(0, Math.floor((nowMs - oldest) / 1000));
+    if (oldest !== 0 && oldest <= nowMs + 120_000)
+      oldestMessageAgeSeconds = Math.max(
+        0,
+        Math.floor((nowMs - oldest) / 1000)
+      );
   }
   if (metrics.backlog_count === 0 && metrics.backlog_bytes > 0)
     throw safeError(`Queue metrics are inconsistent for ${queue.name}`);
@@ -604,6 +606,14 @@ export async function monitorOperations(
           nowMs
         );
         summaries.push(summary);
+        if (
+          summary.backlogCount > 0 &&
+          summary.oldestMessageAgeSeconds === null
+        ) {
+          observationFailed = true;
+          incidentCodes.push(`queue:${name}:observation-failed`);
+          alerts.push(`Queue age is unknown for ${name}`);
+        }
         for (const finding of evaluateQueue(summary)) {
           incidentCodes.push(finding.code);
           alerts.push(finding.message);

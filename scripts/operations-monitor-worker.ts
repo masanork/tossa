@@ -324,12 +324,12 @@ function queueMetricIssue(
     (backlog === 0 && bytes > 0)
   )
     return [`queue:${queueName}:metrics-invalid`];
-  if (backlog > 0 && (oldest === 0 || oldest > now + CLOCK_SKEW_MS))
-    return [`queue:${queueName}:age-unknown`];
   const codes: string[] = [];
   if (queueName.endsWith('-deadletter') && backlog > 0)
     codes.push(`queue:${queueName}:deadletter`);
-  if (backlog > 0 && now - oldest >= QUEUE_LAG_MS)
+  if (backlog > 0 && (oldest === 0 || oldest > now + CLOCK_SKEW_MS))
+    codes.push(`queue:${queueName}:age-unknown`);
+  else if (backlog > 0 && now - oldest >= QUEUE_LAG_MS)
     codes.push(`queue:${queueName}:lag`);
   return codes;
 }
@@ -392,6 +392,7 @@ async function observeQueues(
       code.endsWith(':unavailable') ||
       code.endsWith(':invalid') ||
       code.endsWith(':missing') ||
+      code.endsWith(':age-unknown') ||
       code.endsWith(':unknown')
   );
   return { status: failed ? 'failed' : 'ok', codes };
