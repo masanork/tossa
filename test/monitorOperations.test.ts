@@ -284,6 +284,79 @@ describe('external operations monitor', () => {
     expect(JSON.stringify(report)).not.toContain('example.test');
   });
 
+  it.each([
+    { delivered: ['admin1@example.test', 'admin1@example.test'], queued: [] },
+    { delivered: ['admin1@example.test', 'other@example.test'], queued: [] },
+    { delivered: ['admin1@example.test', 42], queued: [] },
+    {
+      delivered: ['admin1@example.test', 'admin2@example.test'],
+      permanent_bounces: 'invalid',
+    },
+    {
+      delivered: ['admin1@example.test', 'admin2@example.test'],
+      suppressed_recipients: ['admin2@example.test'],
+    },
+  ])(
+    'does not record notification acceptance for incomplete or malformed responses',
+    async (result) => {
+      await withStateFile(async (statePath) => {
+        const { fetchImpl } = mockCloudflareFetch({
+          metrics: {
+            'tossa-push-deadletter': {
+              backlog_count: 1,
+              backlog_bytes: 100,
+              oldest_message_timestamp_ms: now - 30_000,
+            },
+          },
+          emailResponse: jsonResponse({ success: true, errors: [], result }),
+        });
+        const report = await monitorOperations(
+          configuredEnv({
+            OPERATIONAL_ALERT_DRY_RUN: 'false',
+            OPERATIONAL_MONITOR_STATE_FILE: statePath,
+          }),
+          fetchImpl,
+          now
+        );
+        expect(report).toMatchObject({
+          status: 'error',
+          notification: 'unavailable',
+          stateChanged: false,
+        });
+        expect(JSON.stringify(report)).not.toContain('example.test');
+        await expect(readFile(statePath, 'utf8')).rejects.toMatchObject({
+          code: 'ENOENT',
+        });
+      });
+    }
+  );
+
+  it('accepts the exact recipients split between delivery and queue', async () => {
+    const { fetchImpl } = mockCloudflareFetch({
+      metrics: {
+        'tossa-push-deadletter': {
+          backlog_count: 1,
+          backlog_bytes: 100,
+          oldest_message_timestamp_ms: now - 30_000,
+        },
+      },
+      emailResponse: jsonResponse({
+        success: true,
+        errors: [],
+        result: {
+          delivered: ['ADMIN1@example.test'],
+          queued: ['admin2@example.test'],
+        },
+      }),
+    });
+    const report = await monitorOperations(
+      configuredEnv({ OPERATIONAL_ALERT_DRY_RUN: 'false' }),
+      fetchImpl,
+      now
+    );
+    expect(report).toMatchObject({ status: 'alert', notification: 'sent' });
+  });
+
   it('suppresses the same queue-lag incident despite changing counts and age', async () => {
     await withStateFile(async (statePath, directory) => {
       const firstFetch = mockCloudflareFetch({

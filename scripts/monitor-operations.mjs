@@ -536,14 +536,31 @@ async function sendAlert(fetchImpl, config, report, kind = 'incident') {
   );
   const delivered = result.result?.delivered ?? [];
   const queued = result.result?.queued ?? [];
+  const bounces = result.result?.permanent_bounces ?? [];
+  const suppressed = result.result?.suppressed_recipients ?? [];
   if (
     !Array.isArray(delivered) ||
     !Array.isArray(queued) ||
-    delivered.length + queued.length !== config.recipients.length ||
-    (Array.isArray(result.result?.permanent_bounces) &&
-      result.result.permanent_bounces.length > 0) ||
-    (Array.isArray(result.result?.suppressed_recipients) &&
-      result.result.suppressed_recipients.length > 0)
+    !Array.isArray(bounces) ||
+    !Array.isArray(suppressed) ||
+    bounces.length > 0 ||
+    suppressed.length > 0 ||
+    [...delivered, ...queued].some((address) => typeof address !== 'string')
+  )
+    throw safeError(
+      'Operational alert email was not accepted for every recipient'
+    );
+  const expected = new Set(
+    config.recipients.map((address) => address.toLowerCase())
+  );
+  const accepted = [...delivered, ...queued].map((address) =>
+    address.toLowerCase()
+  );
+  if (
+    expected.size !== config.recipients.length ||
+    accepted.length !== expected.size ||
+    new Set(accepted).size !== expected.size ||
+    accepted.some((address) => !expected.has(address))
   )
     throw safeError(
       'Operational alert email was not accepted for every recipient'
