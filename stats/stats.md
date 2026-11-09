@@ -1,6 +1,6 @@
 # tossa codebase snapshot
 
-Commit `ab945c7` · 2026-11-09
+Commit `dde93c5` · 2026-11-09
 
 | Area           | Files |      Lines |   Tests |
 | -------------- | ----: | ---------: | ------: |
