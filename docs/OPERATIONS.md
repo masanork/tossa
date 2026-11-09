@@ -182,7 +182,7 @@ Workerは全宛先のAPI受理後に専用KVへ障害fingerprintと時刻を保�
 
 通常のCloudflare account/token Secretsは既存CIと共通。メール送信にはproduction環境へ `CLOUDFLARE_EMAIL_API_TOKEN`（対象accountのEmail Sending送信権限）と `OPERATIONAL_ALERT_RECIPIENTS`（現在管理者に設定され、検証済みのメールアドレス。複数はカンマ区切り）を設定する。送信元は既存の `noreply@tossa.app`。宛先はBCCで送信し、アドレス・token・API応答本文を標準出力へ出さない。管理者の追加・降格・削除・メール変更時には、この外部監視用の宛先Secretも更新する。外部監視の宛先はWorker内のDB照会による自動選択とは別で、DB障害時にも使える運営設定である。
 
-2026-10-07に確認済み管理者1人の宛先をGitHub production Secretへ登録した。GitHub側の送信tokenは未設定で、異常時はworkflowを失敗させる。Workerのnative `EMAIL` bindingとは設定が別である。Cloudflare全体の障害ではQueue/KV観測とCloudflare Emailも使えない可能性がある。GitHubの失敗run・ログは別経路で確認できるが、独立したメール基盤による通知はまだない。
+2026-10-07に確認済み管理者1人の宛先をGitHub production Secretへ登録した。2026-11-09のSecret名一覧でもGitHub側の送信tokenは未設定だった。異常時はworkflowを失敗させる。平常時は監視自体を成功とするが、メール通知が未設定の場合はActionsに警告を表示する。Workerのnative `EMAIL` bindingとは設定が別である。Cloudflare全体の障害ではQueue/KV観測とCloudflare Emailも使えない可能性がある。GitHubの失敗run・ログは別経路で確認できるが、独立したメール基盤による通知はまだない。
 
 常時監視に必要なREST権限は対象accountのQueues ReadとWorkers KV Storage Read、復元ジョブにはR2読み書き権限が必要。現状は既存のCloudflare CI tokenを共用するため、必要権限だけの専用tokenへの分離は運用上の残課題。token・宛先を引数、ログ、レポート、cacheへ出さない。
 
@@ -203,6 +203,8 @@ OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
 ## 最新バックアップの週次復元検査
 
 [recovery.yml](../.github/workflows/recovery.yml)を毎週月曜13:17 JST（04:17 UTC）と手動で実行する。最新の非公開v2 JSONを自動選択し、隔離local D1へ復元、全17表の件数・全行の値・外部キー・quick_checkを照合する。本番D1の問い合わせ・export・復元はしない。
+
+2026-11-02の実行は復元証跡の公開・読戻し照合で失敗し、サニタイズ済みartifactは `proof_publish_failed` を記録した。どの操作で失敗したかは記録から特定できない。11月6日の後続検査は成功したが、先行失敗の原因解決を証明するものではない。証跡公開まで失敗すると監視Workerがその失敗を直接読めないことがあるため、GitHubの失敗runも別途確認する。
 
 ```sh
 npm run backup:scheduled-drill -- \
