@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   buildDrillEnvironment,
   classifyDrillFailure,
   listR2Objects,
+  proofPublicationPhase,
+  publishAndVerifyProof,
   selectLatestBackup,
+  writeUnverifiedFailureArtifact,
 } from '../scripts/backup-scheduled-drill.mjs';
 import {
   buildFailureProof,
@@ -59,6 +66,95 @@ function validDrillReport() {
 }
 
 describe('scheduled recovery proof contract', () => {
+  it.each(['list', 'put', 'get', 'verify'] as const)(
+    'classifies %s failure without including upstream error contents',
+    async (phase) => {
+      const directory = await mkdtemp(join(tmpdir(), 'tossa-proof-test-'));
+      try {
+        const listObjects = vi.fn(async () => {
+          if (phase === 'list') throw new Error('private-list-error');
+          return [];
+        });
+        const runCommand = vi.fn((args: string[]) => {
+          if (args[2] === phase) throw new Error('private-command-error');
+          if (args[2] === 'get')
+            writeFileSync(join(directory, 'readback.json'), 'incorrect');
+          return '';
+        });
+        let failure: unknown;
+        try {
+          await publishAndVerifyProof({
+            proof: buildRecoveryProof(validDrillReport(), checkedAt),
+            accountId: 'a'.repeat(32),
+            apiToken: 'secret-token',
+            config: 'unused',
+            env: {},
+            path: join(directory, 'proof.json'),
+            readbackPath: join(directory, 'readback.json'),
+            listObjects,
+            runCommand,
+          });
+        } catch (error) {
+          failure = error;
+        }
+        expect(failure).toBeInstanceOf(Error);
+        expect(proofPublicationPhase(failure)).toBe(phase);
+        expect(String(failure)).not.toContain('private-');
+        expect(String(failure)).not.toContain('secret-token');
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    }
+  );
+  it('records a sanitized local preparation failure without exposing paths', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'tossa-proof-test-'));
+    try {
+      const proof = buildRecoveryProof(validDrillReport(), checkedAt);
+      let failure: unknown;
+      try {
+        await publishAndVerifyProof({
+          proof,
+          accountId: 'a'.repeat(32),
+          apiToken: 'secret-token',
+          config: 'unused',
+          env: {},
+          path: join(directory, 'missing', 'private.json'),
+          readbackPath: join(directory, 'readback.json'),
+        });
+      } catch (error) {
+        failure = error;
+      }
+      expect(failure).toBeInstanceOf(Error);
+      expect(proofPublicationPhase(failure)).toBe('prepare');
+      expect(String(failure)).not.toContain(directory);
+      expect(String(failure)).not.toContain('secret-token');
+      expect(
+        proofPublicationPhase({ proofPublicationPhase: 'raw-secret' })
+      ).toBe('artifact');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves a sanitized failure artifact even when proof publication is unverified', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'tossa-proof-test-'));
+    try {
+      const path = join(directory, 'report.json');
+      const proof = buildFailureProof(checkedAt, 'proof_publish_failed');
+      await writeUnverifiedFailureArtifact(path, proof, 'put');
+      expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({
+        ...proof,
+        proofVerified: false,
+        diagnostics: { proofPublicationPhase: 'put' },
+      });
+      expect((await stat(path)).mode & 0o777).toBe(0o600);
+      await expect(
+        writeUnverifiedFailureArtifact(path, proof, 'get')
+      ).rejects.toThrow();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   it('passes the explicit account ID to the remote drill child only', () => {
     const remoteEnv = {
       CLOUDFLARE_API_TOKEN: 'token',

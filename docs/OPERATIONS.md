@@ -206,6 +206,8 @@ OPERATIONAL_ALERT_DRY_RUN=true npm run monitor:operations
 
 2026-11-02の実行は復元証跡の公開・読戻し照合で失敗し、サニタイズ済みartifactは `proof_publish_failed` を記録した。どの操作で失敗したかは記録から特定できない。11月6日の後続検査は成功したが、先行失敗の原因解決を証明するものではない。証跡公開まで失敗すると監視Workerがその失敗を直接読めないことがあるため、GitHubの失敗runも別途確認する。
 
+以後の証跡公開失敗では、artifactの `diagnostics.proofPublicationPhase` に固定値 `validate` / `prepare` / `list` / `put` / `get` / `verify` / `artifact` を記録する。R2への障害証跡の再試行も照合できなかった場合は、ローカルartifactに `proofVerified: false` を記録する。書込みが実際に行われなかったことまでは意味しない。R2証跡の形式は変更せず、原文エラー・パス・秘密値は記録しない。
+
 ```sh
 npm run backup:scheduled-drill -- \
   --confirm-target="$CLOUDFLARE_ACCOUNT_ID/tossa-backups" \

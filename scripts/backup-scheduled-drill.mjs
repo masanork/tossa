@@ -277,7 +277,7 @@ async function privateDir(path) {
     throw new Error('Temporary directory is not private.');
 }
 
-async function publishAndVerifyProof({
+export async function publishAndVerifyProof({
   proof,
   accountId,
   apiToken,
@@ -285,64 +285,112 @@ async function publishAndVerifyProof({
   env,
   path,
   readbackPath,
+  listObjects = listR2Objects,
+  runCommand = command,
 }) {
-  const key = recoveryProofKey(proof.checkedAt);
-  validateRecoveryProof(proof, key);
-  const body = Buffer.from(`${JSON.stringify(proof)}\n`, 'utf8');
-  if (body.byteLength > MAX_PROOF_BYTES)
-    throw new Error('Recovery proof exceeds the 16 KiB limit.');
-  await writeFile(path, body, { flag: 'wx', mode: 0o600 });
-  const existing = await listR2Objects({
-    accountId,
-    apiToken,
-    prefix: PROOF_PREFIX,
+  let phase = 'validate';
+  try {
+    const key = recoveryProofKey(proof.checkedAt);
+    validateRecoveryProof(proof, key);
+    const body = Buffer.from(`${JSON.stringify(proof)}\n`, 'utf8');
+    if (body.byteLength > MAX_PROOF_BYTES)
+      throw new Error('Recovery proof exceeds the 16 KiB limit.');
+    phase = 'prepare';
+    await writeFile(path, body, { flag: 'wx', mode: 0o600 });
+    phase = 'list';
+    const existing = await listObjects({
+      accountId,
+      apiToken,
+      prefix: PROOF_PREFIX,
+    });
+    if (existing.some((object) => object?.key === key))
+      throw new Error('Recovery proof key already exists.');
+    phase = 'put';
+    runCommand(
+      [
+        'r2',
+        'object',
+        'put',
+        `${BUCKET}/${key}`,
+        '--file',
+        path,
+        '--remote',
+        '--content-type',
+        'application/json',
+        '--config',
+        config,
+      ],
+      env,
+      120_000
+    );
+    phase = 'get';
+    runCommand(
+      [
+        'r2',
+        'object',
+        'get',
+        `${BUCKET}/${key}`,
+        '--file',
+        readbackPath,
+        '--remote',
+        '--config',
+        config,
+      ],
+      env,
+      120_000
+    );
+    phase = 'verify';
+    await chmod(readbackPath, 0o600);
+    const readbackStat = await lstat(readbackPath);
+    if (
+      !readbackStat.isFile() ||
+      readbackStat.isSymbolicLink() ||
+      readbackStat.size > MAX_PROOF_BYTES
+    )
+      throw new Error('Recovery proof readback exceeded the size limit.');
+    const readback = await readFile(readbackPath);
+    if (!readback.equals(body) || sha256(readback) !== sha256(body))
+      throw new Error('Recovery proof readback hash validation failed.');
+    return { key, body };
+  } catch {
+    const error = new Error('Recovery proof publication failed.');
+    error.proofPublicationPhase = phase;
+    throw error;
+  }
+}
+
+const PROOF_PUBLICATION_PHASES = new Set([
+  'validate',
+  'prepare',
+  'list',
+  'put',
+  'get',
+  'verify',
+  'artifact',
+]);
+
+export function proofPublicationPhase(error, fallback = 'artifact') {
+  return PROOF_PUBLICATION_PHASES.has(error?.proofPublicationPhase)
+    ? error.proofPublicationPhase
+    : PROOF_PUBLICATION_PHASES.has(fallback)
+      ? fallback
+      : 'artifact';
+}
+
+export async function writeUnverifiedFailureArtifact(reportPath, proof, phase) {
+  const report = {
+    ...proof,
+    proofVerified: false,
+    diagnostics: {
+      proofPublicationPhase: proofPublicationPhase({
+        proofPublicationPhase: phase,
+      }),
+    },
+  };
+  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, {
+    flag: 'wx',
+    mode: 0o600,
   });
-  if (existing.some((object) => object?.key === key))
-    throw new Error('Recovery proof key already exists.');
-  command(
-    [
-      'r2',
-      'object',
-      'put',
-      `${BUCKET}/${key}`,
-      '--file',
-      path,
-      '--remote',
-      '--content-type',
-      'application/json',
-      '--config',
-      config,
-    ],
-    env,
-    120_000
-  );
-  command(
-    [
-      'r2',
-      'object',
-      'get',
-      `${BUCKET}/${key}`,
-      '--file',
-      readbackPath,
-      '--remote',
-      '--config',
-      config,
-    ],
-    env,
-    120_000
-  );
-  await chmod(readbackPath, 0o600);
-  const readbackStat = await lstat(readbackPath);
-  if (
-    !readbackStat.isFile() ||
-    readbackStat.isSymbolicLink() ||
-    readbackStat.size > MAX_PROOF_BYTES
-  )
-    throw new Error('Recovery proof readback exceeded the size limit.');
-  const readback = await readFile(readbackPath);
-  if (!readback.equals(body) || sha256(readback) !== sha256(body))
-    throw new Error('Recovery proof readback hash validation failed.');
-  return { key, body };
 }
 
 async function writeSafeArtifact(reportPath, proof, proofKey, diagnostics) {
@@ -506,6 +554,7 @@ async function main() {
     return;
   }
 
+  let currentPublicationPhase = 'prepare';
   try {
     await privateDir(tempRoot);
     const result = await publishAndVerifyProof({
@@ -518,6 +567,7 @@ async function main() {
       readbackPath,
     });
     proofKey = result.key;
+    currentPublicationPhase = 'artifact';
     const safeReport = await writeSafeArtifact(
       reportPath,
       proof,
@@ -533,7 +583,11 @@ async function main() {
       })
     );
     if (proof.status !== 'success') process.exitCode = 1;
-  } catch {
+  } catch (error) {
+    const publicationPhase = proofPublicationPhase(
+      error,
+      currentPublicationPhase
+    );
     const failedProof = buildFailureProof(
       new Date().toISOString(),
       'proof_publish_failed'
@@ -550,9 +604,20 @@ async function main() {
         path: fallbackPath,
         readbackPath: fallbackReadback,
       });
-      await writeSafeArtifact(reportPath, failedProof, result.key);
+      await writeSafeArtifact(reportPath, failedProof, result.key, {
+        proofPublicationPhase: publicationPhase,
+      });
     } catch {
-      // A second attempt is best effort; never expose CLI or API error contents.
+      // No claim is made about whether the object was written without readback.
+      try {
+        await writeUnverifiedFailureArtifact(
+          reportPath,
+          failedProof,
+          publicationPhase
+        );
+      } catch {
+        // Keep the failure path generic and never overwrite an existing report.
+      }
     }
     console.error(
       '[backup:scheduled-drill] Sanitized recovery proof could not be published and verified.'
